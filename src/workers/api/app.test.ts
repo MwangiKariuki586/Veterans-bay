@@ -1,0 +1,312 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { SystemRepository } from "../../modules/system/repository";
+import { app, createApiApp } from "./app";
+import type { ApiBindings, ApiRateLimiter } from "./types";
+
+function rateLimiter(success = true): ApiRateLimiter {
+  return {
+    limit: vi.fn().mockResolvedValue({ success }),
+  };
+}
+
+function bindings(overrides: Partial<ApiBindings> = {}): ApiBindings {
+  return {
+    API_RATE_LIMITER: rateLimiter(),
+    APP_ENV: "test",
+    BETTER_AUTH_SECRET: "test-better-auth-secret-with-32-chars!",
+    BETTER_AUTH_URL: "http://localhost:3000",
+    DATABASE_URL: "postgresql://neondb_owner:password@example.neon.tech/neondb?sslmode=require",
+    WEB_ORIGIN: "http://localhost:3000",
+    ...overrides,
+  };
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("Veterans Bay API foundation", () => {
+  it("returns safe liveness and readiness responses", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+    const api = createApiApp({
+      systemRepository: {
+        checkDependencies: async () => ({ available: true }),
+      },
+    });
+
+    const [healthResponse, readinessResponse] = await Promise.all([
+      api.request("/api/health", {}, environment),
+      api.request("/api/ready", {}, environment),
+    ]);
+    const healthBody = await healthResponse.json<{
+      data: { status: string; service: string };
+      requestId: string;
+    }>();
+    const readinessBody = await readinessResponse.json<{
+      data: { status: string; service: string };
+      requestId: string;
+    }>();
+
+    expect(healthResponse.status).toBe(200);
+    expect(healthBody.data).toEqual({
+      service: "veterans-bay-api",
+      status: "ok",
+    });
+    expect(healthBody.requestId).toBe(
+      healthResponse.headers.get("x-request-id"),
+    );
+    expect(readinessResponse.status).toBe(200);
+    expect(readinessBody.data.status).toBe("ready");
+  });
+
+  it("preserves a valid caller request ID", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request(
+      "/api/health",
+      { headers: { "x-request-id": "request-123" } },
+      bindings(),
+    );
+
+    expect(response.headers.get("x-request-id")).toBe("request-123");
+  });
+
+  it("replaces an invalid caller request ID", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request(
+      "/api/health",
+      { headers: { "x-request-id": "invalid request id" } },
+      bindings(),
+    );
+
+    expect(response.headers.get("x-request-id")).not.toBe(
+      "invalid request id",
+    );
+  });
+
+  it("fails safely when required bindings are missing", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request(
+      "/api/health",
+      {},
+      {} as ApiBindings,
+    );
+    const body = await response.json<{
+      error: { code: string; message: string };
+      requestId: string;
+    }>();
+
+    expect(response.status).toBe(503);
+    expect(body.error).toEqual({
+      code: "CONFIGURATION_ERROR",
+      message: "Service configuration is unavailable.",
+    });
+    expect(body).not.toHaveProperty("issues");
+  });
+
+  it("rejects an untrusted origin without reflecting it", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request(
+      "/api/health",
+      { headers: { origin: "https://untrusted.example" } },
+      bindings(),
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("allows the configured origin and handles preflight", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+
+    const response = await app.request(
+      "/api/health",
+      { headers: { origin: environment.WEB_ORIGIN } },
+      environment,
+    );
+    const preflight = await app.request(
+      "/api/v1/system/probe",
+      {
+        headers: { origin: environment.WEB_ORIGIN },
+        method: "OPTIONS",
+      },
+      environment,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      environment.WEB_ORIGIN,
+    );
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("access-control-allow-methods")).toContain(
+      "POST",
+    );
+  });
+
+  it("returns bounded validation issues for invalid query and JSON input", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+
+    const queryResponse = await app.request(
+      "/api/ready?format=verbose",
+      {},
+      environment,
+    );
+    const jsonResponse = await app.request(
+      "/api/v1/system/probe",
+      {
+        body: "not-json",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      },
+      environment,
+    );
+    const queryBody = await queryResponse.json<{
+      error: { code: string; issues: Array<{ path: string }> };
+    }>();
+    const jsonBody = await jsonResponse.json<{
+      error: { code: string; issues: Array<{ code: string }> };
+    }>();
+
+    expect(queryResponse.status).toBe(422);
+    expect(queryBody.error.code).toBe("VALIDATION_ERROR");
+    expect(queryBody.error.issues).toEqual([
+      { code: "invalid_value", path: "format" },
+    ]);
+    expect(jsonResponse.status).toBe(422);
+    expect(jsonBody.error.issues).toEqual([
+      { code: "invalid_json", path: "request" },
+    ]);
+  });
+
+  it("keeps routes thin while returning a mapped probe contract", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request(
+      "/api/v1/system/probe",
+      {
+        body: JSON.stringify({ value: "worker-ready" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      },
+      bindings(),
+    );
+    const body = await response.json<{ data: { value: string } }>();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual({ value: "worker-ready" });
+  });
+
+  it("rejects oversized request bodies before route handling", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request(
+      "/api/v1/system/probe",
+      {
+        body: JSON.stringify({ value: "x".repeat(70_000) }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      },
+      bindings(),
+    );
+    const body = await response.json<{ error: { code: string } }>();
+
+    expect(response.status).toBe(413);
+    expect(body.error.code).toBe("REQUEST_TOO_LARGE");
+  });
+
+  it("uses the configured rate-limit binding and maps rejection safely", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const limiter = rateLimiter(false);
+
+    const response = await app.request(
+      "/api/health",
+      {},
+      bindings({ API_RATE_LIMITER: limiter }),
+    );
+    const body = await response.json<{ error: { code: string } }>();
+
+    expect(response.status).toBe(429);
+    expect(body.error.code).toBe("RATE_LIMITED");
+    expect(limiter.limit).toHaveBeenCalledWith({ key: "/api/health" });
+  });
+
+  it("applies the public submission limiter key for auth posts", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const apiLimiter = rateLimiter(true);
+    const publicLimiter = rateLimiter(true);
+
+    const response = await app.request(
+      "/api/v1/public/contact",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "cf-connecting-ip": "203.0.113.10",
+        },
+        body: JSON.stringify({ message: "hello" }),
+      },
+      bindings({
+        API_RATE_LIMITER: apiLimiter,
+        PUBLIC_SUBMISSION_RATE_LIMITER: publicLimiter,
+      }),
+    );
+
+    expect(publicLimiter.limit).toHaveBeenCalledWith({
+      key: "public:203.0.113.10:/api/v1/public/contact",
+    });
+    expect(apiLimiter.limit).not.toHaveBeenCalled();
+    // Route may 404; rate-limit key behaviour is the foundation under test.
+    expect([404, 405, 501]).toContain(response.status);
+  });
+
+  it("maps dependency failure and unexpected errors without leaking internals", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const unavailableRepository: SystemRepository = {
+      checkDependencies: vi.fn().mockResolvedValue({ available: false }),
+    };
+    const throwingRepository: SystemRepository = {
+      checkDependencies: vi
+        .fn()
+        .mockRejectedValue(new Error("private provider detail")),
+    };
+
+    const unavailableResponse = await createApiApp({
+      systemRepository: unavailableRepository,
+    }).request("/api/ready", {}, bindings());
+    const unexpectedResponse = await createApiApp({
+      systemRepository: throwingRepository,
+    }).request("/api/ready", {}, bindings());
+    const unavailableBody = await unavailableResponse.json<{
+      error: { code: string };
+    }>();
+    const unexpectedBody = await unexpectedResponse.json<{
+      error: { code: string; message: string };
+    }>();
+
+    expect(unavailableResponse.status).toBe(503);
+    expect(unavailableBody.error.code).toBe("DEPENDENCY_UNAVAILABLE");
+    expect(unexpectedResponse.status).toBe(500);
+    expect(unexpectedBody.error).toEqual({
+      code: "INTERNAL_ERROR",
+      message: "An unexpected error occurred.",
+    });
+    expect(JSON.stringify(unexpectedBody)).not.toContain("provider");
+  });
+
+  it("returns a stable not-found contract", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request("/missing", {}, bindings());
+    const body = await response.json<{ error: { code: string } }>();
+
+    expect(response.status).toBe(404);
+    expect(body.error.code).toBe("NOT_FOUND");
+  });
+});

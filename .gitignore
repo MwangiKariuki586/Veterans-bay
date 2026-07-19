@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Next.js and OpenNext output
+.next/
+.open-next/
+out/
+
+# Cloudflare local state and build output
+.wrangler/
+.dev.vars*
+
+# Test output
+coverage/
+playwright-report/
+test-results/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Logs and local tooling
+*.log
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+
+# Editor settings
+.idea/
+.vscode/
