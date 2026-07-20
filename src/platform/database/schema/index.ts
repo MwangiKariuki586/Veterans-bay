@@ -10,6 +10,11 @@ export { fileAssets } from "./file-assets";
 export { organisations } from "./organisations";
 export { outboxEvents } from "./outbox-events";
 export {
+  professionalOnboardingHistory,
+  professionalProfiles,
+  professionalVerificationDocuments,
+} from "./professional-onboarding";
+export {
   organisationMemberships,
   permissions,
   platformRoleAssignments,
@@ -31,9 +36,11 @@ export {
   organisationMembershipsRelations,
   organisationsRelations,
   outboxEventsRelations,
+  professionalOnboardingHistoryRelations,
+  professionalProfilesRelations,
+  professionalVerificationDocumentsRelations,
   permissionsRelations,
   platformRoleAssignmentsRelations,
   rolePermissionsRelations,
   rolesRelations,
 } from "./relations";
-

@@ -26,7 +26,7 @@ export const organisations = pgTable(
   (table) => [
     check(
       "organisations_status_check",
-      sql`${table.status} in ('draft', 'pending_review', 'active', 'suspended', 'closed')`,
+      sql`${table.status} in ('draft', 'pending_review', 'active', 'requires_changes', 'suspended', 'deactivated')`,
     ),
     index("organisations_status_idx").on(table.status),
   ],

@@ -26,7 +26,9 @@ export class StorageService {
     private readonly provider: StorageProvider,
     private readonly workspaceStore?: Pick<
       WorkspaceRepository,
-      "listActivePlatformAssignments" | "listPermissionKeysForRoleIds"
+      | "findActiveMembership"
+      | "listActivePlatformAssignments"
+      | "listPermissionKeysForRoleIds"
     >,
   ) {}
 
@@ -67,16 +69,26 @@ export class StorageService {
       });
     }
 
-    if (
-      organisationId &&
-      input.workspaceOrganisationId &&
-      organisationId !== input.workspaceOrganisationId
-    ) {
+    if (organisationId && organisationId !== input.workspaceOrganisationId) {
       throw new AppError({
         code: "WORKSPACE_UNAVAILABLE",
         message: "The requested organisation is outside the active workspace.",
         status: 403,
       });
+    }
+
+    if (organisationId) {
+      const membership = await this.workspaceStore?.findActiveMembership(
+        profile.id,
+        organisationId,
+      );
+      if (!membership) {
+        throw new AppError({
+          code: "WORKSPACE_UNAVAILABLE",
+          message: "The requested organisation is outside the active workspace.",
+          status: 403,
+        });
+      }
     }
 
     const assetId = crypto.randomUUID();

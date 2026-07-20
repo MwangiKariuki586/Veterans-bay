@@ -146,6 +146,7 @@ describe("StorageService", () => {
       destroyResource: vi.fn(),
     } as unknown as StorageProvider;
     const workspaceStore = {
+      findActiveMembership: vi.fn(),
       listActivePlatformAssignments: vi.fn().mockResolvedValue([]),
       listPermissionKeysForRoleIds: vi.fn(),
     };

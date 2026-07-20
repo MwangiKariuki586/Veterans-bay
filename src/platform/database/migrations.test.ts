@@ -13,11 +13,17 @@ import { requireTestDatabaseUrl } from "./testing/helpers";
 config();
 
 const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
-const migrationSqlPath = path.join(
-  repositoryRoot,
-  "drizzle",
-  "0000_deep_vector.sql",
-);
+const migrationDirectory = path.join(repositoryRoot, "drizzle");
+const migrationJournalPath = path.join(migrationDirectory, "meta", "_journal.json");
+
+async function migrationSqlPaths() {
+  const journal = JSON.parse(await readFile(migrationJournalPath, "utf8")) as {
+    entries: Array<{ tag: string }>;
+  };
+  return journal.entries.map((entry) =>
+    path.join(migrationDirectory, `${entry.tag}.sql`),
+  );
+}
 
 async function applySqlFile(connectionString: string, sqlFilePath: string) {
   configureNodeDatabaseRuntime();
@@ -55,7 +61,10 @@ describe("database migrations", () => {
     try {
       await adminPool.query(`create database "${databaseName}"`);
 
-      await applySqlFile(migrationUrl, migrationSqlPath);
+      const migrationPaths = await migrationSqlPaths();
+      for (const migrationPath of migrationPaths) {
+        await applySqlFile(migrationUrl, migrationPath);
+      }
 
       const verifyPool = new Pool({ connectionString: migrationUrl });
       try {
@@ -70,6 +79,9 @@ describe("database migrations", () => {
           expect.arrayContaining([
             "account_profiles",
             "outbox_events",
+            "professional_profiles",
+            "professional_onboarding_history",
+            "professional_verification_documents",
             "roles",
             "permissions",
           ]),
@@ -83,7 +95,7 @@ describe("database migrations", () => {
         // Upgrade path from the current repository state: re-running schema
         // creation is rejected, proving applied migrations are not rewritten
         // and a second clean apply is detectable.
-        await expect(applySqlFile(migrationUrl, migrationSqlPath)).rejects.toThrow(
+        await expect(applySqlFile(migrationUrl, migrationPaths[0]!)).rejects.toThrow(
           /already exists/i,
         );
       } finally {
@@ -96,7 +108,8 @@ describe("database migrations", () => {
   });
 
   it("keeps the committed migration SQL readable for review", async () => {
-    const sql = await readFile(migrationSqlPath, "utf8");
+    const [migrationSqlPath] = await migrationSqlPaths();
+    const sql = await readFile(migrationSqlPath!, "utf8");
     const scratch = await mkdtemp(path.join(tmpdir(), "vb-migration-"));
 
     try {

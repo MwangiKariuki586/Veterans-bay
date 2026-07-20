@@ -54,6 +54,7 @@ const professionalNav: ReadonlyArray<WorkspaceNavGroup> = [
     items: [
       { href: "/professional/team", label: "Team", icon: Users },
       { href: "/professional/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/professional/settings/profile", label: "Business Profile", icon: Settings },
       { href: "/account/profile", label: "Settings", icon: Settings },
     ],
   },

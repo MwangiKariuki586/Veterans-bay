@@ -16,19 +16,19 @@ The source document uses the working title ServiceLink. The implementation name 
 
 ## Active Feature
 
-None selected yet — Phase 00 is complete. Next phase is marketplace foundation.
+Feature 01.01 — Professional Organisation Onboarding
 
 ## Status
 
-`NOT STARTED`
+`VERIFICATION PENDING`
 
 ## Current Step
 
-Phase 00 platform foundation is complete. Ready to begin Phase 01.
+Client and professional-owner signup journeys are implemented and pass automated verification. Responsive and accessibility browser review remains.
 
 ## Next Step
 
-Read `context/phases/01-marketplace-foundation.md`, select the first ordered eligible feature, and implement it.
+Review `/register`, `/professional/onboarding`, and `/professional/onboarding/review` at desktop and mobile widths, then complete Feature 01.01 if aligned.
 
 ## Completed Phases
 
@@ -40,7 +40,8 @@ None yet.
 
 ## Dependencies
 
-- Phase 00 complete
+- Phase 00 identity, workspace, database, and private-storage foundations verified
+- Dedicated `Veterans bay` Neon database configured and migrated through `0003_deep_silver_surfer`
 
 ## Design Reference
 
@@ -52,7 +53,7 @@ public/design-reference/homepage.png
 
 ## Blockers
 
-None.
+- Browser control was unavailable for the required responsive and accessibility review.
 
 ## Review Gate
 
@@ -60,7 +61,7 @@ None currently identified.
 
 ## Verification State
 
-Feature 00.10 complete. Full typecheck, lint, tests, and build:all passed for Phase 00 guardrails.
+Feature 01.01 typecheck, full lint, 74 tests, clean/upgrade migrations, and build:all pass. Development database migration and foundational connection/constraint/rollback checks pass. Live browser-facing registration persists both Better Auth and application-profile records in the dedicated database. Signup tests cover client creation, professional organisation-owner creation, and exclusion of administrator signup.
 
 ## Update Rule
 

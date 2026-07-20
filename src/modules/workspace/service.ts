@@ -77,7 +77,7 @@ export class WorkspaceService {
     for (const membership of memberships) {
       if (
         membership.organisationStatus === "suspended" ||
-        membership.organisationStatus === "closed"
+        membership.organisationStatus === "deactivated"
       ) {
         continue;
       }

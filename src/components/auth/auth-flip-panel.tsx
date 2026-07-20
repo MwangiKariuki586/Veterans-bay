@@ -1,9 +1,17 @@
 "use client";
 
-import { ArrowRight, Lock, Mail, ShieldCheck, User } from "lucide-react";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  House,
+  Lock,
+  Mail,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { toast } from "sonner";
 
 import { AuthCard, AuthUnderlineField } from "@/components/auth/auth-card";
@@ -14,6 +22,7 @@ import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 export type AuthMode = "signin" | "signup";
+export type SelfServiceAccountType = "client" | "professional";
 
 function mapSignInError(error: { code?: string; message?: string } | undefined) {
   if (!error) {
@@ -158,6 +167,8 @@ function SignUpFace({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [accountType, setAccountType] =
+    useState<SelfServiceAccountType>("client");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -167,8 +178,23 @@ function SignUpFace({
     const name = String(form.get("name") ?? "").trim();
     const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
+    const selectedAccountType = String(form.get("accountType") ?? "");
+    const businessName = String(form.get("businessName") ?? "").trim();
     const acceptTerms = form.get("acceptTerms") === "on";
     const acceptPrivacy = form.get("acceptPrivacy") === "on";
+
+    if (
+      selectedAccountType !== "client" &&
+      selectedAccountType !== "professional"
+    ) {
+      setError("Choose how you want to use Veterans Bay.");
+      return;
+    }
+
+    if (selectedAccountType === "professional" && businessName.length < 2) {
+      setError("Enter your business or professional name to continue.");
+      return;
+    }
 
     if (!acceptTerms || !acceptPrivacy) {
       setError("You must accept the terms and privacy policy to continue.");
@@ -189,17 +215,102 @@ function SignUpFace({
       return;
     }
 
-    toast.success("Account created.");
-    router.push("/account/profile");
+    if (selectedAccountType === "professional") {
+      try {
+        const onboardingResponse = await fetch(
+          "/api/v1/professional/onboarding",
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: businessName }),
+          },
+        );
+        const onboardingBody = (await onboardingResponse.json()) as {
+          data?: { organisationId: string };
+        };
+
+        if (onboardingResponse.ok && onboardingBody.data) {
+          await fetch("/api/v1/workspaces/select", {
+            method: "POST",
+            credentials: "include",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              workspaceId: `organisation:${onboardingBody.data.organisationId}`,
+            }),
+          });
+        }
+      } catch {
+        // The account is authoritative. The resumable onboarding page retries setup.
+      }
+
+      toast.success("Professional account created. Complete your profile next.");
+      router.push("/professional/onboarding");
+    } else {
+      toast.success("Client account created.");
+      router.push("/client");
+    }
     router.refresh();
   }
 
   return (
     <AuthCard
       title="Create your account"
-      subtitle="Join the community of trusted professionals"
+      subtitle="Choose whether you want to hire services or offer them"
     >
       <form className="space-y-6" onSubmit={onSubmit} noValidate>
+        <fieldset>
+          <legend className="text-sm font-semibold text-foreground">
+            How will you use Veterans Bay?
+          </legend>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {([
+              {
+                value: "client" as const,
+                label: "Hire services",
+                description: "Create a client account",
+                Icon: House,
+              },
+              {
+                value: "professional" as const,
+                label: "Offer services",
+                description: "Create a professional account",
+                Icon: BriefcaseBusiness,
+              },
+            ]).map(({ value, label, description, Icon }) => (
+              <label
+                key={value}
+                className={cn(
+                  "cursor-pointer rounded-2xl border p-3 transition-colors",
+                  accountType === value
+                    ? "border-[#9ec622] bg-[#f5fadf]"
+                    : "border-black/10 bg-white hover:bg-[#f7f9fa]",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="accountType"
+                  value={value}
+                  checked={accountType === value}
+                  onChange={() => setAccountType(value)}
+                  className="sr-only"
+                />
+                <Icon
+                  className="size-5 text-[#5f8d11]"
+                  aria-hidden="true"
+                />
+                <span className="mt-2 block text-sm font-bold">{label}</span>
+                <span className="mt-1 block text-[0.68rem] leading-4 text-[#68717b]">
+                  {description}
+                </span>
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs leading-5 text-[#68717b]">
+            Team members join through an organisation invitation. Administrator
+            access is assigned separately and cannot be created here.
+          </p>
+        </fieldset>
         <AuthUnderlineField
           id="signup-name"
           name="name"
@@ -208,6 +319,16 @@ function SignUpFace({
           required
           icon={<User className="size-4" />}
         />
+        {accountType === "professional" ? (
+          <AuthUnderlineField
+            id="signup-business-name"
+            name="businessName"
+            placeholder="Business or professional name"
+            autoComplete="organization"
+            required
+            icon={<BriefcaseBusiness className="size-4" />}
+          />
+        ) : null}
         <AuthUnderlineField
           id="signup-email"
           name="email"
@@ -318,25 +439,13 @@ function SignUpFace({
 export function AuthFlipPanel() {
   const router = useRouter();
   const pathname = usePathname();
-  const [mode, setMode] = useState<AuthMode>(
-    pathname === "/register" ? "signup" : "signin",
-  );
-
-  useEffect(() => {
-    if (pathname === "/register") {
-      setMode("signup");
-    } else if (pathname === "/login") {
-      setMode("signin");
-    }
-  }, [pathname]);
 
   function flipTo(next: AuthMode) {
-    setMode(next);
     // Keep the panel mounted via shared (auth) layout; only sync the URL.
     router.replace(next === "signup" ? "/register" : "/login", { scroll: false });
   }
 
-  const showSignup = mode === "signup";
+  const showSignup = pathname === "/register";
 
   return (
     <PublicShell>

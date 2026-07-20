@@ -7,6 +7,11 @@ import { fileAssets } from "./file-assets";
 import { organisations } from "./organisations";
 import { outboxEvents } from "./outbox-events";
 import {
+  professionalOnboardingHistory,
+  professionalProfiles,
+  professionalVerificationDocuments,
+} from "./professional-onboarding";
+import {
   organisationMemberships,
   permissions,
   platformRoleAssignments,
@@ -41,7 +46,52 @@ export const organisationsRelations = relations(organisations, ({ many }) => ({
   files: many(fileAssets),
   auditEvents: many(auditEvents),
   outboxEvents: many(outboxEvents),
+  professionalProfiles: many(professionalProfiles),
+  onboardingHistory: many(professionalOnboardingHistory),
 }));
+
+export const professionalProfilesRelations = relations(
+  professionalProfiles,
+  ({ one, many }) => ({
+    organisation: one(organisations, {
+      fields: [professionalProfiles.organisationId],
+      references: [organisations.id],
+    }),
+    logo: one(fileAssets, {
+      fields: [professionalProfiles.logoAssetId],
+      references: [fileAssets.id],
+    }),
+    verificationDocuments: many(professionalVerificationDocuments),
+  }),
+);
+
+export const professionalVerificationDocumentsRelations = relations(
+  professionalVerificationDocuments,
+  ({ one }) => ({
+    profile: one(professionalProfiles, {
+      fields: [professionalVerificationDocuments.professionalProfileId],
+      references: [professionalProfiles.id],
+    }),
+    asset: one(fileAssets, {
+      fields: [professionalVerificationDocuments.assetId],
+      references: [fileAssets.id],
+    }),
+  }),
+);
+
+export const professionalOnboardingHistoryRelations = relations(
+  professionalOnboardingHistory,
+  ({ one }) => ({
+    organisation: one(organisations, {
+      fields: [professionalOnboardingHistory.organisationId],
+      references: [organisations.id],
+    }),
+    actor: one(accountProfiles, {
+      fields: [professionalOnboardingHistory.actorAccountId],
+      references: [accountProfiles.id],
+    }),
+  }),
+);
 
 export const rolesRelations = relations(roles, ({ many }) => ({
   rolePermissions: many(rolePermissions),
