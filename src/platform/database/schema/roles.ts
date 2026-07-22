@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   pgTable,
@@ -7,6 +8,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -87,6 +89,8 @@ export const organisationMemberships = pgTable(
       .notNull()
       .references(() => roles.id, { onDelete: "restrict" }),
     status: text("status").notNull().default("active"),
+    assignedJobsOnly: boolean("assigned_jobs_only").notNull().default(false),
+    financialDataAccess: boolean("financial_data_access").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -108,6 +112,131 @@ export const organisationMemberships = pgTable(
     index("organisation_memberships_org_status_idx").on(
       table.organisationId,
       table.status,
+    ),
+  ],
+);
+
+export const organisationInvitations = pgTable(
+  "organisation_invitations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    roleId: uuid("role_id")
+      .notNull()
+      .references(() => roles.id, { onDelete: "restrict" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    status: text("status").notNull().default("pending"),
+    assignedJobsOnly: boolean("assigned_jobs_only").notNull().default(false),
+    financialDataAccess: boolean("financial_data_access").notNull().default(false),
+    invitedByAccountId: uuid("invited_by_account_id")
+      .notNull()
+      .references(() => accountProfiles.id, { onDelete: "restrict" }),
+    acceptedByAccountId: uuid("accepted_by_account_id").references(
+      () => accountProfiles.id,
+      { onDelete: "restrict" },
+    ),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    check(
+      "organisation_invitations_status_check",
+      sql`${table.status} in ('pending', 'accepted', 'revoked')`,
+    ),
+    uniqueIndex("organisation_invitations_pending_email_unique")
+      .on(table.organisationId, table.email)
+      .where(sql`${table.status} = 'pending'`),
+    index("organisation_invitations_org_status_idx").on(
+      table.organisationId,
+      table.status,
+      table.expiresAt,
+    ),
+  ],
+);
+
+export const organisationMembershipHistory = pgTable(
+  "organisation_membership_history",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    membershipId: uuid("membership_id")
+      .notNull()
+      .references(() => organisationMemberships.id, { onDelete: "restrict" }),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status").notNull(),
+    actorAccountId: uuid("actor_account_id").references(
+      () => accountProfiles.id,
+      { onDelete: "set null" },
+    ),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check(
+      "organisation_membership_history_from_status_check",
+      sql`${table.fromStatus} is null or ${table.fromStatus} in ('active', 'suspended', 'removed')`,
+    ),
+    check(
+      "organisation_membership_history_to_status_check",
+      sql`${table.toStatus} in ('active', 'suspended', 'removed')`,
+    ),
+    index("organisation_membership_history_member_idx").on(
+      table.membershipId,
+      table.createdAt,
+    ),
+    index("organisation_membership_history_org_idx").on(
+      table.organisationId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const organisationMembershipRoleHistory = pgTable(
+  "organisation_membership_role_history",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    membershipId: uuid("membership_id")
+      .notNull()
+      .references(() => organisationMemberships.id, { onDelete: "restrict" }),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    fromRoleId: uuid("from_role_id").references(() => roles.id, {
+      onDelete: "restrict",
+    }),
+    toRoleId: uuid("to_role_id")
+      .notNull()
+      .references(() => roles.id, { onDelete: "restrict" }),
+    actorAccountId: uuid("actor_account_id").references(
+      () => accountProfiles.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("organisation_membership_role_history_member_idx").on(
+      table.membershipId,
+      table.createdAt,
+    ),
+    index("organisation_membership_role_history_org_idx").on(
+      table.organisationId,
+      table.createdAt,
     ),
   ],
 );

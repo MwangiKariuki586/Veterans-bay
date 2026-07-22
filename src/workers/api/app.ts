@@ -10,6 +10,7 @@ import { logError } from "../../platform/logging/logger";
 import { createIdentityRoutes } from "../../modules/identity/routes";
 import { createOutboxRoutes } from "../../modules/outbox/routes";
 import { createProfessionalOnboardingRoutes } from "../../modules/professional-onboarding/routes";
+import { createProfessionalTeamRoutes } from "../../modules/professional-team/routes";
 import { createStorageRoutes } from "../../modules/storage/routes";
 import type { SystemRepository } from "../../modules/system/repository";
 import { createSystemRoutes } from "../../modules/system/routes";
@@ -77,6 +78,7 @@ export function createApiApp(dependencies: ApiAppDependencies = {}) {
   api.route("/api", createStorageRoutes());
   api.route("/api", createOutboxRoutes());
   api.route("/api", createProfessionalOnboardingRoutes());
+  api.route("/api", createProfessionalTeamRoutes());
 
   api.notFound((context) =>
     context.json<ApiErrorBody>(

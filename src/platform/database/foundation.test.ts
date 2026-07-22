@@ -151,8 +151,10 @@ describe("database foundation", () => {
       expect(seededRoles).toEqual(
         expect.arrayContaining([
           { key: "owner", scope: "organisation" },
-          { key: "admin", scope: "organisation" },
-          { key: "member", scope: "organisation" },
+          { key: "manager", scope: "organisation" },
+          { key: "dispatcher", scope: "organisation" },
+          { key: "receptionist", scope: "organisation" },
+          { key: "accountant", scope: "organisation" },
           { key: "technician", scope: "organisation" },
           { key: "platform_admin", scope: "platform" },
         ]),

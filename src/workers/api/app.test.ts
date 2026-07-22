@@ -309,4 +309,24 @@ describe("Veterans Bay API foundation", () => {
     expect(response.status).toBe(404);
     expect(body.error.code).toBe("NOT_FOUND");
   });
+
+  it("mounts team contracts behind live session and workspace authorization", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+    const requests = [
+      app.request("/api/v1/professional/team", {}, environment),
+      app.request(
+        "/api/v1/professional/team/invitations",
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "member@example.com", role: "technician" }) },
+        environment,
+      ),
+      app.request(
+        "/api/v1/professional/team/invitations/accept",
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: "a".repeat(64) }) },
+        environment,
+      ),
+    ];
+    const responses = await Promise.all(requests);
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 401]);
+  });
 });

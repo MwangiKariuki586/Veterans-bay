@@ -82,6 +82,9 @@ describe("database migrations", () => {
             "professional_profiles",
             "professional_onboarding_history",
             "professional_verification_documents",
+            "organisation_invitations",
+            "organisation_membership_history",
+            "organisation_membership_role_history",
             "roles",
             "permissions",
           ]),
@@ -90,7 +93,75 @@ describe("database migrations", () => {
         const roleCount = await verifyPool.query<{ count: string }>(
           `select count(*)::text as count from roles`,
         );
-        expect(Number(roleCount.rows[0]?.count)).toBe(5);
+        expect(Number(roleCount.rows[0]?.count)).toBe(7);
+
+        const organisationRoleKeys = await verifyPool.query<{ key: string }>(
+          `select key from roles where scope = 'organisation' order by key`,
+        );
+        expect(organisationRoleKeys.rows.map((row) => row.key)).toEqual([
+          "accountant",
+          "dispatcher",
+          "manager",
+          "owner",
+          "receptionist",
+          "technician",
+        ]);
+
+        const financialReportRoles = await verifyPool.query<{ key: string }>(
+          `select r.key
+           from roles r
+           join role_permissions rp on rp.role_id = r.id
+           join permissions p on p.id = rp.permission_id
+           where r.scope = 'organisation' and p.key = 'reports.financial.view'
+           order by r.key`,
+        );
+        expect(financialReportRoles.rows.map((row) => row.key)).toEqual([
+          "accountant",
+          "owner",
+        ]);
+
+        const permissionMatrix = await verifyPool.query<{
+          role_key: string;
+          permission_key: string;
+        }>(
+          `select r.key as role_key, p.key as permission_key
+           from roles r
+           join role_permissions rp on rp.role_id = r.id
+           join permissions p on p.id = rp.permission_id
+           where r.scope = 'organisation'
+           order by r.key, p.key`,
+        );
+        const permissionsFor = (roleKey: string) =>
+          permissionMatrix.rows
+            .filter((row) => row.role_key === roleKey)
+            .map((row) => row.permission_key);
+        expect(permissionsFor("owner")).toHaveLength(20);
+        expect(permissionsFor("manager")).toEqual(
+          expect.arrayContaining([
+            "organisation.members.manage",
+            "assignments.manage",
+            "jobs.manage",
+          ]),
+        );
+        expect(permissionsFor("manager")).not.toContain("reports.financial.view");
+        expect(permissionsFor("dispatcher")).toEqual(
+          expect.arrayContaining(["bookings.manage", "assignments.manage"]),
+        );
+        expect(permissionsFor("technician")).toEqual([
+          "customers.view",
+          "jobs.manage",
+          "jobs.view",
+          "organisation.view",
+        ]);
+        expect(permissionsFor("receptionist")).toEqual(
+          expect.arrayContaining(["enquiries.manage", "customers.manage"]),
+        );
+        expect(permissionsFor("accountant")).toEqual(
+          expect.arrayContaining([
+            "payments.manage",
+            "reports.financial.view",
+          ]),
+        );
 
         // Upgrade path from the current repository state: re-running schema
         // creation is rejected, proving applied migrations are not rewritten

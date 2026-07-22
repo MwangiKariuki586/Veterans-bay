@@ -89,6 +89,7 @@ export function AuthUnderlineField({
 }) {
   return (
     <label className="flex items-center gap-3 border-b border-black/12 pb-3">
+      <span className="sr-only">{placeholder}</span>
       <span className="text-[#68717b]" aria-hidden="true">
         {icon}
       </span>

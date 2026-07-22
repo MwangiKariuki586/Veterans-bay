@@ -46,12 +46,17 @@ export class StorageRepository {
     return asset ?? null;
   }
 
-  async markReady(assetId: string, sizeBytes: number): Promise<FileAssetRecord> {
+  async markReady(
+    assetId: string,
+    sizeBytes: number,
+    cloudinaryPublicId?: string,
+  ): Promise<FileAssetRecord> {
     const [asset] = await this.db
       .update(fileAssets)
       .set({
         status: "ready",
         sizeBytes,
+        ...(cloudinaryPublicId ? { cloudinaryPublicId } : {}),
         updatedAt: new Date(),
       })
       .where(eq(fileAssets.id, assetId))

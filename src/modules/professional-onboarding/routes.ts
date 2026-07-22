@@ -1,15 +1,18 @@
 import { Hono } from "hono";
 
 import { createDatabaseClient } from "../../platform/database/client";
+import { AppError } from "../../platform/errors/app-error";
 import type { ApiSuccessBody } from "../../platform/http/contracts";
 import { parseJsonBody } from "../../platform/http/validation";
 import { requireSessionMiddleware } from "../../workers/api/middleware/authorization";
 import type { ApiAppEnvironment } from "../../workers/api/types";
 import { IdentityRepository } from "../identity/repository";
+import { WorkspaceRepository } from "../workspace/repository";
 import { ProfessionalOnboardingRepository } from "./repository";
 import {
   attachOnboardingAssetBodySchema,
   createOnboardingBodySchema,
+  onboardingReviewDecisionBodySchema,
   updateOnboardingBodySchema,
 } from "./schemas";
 import { ProfessionalOnboardingService } from "./service";
@@ -22,6 +25,7 @@ function createService(databaseUrl: string) {
     service: new ProfessionalOnboardingService(
       new ProfessionalOnboardingRepository(client.db),
       new IdentityRepository(client.db),
+      new WorkspaceRepository(client.db),
     ),
   };
 }
@@ -120,6 +124,45 @@ export function createProfessionalOnboardingRoutes() {
           ...input,
         });
         return context.json<ApiSuccessBody<OnboardingSummary>>({
+          data,
+          requestId: context.get("requestId"),
+        });
+      } finally {
+        await client.close();
+      }
+    },
+  );
+
+  routes.post(
+    "/v1/admin/professionals/:organisationId/decision",
+    requireSessionMiddleware,
+    async (context) => {
+      const account = context.get("account");
+      if (!account) throw new Error("Authenticated account is required.");
+      const organisationId = context.req.param("organisationId");
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(organisationId)) {
+        throw new AppError({
+          code: "VALIDATION_ERROR",
+          message: "The organisation identifier is invalid.",
+          status: 422,
+        });
+      }
+      const input = await parseJsonBody(
+        onboardingReviewDecisionBodySchema,
+        context.req.raw,
+      );
+      const { client, service } = createService(
+        context.get("environment").DATABASE_URL,
+      );
+      try {
+        const data = await service.recordReviewDecision({
+          authUserId: account.authUserId,
+          organisationId,
+          decision: input.decision,
+          reason: input.reason,
+          correlationId: context.get("requestId"),
+        });
+        return context.json<ApiSuccessBody<typeof data>>({
           data,
           requestId: context.get("requestId"),
         });

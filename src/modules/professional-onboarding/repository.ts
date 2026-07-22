@@ -10,10 +10,13 @@ import {
   type WorkingHours,
 } from "../../platform/database/schema/professional-onboarding";
 import {
+  organisationMembershipHistory,
+  organisationMembershipRoleHistory,
   organisationMemberships,
   roles,
 } from "../../platform/database/schema/roles";
 import { outboxEvents } from "../../platform/database/schema/outbox-events";
+import { auditEvents } from "../../platform/database/schema/audit-events";
 import { AppError } from "../../platform/errors/app-error";
 
 export interface OnboardingRecord {
@@ -56,6 +59,11 @@ export interface OnboardingHistoryRecord {
 
 export interface ProfessionalOnboardingStore {
   findOwned(accountProfileId: string): Promise<OnboardingRecord | null>;
+  findByOrganisationId(organisationId: string): Promise<OnboardingRecord | null>;
+  isActiveOrganisationMember(
+    accountProfileId: string,
+    organisationId: string,
+  ): Promise<boolean>;
   listDocuments(profileId: string): Promise<OnboardingAssetRecord[]>;
   listHistory(organisationId: string): Promise<OnboardingHistoryRecord[]>;
   createDraft(input: {
@@ -95,6 +103,21 @@ export interface ProfessionalOnboardingStore {
     accountProfileId: string;
     organisationId: string;
     fromStatus: "draft" | "requires_changes";
+    correlationId?: string;
+  }): Promise<void>;
+  recordReviewDecision(input: {
+    organisationId: string;
+    actorAccountId: string;
+    fromStatus: "pending_review" | "active";
+    toStatus: "active" | "requires_changes" | "deactivated" | "suspended";
+    verificationStatus?: "verified" | "rejected";
+    decision: "approve" | "request_changes" | "reject" | "suspend";
+    reason: string;
+    eventType:
+      | "professional.profile_approved"
+      | "professional.profile_changes_requested"
+      | "professional.profile_rejected"
+      | "professional.profile_suspended";
     correlationId?: string;
   }): Promise<void>;
 }
@@ -152,6 +175,60 @@ export class ProfessionalOnboardingRepository
   async findOwned(accountProfileId: string): Promise<OnboardingRecord | null> {
     const [record] = await selectOwned(this.db, accountProfileId);
     return record ?? null;
+  }
+
+  async findByOrganisationId(
+    organisationId: string,
+  ): Promise<OnboardingRecord | null> {
+    const [record] = await this.db
+      .select({
+        organisationId: organisations.id,
+        professionalProfileId: professionalProfiles.id,
+        name: organisations.name,
+        slug: organisations.slug,
+        status: organisations.status,
+        businessType: professionalProfiles.businessType,
+        primaryCategory: professionalProfiles.primaryCategory,
+        description: professionalProfiles.description,
+        phone: professionalProfiles.phone,
+        email: professionalProfiles.email,
+        operatingLocation: professionalProfiles.operatingLocation,
+        serviceAreas: professionalProfiles.serviceAreas,
+        workingHours: professionalProfiles.workingHours,
+        logoAssetId: professionalProfiles.logoAssetId,
+        verificationType: professionalProfiles.verificationType,
+        verificationReference: professionalProfiles.verificationReference,
+        verificationStatus: professionalProfiles.verificationStatus,
+        termsAccepted: professionalProfiles.termsAccepted,
+        submittedAt: professionalProfiles.submittedAt,
+        updatedAt: professionalProfiles.updatedAt,
+      })
+      .from(professionalProfiles)
+      .innerJoin(
+        organisations,
+        eq(professionalProfiles.organisationId, organisations.id),
+      )
+      .where(eq(organisations.id, organisationId))
+      .limit(1);
+    return record ?? null;
+  }
+
+  async isActiveOrganisationMember(
+    accountProfileId: string,
+    organisationId: string,
+  ): Promise<boolean> {
+    const [membership] = await this.db
+      .select({ id: organisationMemberships.id })
+      .from(organisationMemberships)
+      .where(
+        and(
+          eq(organisationMemberships.accountProfileId, accountProfileId),
+          eq(organisationMemberships.organisationId, organisationId),
+          eq(organisationMemberships.status, "active"),
+        ),
+      )
+      .limit(1);
+    return Boolean(membership);
   }
 
   async listDocuments(profileId: string): Promise<OnboardingAssetRecord[]> {
@@ -234,11 +311,27 @@ export class ProfessionalOnboardingRepository
         .values({ organisationId: organisation.id })
         .returning();
 
-      await tx.insert(organisationMemberships).values({
+      const [membership] = await tx.insert(organisationMemberships).values({
         organisationId: organisation.id,
         accountProfileId: input.accountProfileId,
         roleId: ownerRole.id,
         status: "active",
+        financialDataAccess: true,
+      }).returning({ id: organisationMemberships.id });
+      await tx.insert(organisationMembershipHistory).values({
+        membershipId: membership.id,
+        organisationId: organisation.id,
+        fromStatus: null,
+        toStatus: "active",
+        actorAccountId: input.accountProfileId,
+        reason: "Organisation created",
+      });
+      await tx.insert(organisationMembershipRoleHistory).values({
+        membershipId: membership.id,
+        organisationId: organisation.id,
+        fromRoleId: null,
+        toRoleId: ownerRole.id,
+        actorAccountId: input.accountProfileId,
       });
       await tx.insert(professionalOnboardingHistory).values({
         organisationId: organisation.id,
@@ -395,6 +488,100 @@ export class ProfessionalOnboardingRepository
         actorAccountId: input.accountProfileId,
         correlationId: input.correlationId,
         payload: { organisationId: input.organisationId },
+      });
+    });
+  }
+
+  async recordReviewDecision(input: {
+    organisationId: string;
+    actorAccountId: string;
+    fromStatus: "pending_review" | "active";
+    toStatus: "active" | "requires_changes" | "deactivated" | "suspended";
+    verificationStatus?: "verified" | "rejected";
+    decision: "approve" | "request_changes" | "reject" | "suspend";
+    reason: string;
+    eventType:
+      | "professional.profile_approved"
+      | "professional.profile_changes_requested"
+      | "professional.profile_rejected"
+      | "professional.profile_suspended";
+    correlationId?: string;
+  }): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${input.organisationId}))`,
+      );
+      const [organisation] = await tx
+        .update(organisations)
+        .set({ status: input.toStatus, updatedAt: new Date() })
+        .where(
+          and(
+            eq(organisations.id, input.organisationId),
+            eq(organisations.status, input.fromStatus),
+          ),
+        )
+        .returning({ id: organisations.id });
+
+      if (!organisation) {
+        throw new AppError({
+          code: "INVALID_REVIEW_TRANSITION",
+          message: "This review decision is not valid in the current state.",
+          status: 409,
+        });
+      }
+
+      const [profile] = await tx
+        .update(professionalProfiles)
+        .set({
+          ...(input.verificationStatus
+            ? { verificationStatus: input.verificationStatus }
+            : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(professionalProfiles.organisationId, input.organisationId))
+        .returning({ id: professionalProfiles.id });
+
+      if (!profile) {
+        throw new AppError({
+          code: "ONBOARDING_NOT_FOUND",
+          message: "Professional onboarding was not found.",
+          status: 404,
+        });
+      }
+
+      await tx.insert(professionalOnboardingHistory).values({
+        organisationId: input.organisationId,
+        fromStatus: input.fromStatus,
+        toStatus: input.toStatus,
+        reason: input.reason,
+        actorAccountId: input.actorAccountId,
+      });
+      await tx.insert(auditEvents).values({
+        actorAccountId: input.actorAccountId,
+        organisationId: input.organisationId,
+        action: input.eventType,
+        entityType: "professional_profile",
+        entityId: profile.id,
+        correlationId: input.correlationId,
+        metadata: {
+          decision: input.decision,
+          fromStatus: input.fromStatus,
+          toStatus: input.toStatus,
+        },
+      });
+      await tx.insert(outboxEvents).values({
+        eventType: input.eventType,
+        eventVersion: 1,
+        aggregateType: "professional_profile",
+        aggregateId: profile.id,
+        organisationId: input.organisationId,
+        actorAccountId: input.actorAccountId,
+        correlationId: input.correlationId,
+        payload: {
+          organisationId: input.organisationId,
+          decision: input.decision,
+          reason: input.reason,
+        },
       });
     });
   }

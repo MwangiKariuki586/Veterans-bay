@@ -12,6 +12,9 @@ import {
   professionalVerificationDocuments,
 } from "./professional-onboarding";
 import {
+  organisationInvitations,
+  organisationMembershipHistory,
+  organisationMembershipRoleHistory,
   organisationMemberships,
   permissions,
   platformRoleAssignments,
@@ -43,6 +46,9 @@ export const accountRestrictionsRelations = relations(
 
 export const organisationsRelations = relations(organisations, ({ many }) => ({
   memberships: many(organisationMemberships),
+  invitations: many(organisationInvitations),
+  membershipHistory: many(organisationMembershipHistory),
+  membershipRoleHistory: many(organisationMembershipRoleHistory),
   files: many(fileAssets),
   auditEvents: many(auditEvents),
   outboxEvents: many(outboxEvents),
@@ -97,6 +103,7 @@ export const rolesRelations = relations(roles, ({ many }) => ({
   rolePermissions: many(rolePermissions),
   memberships: many(organisationMemberships),
   platformAssignments: many(platformRoleAssignments),
+  invitations: many(organisationInvitations),
 }));
 
 export const permissionsRelations = relations(permissions, ({ many }) => ({
@@ -116,7 +123,7 @@ export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => 
 
 export const organisationMembershipsRelations = relations(
   organisationMemberships,
-  ({ one }) => ({
+  ({ one, many }) => ({
     organisation: one(organisations, {
       fields: [organisationMemberships.organisationId],
       references: [organisations.id],
@@ -128,6 +135,54 @@ export const organisationMembershipsRelations = relations(
     role: one(roles, {
       fields: [organisationMemberships.roleId],
       references: [roles.id],
+    }),
+    history: many(organisationMembershipHistory),
+    roleHistory: many(organisationMembershipRoleHistory),
+  }),
+);
+
+export const organisationInvitationsRelations = relations(
+  organisationInvitations,
+  ({ one }) => ({
+    organisation: one(organisations, {
+      fields: [organisationInvitations.organisationId],
+      references: [organisations.id],
+    }),
+    role: one(roles, {
+      fields: [organisationInvitations.roleId],
+      references: [roles.id],
+    }),
+    invitedBy: one(accountProfiles, {
+      fields: [organisationInvitations.invitedByAccountId],
+      references: [accountProfiles.id],
+    }),
+  }),
+);
+
+export const organisationMembershipHistoryRelations = relations(
+  organisationMembershipHistory,
+  ({ one }) => ({
+    membership: one(organisationMemberships, {
+      fields: [organisationMembershipHistory.membershipId],
+      references: [organisationMemberships.id],
+    }),
+    organisation: one(organisations, {
+      fields: [organisationMembershipHistory.organisationId],
+      references: [organisations.id],
+    }),
+  }),
+);
+
+export const organisationMembershipRoleHistoryRelations = relations(
+  organisationMembershipRoleHistory,
+  ({ one }) => ({
+    membership: one(organisationMemberships, {
+      fields: [organisationMembershipRoleHistory.membershipId],
+      references: [organisationMemberships.id],
+    }),
+    organisation: one(organisations, {
+      fields: [organisationMembershipRoleHistory.organisationId],
+      references: [organisations.id],
     }),
   }),
 );

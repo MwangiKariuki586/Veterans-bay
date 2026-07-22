@@ -1,15 +1,15 @@
 import { TeamWorkspace } from "@/components/professional-team/team-workspace";
 import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
-export default function ProfessionalTeamPage() {
+export default function ProfessionalTeamInvitationsPage() {
   return (
     <AuthenticatedShell
       kind="professional"
-      title="Team"
-      description="Manage organisation members and role-limited access."
+      title="Team invitations"
+      description="Invite staff into role-limited organisation access."
       hideIntro
     >
-      <TeamWorkspace view="team" />
+      <TeamWorkspace view="invitations" />
     </AuthenticatedShell>
   );
 }

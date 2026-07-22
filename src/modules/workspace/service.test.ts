@@ -110,7 +110,7 @@ describe("WorkspaceService", () => {
     ).rejects.toMatchObject({ code: "WORKSPACE_UNAVAILABLE" });
   });
 
-  it("blocks removing the final owner without transfer", async () => {
+  it("removes financial permissions when membership access is restricted", async () => {
     const identityStore: IdentityStore = {
       reconcileProfile: vi.fn(),
       findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
@@ -132,15 +132,17 @@ describe("WorkspaceService", () => {
           membershipStatus: "active",
           roleId: "role-owner",
           roleKey: "owner",
+          assignedJobsOnly: false,
+          financialDataAccess: false,
         },
       ]),
       listActivePlatformAssignments: vi.fn().mockResolvedValue([]),
       listPermissionKeysForRoleIds: vi.fn().mockResolvedValue(
         new Map([
-          ["role-owner", ["organisation.view", "organisation.manage", "organisation.members.manage"]],
+          ["role-owner", ["organisation.view", "payments.view", "reports.financial.view"]],
         ]),
       ),
-      countActiveOwners: vi.fn().mockResolvedValue(1),
+      countActiveOwners: vi.fn(),
       findActiveMembership: vi.fn().mockResolvedValue({
         membershipId: "membership-1",
         organisationId: "org-1",
@@ -150,6 +152,8 @@ describe("WorkspaceService", () => {
         membershipStatus: "active",
         roleId: "role-owner",
         roleKey: "owner",
+        assignedJobsOnly: false,
+        financialDataAccess: false,
       }),
       markMembershipRemoved: vi.fn(),
       updateMembershipRole: vi.fn(),
@@ -158,14 +162,8 @@ describe("WorkspaceService", () => {
 
     const service = new WorkspaceService(workspaceRepository, identityStore);
 
-    await expect(
-      service.removeMember({
-        actorAuthUserId: "user-1",
-        organisationId: "org-1",
-        membershipId: "membership-1",
-        targetAccountProfileId: "profile-1",
-        targetRoleKey: "owner",
-      }),
-    ).rejects.toMatchObject({ code: "OWNER_TRANSFER_REQUIRED" });
+    const result = await service.listWorkspaces("user-1");
+    const organisation = result.workspaces.find((item) => item.kind === "organisation");
+    expect(organisation?.permissions).toEqual(["organisation.view"]);
   });
 });

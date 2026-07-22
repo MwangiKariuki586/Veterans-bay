@@ -71,6 +71,8 @@ export class WorkspaceService {
         membershipId: null,
         roleKey: null,
         permissions: [],
+        assignedJobsOnly: false,
+        financialDataAccess: false,
       },
     ];
 
@@ -90,7 +92,15 @@ export class WorkspaceService {
         organisationId: membership.organisationId,
         membershipId: membership.membershipId,
         roleKey: membership.roleKey,
-        permissions: permissionsByRole.get(membership.roleId) ?? [],
+        permissions: (permissionsByRole.get(membership.roleId) ?? []).filter(
+          (permission) =>
+            membership.financialDataAccess ||
+            (permission !== "payments.view" &&
+              permission !== "payments.manage" &&
+              permission !== "reports.financial.view"),
+        ),
+        assignedJobsOnly: membership.assignedJobsOnly,
+        financialDataAccess: membership.financialDataAccess,
       });
     }
 
@@ -109,6 +119,8 @@ export class WorkspaceService {
         permissions: adminAssignment
           ? (permissionsByRole.get(adminAssignment.roleId) ?? [])
           : [],
+        assignedJobsOnly: false,
+        financialDataAccess: true,
       });
     }
 
@@ -155,106 +167,6 @@ export class WorkspaceService {
     };
   }
 
-  async changeMemberRole(input: {
-    actorAuthUserId: string;
-    organisationId: string;
-    membershipId: string;
-    roleKey: string;
-    correlationId?: string;
-  }): Promise<void> {
-    const selection = await this.resolveWorkspace(
-      input.actorAuthUserId,
-      buildOrganisationWorkspaceId(input.organisationId),
-    );
-
-    if (!selection.workspace.permissions.includes("organisation.members.manage")) {
-      throw new AppError({
-        code: "PERMISSION_DENIED",
-        message: "You do not have permission to perform this action.",
-        status: 403,
-      });
-    }
-
-    const role = await this.workspaceRepository.findOrganisationRoleByKey(
-      input.roleKey,
-    );
-    if (!role) {
-      throw new AppError({
-        code: "VALIDATION_ERROR",
-        message: "The requested role is invalid.",
-        status: 422,
-      });
-    }
-
-    await this.workspaceRepository.updateMembershipRole(
-      input.membershipId,
-      role.id,
-    );
-
-    await this.identityStore.insertDomainEvent({
-      eventType: "organization.member_role_changed",
-      eventVersion: 1,
-      aggregateType: "organisation_membership",
-      aggregateId: input.membershipId,
-      actorAccountId: selection.accountProfileId,
-      correlationId: input.correlationId,
-      payload: {
-        organisationId: input.organisationId,
-        roleKey: input.roleKey,
-      },
-    });
-  }
-
-  async removeMember(input: {
-    actorAuthUserId: string;
-    organisationId: string;
-    membershipId: string;
-    targetAccountProfileId: string;
-    targetRoleKey: string;
-    correlationId?: string;
-  }): Promise<void> {
-    const selection = await this.resolveWorkspace(
-      input.actorAuthUserId,
-      buildOrganisationWorkspaceId(input.organisationId),
-    );
-
-    if (!selection.workspace.permissions.includes("organisation.members.manage")) {
-      throw new AppError({
-        code: "PERMISSION_DENIED",
-        message: "You do not have permission to perform this action.",
-        status: 403,
-      });
-    }
-
-    if (input.targetRoleKey === "owner") {
-      const ownerCount = await this.workspaceRepository.countActiveOwners(
-        input.organisationId,
-      );
-      if (ownerCount <= 1) {
-        throw new AppError({
-          code: "OWNER_TRANSFER_REQUIRED",
-          message:
-            "The final owner cannot lose ownership without an approved transfer.",
-          status: 409,
-        });
-      }
-    }
-
-    await this.workspaceRepository.markMembershipRemoved(input.membershipId);
-
-    await this.identityStore.insertDomainEvent({
-      eventType: "organization.member_removed",
-      eventVersion: 1,
-      aggregateType: "organisation_membership",
-      aggregateId: input.membershipId,
-      actorAccountId: selection.accountProfileId,
-      correlationId: input.correlationId,
-      payload: {
-        organisationId: input.organisationId,
-        targetAccountProfileId: input.targetAccountProfileId,
-      },
-    });
-  }
 }
 
 export function defaultWorkspaceId(workspaces: WorkspaceSummary[]): string | null {

@@ -31,7 +31,14 @@ export const updateOnboardingBodySchema = z
     businessType: z.enum(["independent", "business"]).nullable().optional(),
     primaryCategory: z.string().trim().min(2).max(120).nullable().optional(),
     description: z.string().trim().min(20).max(2_000).nullable().optional(),
-    phone: z.string().trim().min(7).max(40).nullable().optional(),
+    phone: z
+      .string()
+      .trim()
+      .min(7)
+      .max(40)
+      .regex(/^\+?[0-9][0-9\s().-]{5,38}[0-9]$/)
+      .nullable()
+      .optional(),
     email: z.email().max(254).nullable().optional(),
     operatingLocation: z.string().trim().min(2).max(240).nullable().optional(),
     serviceAreas: z
@@ -59,3 +66,7 @@ export const attachOnboardingAssetBodySchema = z.object({
   documentType: z.string().trim().min(2).max(80).optional(),
 });
 
+export const onboardingReviewDecisionBodySchema = z.object({
+  decision: z.enum(["approve", "request_changes", "reject", "suspend"]),
+  reason: z.string().trim().min(5).max(500),
+});

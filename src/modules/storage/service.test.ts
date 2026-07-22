@@ -78,6 +78,116 @@ describe("StorageService", () => {
     ).rejects.toMatchObject({ code: "FILE_TOO_LARGE" });
   });
 
+  it("includes the file extension in raw verification public IDs", async () => {
+    const identityStore = {
+      findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
+      findActiveRestrictions: vi.fn().mockResolvedValue([]),
+    } as unknown as IdentityStore;
+    const repository = {
+      createPendingAsset: vi.fn().mockImplementation((input) => pendingAsset(input)),
+    } as unknown as StorageRepository;
+    const provider = {
+      createSignedUpload: vi.fn().mockImplementation(async (input) => ({
+        ...input,
+        cloudName: "demo",
+        apiKey: "key",
+        timestamp: 1_700_000_000,
+        signature: "signature",
+        uploadUrl: "https://api.cloudinary.test/raw/upload",
+        expiresAt: "2026-07-22T17:00:00.000Z",
+      })),
+    } as unknown as StorageProvider;
+    const workspaceStore = {
+      findActiveMembership: vi.fn().mockResolvedValue({ id: "membership-1" }),
+      listActivePlatformAssignments: vi.fn(),
+      listPermissionKeysForRoleIds: vi.fn(),
+    };
+    const service = new StorageService(
+      repository,
+      identityStore,
+      provider,
+      workspaceStore,
+    );
+
+    await service.createUploadIntent({
+      authUserId: "user-1",
+      purpose: "VERIFICATION_DOCUMENT",
+      mimeType: "application/pdf",
+      sizeBytes: 5_352,
+      organisationId: "organisation-1",
+      workspaceOrganisationId: "organisation-1",
+    });
+
+    expect(provider.createSignedUpload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicId: expect.stringMatching(/^[0-9a-f-]+\.pdf$/),
+        resourceType: "raw",
+      }),
+    );
+    expect(repository.createPendingAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cloudinaryPublicId: expect.stringMatching(
+          /^veterans-bay\/verification\/[0-9a-f-]+\.pdf$/,
+        ),
+      }),
+    );
+  });
+
+  it("completes legacy raw uploads using their canonical extension", async () => {
+    const identityStore = {
+      findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
+      findActiveRestrictions: vi.fn().mockResolvedValue([]),
+    } as unknown as IdentityStore;
+    const repository = {
+      findById: vi.fn().mockResolvedValue(
+        pendingAsset({
+          cloudinaryPublicId: "veterans-bay/verification/asset-1",
+          purpose: "VERIFICATION_DOCUMENT",
+          mimeType: "application/pdf",
+          visibility: "private",
+          organisationId: "organisation-1",
+        }),
+      ),
+      markReady: vi.fn().mockImplementation((id, bytes, publicId) =>
+        pendingAsset({
+          id,
+          sizeBytes: bytes,
+          cloudinaryPublicId: publicId,
+          status: "ready",
+        }),
+      ),
+    } as unknown as StorageRepository;
+    const provider = {
+      getResource: vi.fn().mockResolvedValue({
+        publicId: "veterans-bay/verification/asset-1.pdf",
+        bytes: 5_352,
+        format: null,
+        resourceType: "raw",
+        type: "authenticated",
+        secureUrl: "https://res.cloudinary.test/private.pdf",
+        version: 1,
+      }),
+    } as unknown as StorageProvider;
+    const service = new StorageService(repository, identityStore, provider);
+
+    await service.completeUpload({
+      authUserId: "user-1",
+      assetId: "asset-1",
+      publicId: "veterans-bay/verification/asset-1.pdf",
+    });
+
+    expect(provider.getResource).toHaveBeenCalledWith({
+      publicId: "veterans-bay/verification/asset-1.pdf",
+      resourceType: "raw",
+      type: "authenticated",
+    });
+    expect(repository.markReady).toHaveBeenCalledWith(
+      "asset-1",
+      5_352,
+      "veterans-bay/verification/asset-1.pdf",
+    );
+  });
+
   it("rejects tampered upload completion and cross-tenant private delivery", async () => {
     const identityStore: IdentityStore = {
       reconcileProfile: vi.fn(),

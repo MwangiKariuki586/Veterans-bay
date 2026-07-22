@@ -9,6 +9,8 @@ export interface WorkspaceSummary {
   membershipId: string | null;
   roleKey: string | null;
   permissions: string[];
+  assignedJobsOnly: boolean;
+  financialDataAccess: boolean;
 }
 
 export interface WorkspaceSelection {

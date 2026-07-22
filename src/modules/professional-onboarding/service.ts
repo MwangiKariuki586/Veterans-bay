@@ -1,5 +1,7 @@
 import { AppError } from "../../platform/errors/app-error";
+import { permissionKeys } from "../../platform/permissions/keys";
 import type { IdentityStore } from "../identity/repository";
+import type { WorkspaceRepository } from "../workspace/repository";
 import type {
   OnboardingAssetRecord,
   OnboardingRecord,
@@ -8,6 +10,35 @@ import type {
 import type { OnboardingSummary, OrganisationStatus } from "./types";
 
 const editableStatuses = new Set(["draft", "requires_changes", "active"]);
+
+type ReviewDecision = "approve" | "request_changes" | "reject" | "suspend";
+
+const reviewTransitions = {
+  approve: {
+    fromStatus: "pending_review",
+    toStatus: "active",
+    verificationStatus: "verified",
+    eventType: "professional.profile_approved",
+  },
+  request_changes: {
+    fromStatus: "pending_review",
+    toStatus: "requires_changes",
+    verificationStatus: "rejected",
+    eventType: "professional.profile_changes_requested",
+  },
+  reject: {
+    fromStatus: "pending_review",
+    toStatus: "deactivated",
+    verificationStatus: "rejected",
+    eventType: "professional.profile_rejected",
+  },
+  suspend: {
+    fromStatus: "active",
+    toStatus: "suspended",
+    verificationStatus: undefined,
+    eventType: "professional.profile_suspended",
+  },
+} as const;
 
 function slugify(value: string): string {
   const base = value
@@ -55,6 +86,10 @@ export class ProfessionalOnboardingService {
   constructor(
     private readonly store: ProfessionalOnboardingStore,
     private readonly identityStore: IdentityStore,
+    private readonly workspaceStore?: Pick<
+      WorkspaceRepository,
+      "listActivePlatformAssignments" | "listPermissionKeysForRoleIds"
+    >,
   ) {}
 
   async get(authUserId: string): Promise<OnboardingSummary | null> {
@@ -193,6 +228,72 @@ export class ProfessionalOnboardingService {
     return (await this.get(input.authUserId)) as OnboardingSummary;
   }
 
+  async recordReviewDecision(input: {
+    authUserId: string;
+    organisationId: string;
+    decision: ReviewDecision;
+    reason: string;
+    correlationId?: string;
+  }): Promise<{
+    organisationId: string;
+    status: OrganisationStatus;
+    verificationStatus: string;
+  }> {
+    const account = await this.requirePlatformAdmin(input.authUserId);
+    if (
+      await this.store.isActiveOrganisationMember(
+        account.id,
+        input.organisationId,
+      )
+    ) {
+      throw new AppError({
+        code: "SELF_REVIEW_FORBIDDEN",
+        message: "Administrators cannot review an organisation they belong to.",
+        status: 403,
+      });
+    }
+
+    const record = await this.store.findByOrganisationId(input.organisationId);
+    if (!record) {
+      throw new AppError({
+        code: "ONBOARDING_NOT_FOUND",
+        message: "Professional onboarding was not found.",
+        status: 404,
+      });
+    }
+
+    const transition = reviewTransitions[input.decision];
+    if (record.status !== transition.fromStatus) {
+      throw new AppError({
+        code: "INVALID_REVIEW_TRANSITION",
+        message: "This review decision is not valid in the current state.",
+        status: 409,
+      });
+    }
+
+    await this.store.recordReviewDecision({
+      organisationId: input.organisationId,
+      actorAccountId: account.id,
+      decision: input.decision,
+      reason: input.reason,
+      fromStatus: transition.fromStatus,
+      toStatus: transition.toStatus,
+      verificationStatus: transition.verificationStatus,
+      eventType: transition.eventType,
+      correlationId: input.correlationId,
+    });
+
+    const updated = await this.store.findByOrganisationId(input.organisationId);
+    if (!updated) {
+      throw new Error("Reviewed onboarding record could not be loaded.");
+    }
+    return {
+      organisationId: updated.organisationId,
+      status: updated.status as OrganisationStatus,
+      verificationStatus: updated.verificationStatus,
+    };
+  }
+
   private async toSummary(
     record: OnboardingRecord,
     suppliedDocuments?: OnboardingAssetRecord[],
@@ -249,6 +350,39 @@ export class ProfessionalOnboardingService {
       throw new AppError({
         code: "ACCOUNT_RESTRICTED",
         message: "This account cannot perform protected actions.",
+        status: 403,
+      });
+    }
+    return account;
+  }
+
+  private async requirePlatformAdmin(authUserId: string) {
+    const account = await this.requireActiveAccount(authUserId);
+    if (!this.workspaceStore) {
+      throw new AppError({
+        code: "CONFIGURATION_ERROR",
+        message: "Platform authorization is not available.",
+        status: 503,
+      });
+    }
+    const assignments = await this.workspaceStore.listActivePlatformAssignments(
+      account.id,
+    );
+    const admin = assignments.find((item) => item.roleKey === "platform_admin");
+    if (!admin) {
+      throw new AppError({
+        code: "PERMISSION_DENIED",
+        message: "Platform administration permission is required.",
+        status: 403,
+      });
+    }
+    const permissionsByRole =
+      await this.workspaceStore.listPermissionKeysForRoleIds([admin.roleId]);
+    const permissions = permissionsByRole.get(admin.roleId) ?? [];
+    if (!permissions.includes(permissionKeys.platformAdmin)) {
+      throw new AppError({
+        code: "PERMISSION_DENIED",
+        message: "Platform administration permission is required.",
         status: 403,
       });
     }

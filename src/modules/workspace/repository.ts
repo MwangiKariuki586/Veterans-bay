@@ -19,6 +19,8 @@ export interface MembershipRecord {
   membershipStatus: string;
   roleId: string;
   roleKey: string;
+  assignedJobsOnly: boolean;
+  financialDataAccess: boolean;
 }
 
 export interface PlatformAssignmentRecord {
@@ -44,6 +46,8 @@ export class WorkspaceRepository {
         membershipStatus: organisationMemberships.status,
         roleId: roles.id,
         roleKey: roles.key,
+        assignedJobsOnly: organisationMemberships.assignedJobsOnly,
+        financialDataAccess: organisationMemberships.financialDataAccess,
       })
       .from(organisationMemberships)
       .innerJoin(
@@ -140,6 +144,8 @@ export class WorkspaceRepository {
         membershipStatus: organisationMemberships.status,
         roleId: roles.id,
         roleKey: roles.key,
+        assignedJobsOnly: organisationMemberships.assignedJobsOnly,
+        financialDataAccess: organisationMemberships.financialDataAccess,
       })
       .from(organisationMemberships)
       .innerJoin(

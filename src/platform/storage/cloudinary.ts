@@ -120,11 +120,8 @@ export class CloudinaryStorageProvider implements StorageProvider {
       folder: input.folder,
       public_id: input.publicId,
       timestamp: String(timestamp),
+      type: input.type,
     };
-
-    if (input.type !== "upload") {
-      params.type = input.type;
-    }
 
     const signature = await this.sign(params);
 

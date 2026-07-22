@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 
 import { pageBackdropClass, pageFrameClass } from "@/components/public/design";
 import { SiteHeader } from "@/components/public/site-header";
@@ -74,14 +75,110 @@ const statusCopy: Record<
   },
 };
 
+type ApiIssue = { code: string; path: string };
+
+class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+    readonly issues: ApiIssue[] = [],
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
+const onboardingFieldLabels = {
+  name: "business or professional name",
+  businessType: "business type",
+  primaryCategory: "primary category",
+  description: "description",
+  phone: "phone number",
+  email: "business email",
+  operatingLocation: "operating location",
+  serviceAreas: "service areas",
+  workingHours: "working hours",
+  verificationType: "verification type",
+  verificationReference: "verification reference",
+  termsAccepted: "professional terms",
+} as const;
+
+type OnboardingField = keyof typeof onboardingFieldLabels;
+type FieldErrors = Partial<Record<OnboardingField, string>>;
+
+function isOnboardingField(field: string): field is OnboardingField {
+  return field in onboardingFieldLabels;
+}
+
+function describeFieldError(field: OnboardingField) {
+  switch (field) {
+    case "name":
+      return "Enter a business or professional name with at least 2 characters.";
+    case "description":
+      return "Enter a description with at least 20 characters before saving the draft.";
+    case "phone":
+      return "Enter a valid phone number using digits, spaces, +, parentheses, or hyphens.";
+    case "email":
+      return "Enter a valid business email address.";
+    case "serviceAreas":
+      return "Enter service areas with at least 2 characters each.";
+    case "workingHours":
+      return "Check that each working-hours entry uses a valid opening and closing time.";
+    default:
+      return `Check ${onboardingFieldLabels[field]} and try again.`;
+  }
+}
+
+function getFieldErrors(cause: unknown): FieldErrors {
+  if (!(cause instanceof ApiRequestError) || cause.code !== "VALIDATION_ERROR") {
+    return {};
+  }
+  return cause.issues.reduce<FieldErrors>((errors, issue) => {
+    const field = issue.path.split(".")[0];
+    if (isOnboardingField(field) && !errors[field]) {
+      errors[field] = describeFieldError(field);
+    }
+    return errors;
+  }, {});
+}
+
+function describeApiError(cause: unknown, fallback: string) {
+  if (!(cause instanceof ApiRequestError)) {
+    return cause instanceof Error ? cause.message : fallback;
+  }
+  if (cause.code === "ONBOARDING_INCOMPLETE") {
+    return "Complete the remaining requirements shown in Review readiness before submitting.";
+  }
+  if (cause.code === "VALIDATION_ERROR" && cause.issues.length > 0) {
+    const fieldErrors = getFieldErrors(cause);
+    const fields = Object.keys(fieldErrors) as OnboardingField[];
+    if (fields.length > 1) {
+      const labels = fields.map(
+        (field) => onboardingFieldLabels[field] ?? "onboarding details",
+      );
+      return `Check ${labels.join(", ")} and try again.`;
+    }
+    if (fields.length === 1) {
+      return fieldErrors[fields[0]] as string;
+    }
+  }
+  return cause.message === "The request is invalid."
+    ? "Review the form values and correct the details that need attention."
+    : cause.message || fallback;
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { credentials: "include", ...init });
-  const body = (await response.json()) as {
+  const body = (await response.json().catch(() => null)) as {
     data?: T;
-    error?: { code?: string; message?: string };
-  };
-  if (!response.ok || body.data === undefined) {
-    throw new Error(body.error?.message ?? body.error?.code ?? "Request failed.");
+    error?: { code?: string; message?: string; issues?: ApiIssue[] };
+  } | null;
+  if (!response.ok || !body || body.data === undefined) {
+    throw new ApiRequestError(
+      body?.error?.message ?? body?.error?.code ?? "Request failed.",
+      body?.error?.code,
+      body?.error?.issues,
+    );
   }
   return body.data;
 }
@@ -92,8 +189,10 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
   const [record, setRecord] = useState<OnboardingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<"save" | "review" | null>(null);
   const [uploading, setUploading] = useState<"logo" | "evidence" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [saved, setSaved] = useState(false);
   const [name, setName] = useState("");
   const [businessType, setBusinessType] = useState("");
@@ -150,6 +249,22 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
         ? "Business profile"
         : "Set up your professional profile";
 
+  function showError(cause: unknown, title: string, fallback: string) {
+    const description = describeApiError(cause, fallback);
+    setError(description);
+    setFieldErrors(getFieldErrors(cause));
+    toast.error(title, { description });
+  }
+
+  function clearFieldError(field: OnboardingField) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function start(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -167,18 +282,24 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
       });
       setRecord(created);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to start onboarding.");
+      showError(cause, "Couldn’t start onboarding", "Unable to start onboarding.");
     } finally {
       setSaving(false);
     }
   }
 
-  async function save(event?: FormEvent) {
-    event?.preventDefault();
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!record) return;
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as
+      | HTMLButtonElement
+      | null;
+    const reviewAfterSave = submitter?.value === "review";
     setSaving(true);
+    setSavingAction(reviewAfterSave ? "review" : "save");
     setSaved(false);
     setError(null);
+    setFieldErrors({});
     try {
       const updated = await api<OnboardingSummary>("/api/v1/professional/onboarding", {
         method: "PATCH",
@@ -203,10 +324,15 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
       });
       setRecord(updated);
       setSaved(true);
+      toast.success("Draft saved");
+      if (reviewAfterSave) {
+        router.push("/professional/onboarding/review");
+      }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save your draft.");
+      showError(cause, "Couldn’t save your draft", "Unable to save your draft.");
     } finally {
       setSaving(false);
+      setSavingAction(null);
     }
   }
 
@@ -252,9 +378,11 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
         method: "POST",
         body: form,
       });
-      const providerBody = (await cloudinaryResponse.json()) as { public_id?: string; error?: { message?: string } };
-      if (!cloudinaryResponse.ok || !providerBody.public_id) {
-        throw new Error(providerBody.error?.message ?? "The file upload failed.");
+      const providerBody = (await cloudinaryResponse.json().catch(() => null)) as {
+        public_id?: string;
+      } | null;
+      if (!cloudinaryResponse.ok || !providerBody?.public_id) {
+        throw new Error("The file could not be uploaded. Please try again.");
       }
       await api(`/api/v1/storage/assets/${intent.assetId}/complete`, {
         method: "POST",
@@ -276,8 +404,11 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
         },
       );
       setRecord(updated);
+      toast.success(
+        kind === "logo" ? "Professional logo uploaded" : "Verification evidence uploaded",
+      );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to upload the file.");
+      showError(cause, "Upload unsuccessful", "Unable to upload the file.");
     } finally {
       setUploading(null);
     }
@@ -292,8 +423,13 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
         { method: "POST" },
       );
       setRecord(updated);
+      toast.success("Application submitted for review");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to submit the application.");
+      showError(
+        cause,
+        "Couldn’t submit your application",
+        "Unable to submit the application.",
+      );
     } finally {
       setSaving(false);
     }
@@ -309,47 +445,69 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
     [record],
   );
 
+  const progressCard = (
+    <Surface aria-label="Onboarding progress" className="h-fit p-5 lg:sticky lg:top-5">
+      <div className="flex items-center gap-3">
+        <span className="grid size-11 place-items-center rounded-2xl bg-[#eef8c8] text-[#5f8d11]">
+          <Building2 className="size-5" />
+        </span>
+        <div>
+          <p className="text-xs text-[#68717b]">Professional onboarding</p>
+          <p className="font-bold">{record?.name || "New organisation"}</p>
+        </div>
+      </div>
+      <div className="mt-6 h-2 overflow-hidden rounded-full bg-[#edf1f3]">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+      </div>
+      <p className="mt-2 text-xs text-[#68717b]">{progress}% ready for review</p>
+      <ol className="mt-6 space-y-4">
+        {steps.map((step, index) => (
+          <li key={step.label} className="flex items-center gap-3 text-sm">
+            <span className={cn("grid size-7 place-items-center rounded-full text-xs font-bold", step.done ? "bg-primary text-[#071522]" : "bg-[#edf1f3] text-[#68717b]")}>{step.done ? <Check className="size-4" /> : index + 1}</span>
+            {step.label}
+          </li>
+        ))}
+      </ol>
+    </Surface>
+  );
+
+  const reviewHeader = (
+    <>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5f8d11]">Trusted. Skilled. Reliable.</p>
+      <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">{pageTitle}</h1>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-[#68717b]">Save your progress at any time. Private verification evidence is visible only to authorised reviewers.</p>
+      {error ? <InlineAlert className="mt-6" variant="error" title="Check your application details" description={error} /> : null}
+      {saved ? <InlineAlert className="mt-6" variant="success" title="Draft saved" description="Your latest information is ready when you return." /> : null}
+      {statusCopy[record?.status ?? ""] ? (
+        <InlineAlert className="mt-6" variant={statusCopy[record?.status ?? ""].tone} title={statusCopy[record?.status ?? ""].title} description={statusCopy[record?.status ?? ""].description} />
+      ) : null}
+    </>
+  );
+
+  if (mode === "review" && record && !loading) {
+    return (
+      <div className={pageBackdropClass}>
+        <div className={pageFrameClass()}>
+          <SiteHeader />
+          <ReviewPanel header={reviewHeader} progressCard={progressCard} record={record} saving={saving} onSubmit={submit} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={pageBackdropClass}>
       <div className={pageFrameClass()}>
         <SiteHeader />
-        <main className="mt-5 grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <Surface className="h-fit p-5 lg:sticky lg:top-5">
-            <div className="flex items-center gap-3">
-              <span className="grid size-11 place-items-center rounded-2xl bg-[#eef8c8] text-[#5f8d11]">
-                <Building2 className="size-5" />
-              </span>
-              <div>
-                <p className="text-xs text-[#68717b]">Professional onboarding</p>
-                <p className="font-bold">{record?.name || "New organisation"}</p>
-              </div>
-            </div>
-            <div className="mt-6 h-2 overflow-hidden rounded-full bg-[#edf1f3]">
-              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-            </div>
-            <p className="mt-2 text-xs text-[#68717b]">{progress}% ready for review</p>
-            <ol className="mt-6 space-y-4">
-              {steps.map((step, index) => (
-                <li key={step.label} className="flex items-center gap-3 text-sm">
-                  <span className={cn("grid size-7 place-items-center rounded-full text-xs font-bold", step.done ? "bg-primary text-[#071522]" : "bg-[#edf1f3] text-[#68717b]")}>{step.done ? <Check className="size-4" /> : index + 1}</span>
-                  {step.label}
-                </li>
-              ))}
-            </ol>
-            {record ? (
-              <div className="mt-7 grid gap-2">
-                <Link href="/professional/onboarding" className={cn(buttonVariants({ variant: mode === "edit" ? "secondary" : "ghost", size: "sm" }), "justify-start")}>Edit application</Link>
-                <Link href="/professional/onboarding/review" className={cn(buttonVariants({ variant: mode === "review" ? "secondary" : "ghost", size: "sm" }), "justify-start")}>Review & submit</Link>
-              </div>
-            ) : null}
-          </Surface>
+        <main className={cn("mt-5 grid gap-5", mode !== "review" && "lg:grid-cols-[280px_minmax(0,1fr)]")}>
+          {mode !== "review" ? progressCard : null}
 
           <Surface className="overflow-hidden p-6 sm:p-9">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5f8d11]">Trusted. Skilled. Reliable.</p>
             <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">{pageTitle}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[#68717b]">Save your progress at any time. Private verification evidence is visible only to authorised reviewers.</p>
 
-            {error ? <InlineAlert className="mt-6" variant="error" title="Action unsuccessful" description={error} /> : null}
+            {error ? <InlineAlert className="mt-6" variant="error" title="Check your application details" description={error} /> : null}
             {saved ? <InlineAlert className="mt-6" variant="success" title="Draft saved" description="Your latest information is ready when you return." /> : null}
             {record && statusCopy[record.status] ? (
               <InlineAlert className="mt-6" variant={statusCopy[record.status].tone} title={statusCopy[record.status].title} description={statusCopy[record.status].description} />
@@ -365,51 +523,55 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
                 <Button className="mt-5" type="submit" loading={saving}>Start onboarding <ArrowRight className="size-4" /></Button>
               </form>
             ) : mode === "review" ? (
-              <ReviewPanel record={record} saving={saving} onSubmit={submit} />
+              <ReviewPanel header={reviewHeader} progressCard={progressCard} record={record} saving={saving} onSubmit={submit} />
             ) : (
-              <form onSubmit={save} className="mt-8 space-y-9">
+              <form id="professional-onboarding-form" onSubmit={save} noValidate className="mt-8 space-y-9">
                 <FormSection icon={Building2} title="Business details" description="Tell clients what you do and how to reach you.">
-                  <Field label="Business or professional name"><Input value={name} onChange={(event) => setName(event.target.value)} disabled={!editable} required /></Field>
-                  <Field label="Business type"><select className={fieldClass} value={businessType} onChange={(event) => setBusinessType(event.target.value)} disabled={!editable}><option value="">Select a type</option><option value="independent">Independent professional</option><option value="business">Service business</option></select></Field>
-                  <Field label="Primary category"><Input value={primaryCategory} onChange={(event) => setPrimaryCategory(event.target.value)} disabled={!editable} placeholder="Plumbing, electrical, cleaning…" /></Field>
-                  <Field label="Business email"><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={!editable} /></Field>
-                  <Field label="Phone"><Input value={phone} onChange={(event) => setPhone(event.target.value)} disabled={!editable} /></Field>
-                  <Field label="Description" full><textarea className={cn(fieldClass, "min-h-32 resize-y")} value={description} onChange={(event) => setDescription(event.target.value)} disabled={!editable} placeholder="Describe your experience, specialities, and the customers you serve." /><p className="mt-1 text-xs text-[#68717b]">{description.length}/80 minimum characters for submission</p></Field>
+                  <Field label="Business or professional name" error={fieldErrors.name}><Input value={name} onChange={(event) => { setName(event.target.value); clearFieldError("name"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.name)} required /></Field>
+                  <Field label="Business type" error={fieldErrors.businessType}><select className={fieldClass} value={businessType} onChange={(event) => { setBusinessType(event.target.value); clearFieldError("businessType"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.businessType)}><option value="">Select a type</option><option value="independent">Independent professional</option><option value="business">Service business</option></select></Field>
+                  <Field label="Primary category" error={fieldErrors.primaryCategory}><Input value={primaryCategory} onChange={(event) => { setPrimaryCategory(event.target.value); clearFieldError("primaryCategory"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.primaryCategory)} placeholder="Plumbing, electrical, cleaning…" /></Field>
+                  <Field label="Business email" error={fieldErrors.email}><Input type="email" value={email} onChange={(event) => { setEmail(event.target.value); clearFieldError("email"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.email)} /></Field>
+                  <Field label="Phone" error={fieldErrors.phone}><Input type="tel" value={phone} onChange={(event) => { setPhone(event.target.value); clearFieldError("phone"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.phone)} /></Field>
+                  <Field label="Description" full error={fieldErrors.description}><textarea className={cn(fieldClass, "min-h-32 resize-y")} value={description} onChange={(event) => { setDescription(event.target.value); clearFieldError("description"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.description)} placeholder="Describe your experience, specialities, and the customers you serve." /><p className="mt-1 text-xs text-[#68717b]">{description.length}/80 minimum characters for submission</p></Field>
                 </FormSection>
 
                 <FormSection icon={MapPin} title="Location and availability" description="Set the areas you serve and your usual operating hours.">
-                  <Field label="Operating location"><Input value={operatingLocation} onChange={(event) => setOperatingLocation(event.target.value)} disabled={!editable} placeholder="Nairobi, Kenya" /></Field>
-                  <Field label="Service areas"><Input value={serviceAreas} onChange={(event) => setServiceAreas(event.target.value)} disabled={!editable} placeholder="Westlands, Kilimani, Lavington" /><p className="mt-1 text-xs text-[#68717b]">Separate areas with commas.</p></Field>
+                  <Field label="Operating location" error={fieldErrors.operatingLocation}><Input value={operatingLocation} onChange={(event) => { setOperatingLocation(event.target.value); clearFieldError("operatingLocation"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.operatingLocation)} placeholder="Nairobi, Kenya" /></Field>
+                  <Field label="Service areas" error={fieldErrors.serviceAreas}><Input value={serviceAreas} onChange={(event) => { setServiceAreas(event.target.value); clearFieldError("serviceAreas"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.serviceAreas)} placeholder="Westlands, Kilimani, Lavington" /><p className="mt-1 text-xs text-[#68717b]">Separate areas with commas.</p></Field>
                   <div className="sm:col-span-2">
                     <p className="text-sm font-semibold">Working hours</p>
                     <div className="mt-3 grid gap-2">
                       {Object.entries(workingHours).map(([day, hours]) => (
                         <div key={day} className="grid grid-cols-[minmax(90px,1fr)_auto_92px_92px] items-center gap-2 rounded-2xl border border-black/8 px-3 py-2 text-sm">
                           <span className="capitalize">{day}</span>
-                          <input type="checkbox" checked={hours.enabled} disabled={!editable} onChange={(event) => setWorkingHours((current) => ({ ...current, [day]: { ...hours, enabled: event.target.checked } }))} aria-label={`${day} enabled`} />
-                          <input type="time" className="rounded-xl border border-black/8 px-2 py-1.5" value={hours.opensAt} disabled={!editable || !hours.enabled} onChange={(event) => setWorkingHours((current) => ({ ...current, [day]: { ...hours, opensAt: event.target.value } }))} />
-                          <input type="time" className="rounded-xl border border-black/8 px-2 py-1.5" value={hours.closesAt} disabled={!editable || !hours.enabled} onChange={(event) => setWorkingHours((current) => ({ ...current, [day]: { ...hours, closesAt: event.target.value } }))} />
+                          <input type="checkbox" checked={hours.enabled} disabled={!editable} onChange={(event) => { setWorkingHours((current) => ({ ...current, [day]: { ...hours, enabled: event.target.checked } })); clearFieldError("workingHours"); }} aria-label={`${day} enabled`} aria-invalid={Boolean(fieldErrors.workingHours)} />
+                          <input type="time" aria-label={`${day} opening time`} className="rounded-xl border border-black/8 px-2 py-1.5" value={hours.opensAt} disabled={!editable || !hours.enabled} onChange={(event) => { setWorkingHours((current) => ({ ...current, [day]: { ...hours, opensAt: event.target.value } })); clearFieldError("workingHours"); }} aria-invalid={Boolean(fieldErrors.workingHours)} />
+                          <input type="time" aria-label={`${day} closing time`} className="rounded-xl border border-black/8 px-2 py-1.5" value={hours.closesAt} disabled={!editable || !hours.enabled} onChange={(event) => { setWorkingHours((current) => ({ ...current, [day]: { ...hours, closesAt: event.target.value } })); clearFieldError("workingHours"); }} aria-invalid={Boolean(fieldErrors.workingHours)} />
                         </div>
                       ))}
                     </div>
+                    {fieldErrors.workingHours ? <FieldError>{fieldErrors.workingHours}</FieldError> : null}
                   </div>
                 </FormSection>
 
                 <FormSection icon={ShieldCheck} title="Identity and verification" description="Verification confirms reviewed identity or business information; it is not a service-quality guarantee.">
-                  <Field label="Verification type"><select className={fieldClass} value={verificationType} onChange={(event) => setVerificationType(event.target.value)} disabled={!editable}><option value="">Select evidence type</option><option value="national_id">National ID</option><option value="business_registration">Business registration</option><option value="trade_licence">Trade licence</option></select></Field>
-                  <Field label="Document or registration reference"><Input value={verificationReference} onChange={(event) => setVerificationReference(event.target.value)} disabled={!editable} /></Field>
-                  <UploadField label="Professional logo" accept="image/png,image/jpeg,image/webp" loading={uploading === "logo"} disabled={!editable} complete={Boolean(record.logoAssetId)} onFile={(file) => uploadAsset(file, "logo")} />
-                  <UploadField label="Private verification evidence" accept="application/pdf,image/png,image/jpeg" loading={uploading === "evidence"} disabled={!editable} complete={record.documents.length > 0} onFile={(file) => uploadAsset(file, "verification_document")} />
+                  <Field label="Verification type" error={fieldErrors.verificationType}><select className={fieldClass} value={verificationType} onChange={(event) => { setVerificationType(event.target.value); clearFieldError("verificationType"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.verificationType)}><option value="">Select evidence type</option><option value="national_id">National ID</option><option value="business_registration">Business registration</option><option value="trade_licence">Trade licence</option></select></Field>
+                  <Field label="Document or registration reference" error={fieldErrors.verificationReference}><Input value={verificationReference} onChange={(event) => { setVerificationReference(event.target.value); clearFieldError("verificationReference"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.verificationReference)} /></Field>
+                  <UploadField label="Professional logo" helper="PNG, JPG or WebP, up to 2 MB." accept="image/png,image/jpeg,image/webp" loading={uploading === "logo"} disabled={!editable} complete={Boolean(record.logoAssetId)} onFile={(file) => uploadAsset(file, "logo")} />
+                  <UploadField label="Private verification evidence" helper={`Upload a clear copy of your ${verificationType === "national_id" ? "National ID" : verificationType === "business_registration" ? "business registration" : verificationType === "trade_licence" ? "trade licence" : "verification document"}. PDF, JPG or PNG, up to 8 MB. Only authorised reviewers can access it.`} accept="application/pdf,image/png,image/jpeg" loading={uploading === "evidence"} disabled={!editable} complete={record.documents.length > 0} onFile={(file) => uploadAsset(file, "verification_document")} />
                 </FormSection>
 
-                <label className="flex items-start gap-3 rounded-2xl border border-black/8 bg-[#f8fafb] p-4 text-sm leading-6">
-                  <input type="checkbox" className="mt-1" checked={termsAccepted} disabled={!editable} onChange={(event) => setTermsAccepted(event.target.checked)} />
-                  <span>I confirm this information is accurate and accept the professional terms. I understand verification does not guarantee service quality.</span>
-                </label>
+                <div>
+                  <label className="flex items-start gap-3 rounded-2xl border border-black/8 bg-[#f8fafb] p-4 text-sm leading-6">
+                    <input type="checkbox" className="mt-1" checked={termsAccepted} disabled={!editable} onChange={(event) => { setTermsAccepted(event.target.checked); clearFieldError("termsAccepted"); }} aria-invalid={Boolean(fieldErrors.termsAccepted)} />
+                    <span>I confirm this information is accurate and accept the professional terms. I understand verification does not guarantee service quality.</span>
+                  </label>
+                  {fieldErrors.termsAccepted ? <FieldError>{fieldErrors.termsAccepted}</FieldError> : null}
+                </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/8 pt-6">
                   <p className="text-xs text-[#68717b]">Last saved {new Date(record.updatedAt).toLocaleString()}</p>
-                  <div className="flex gap-3"><Button type="submit" variant="outline" loading={saving} disabled={!editable}>Save draft</Button><Link href="/professional/onboarding/review" className={buttonVariants({ variant: "secondary" })}>Review application <ArrowRight className="size-4" /></Link></div>
+                  <div className="flex gap-3"><Button type="submit" variant="outline" loading={savingAction === "save"} disabled={!editable || saving}>Save draft</Button><Button type="submit" name="intent" value="review" variant="secondary" loading={savingAction === "review"} disabled={!editable || saving}>Save & review <ArrowRight className="size-4" /></Button></div>
                 </div>
               </form>
             )}
@@ -424,15 +586,19 @@ function FormSection({ icon: Icon, title, description, children }: { icon: typeo
   return <section><div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[#eef8c8] text-[#5f8d11]"><Icon className="size-5" /></span><div><h2 className="text-xl font-bold">{title}</h2><p className="mt-1 text-sm text-[#68717b]">{description}</p></div></div><div className="mt-5 grid gap-5 sm:grid-cols-2">{children}</div></section>;
 }
 
-function Field({ label, children, full = false }: { label: string; children: React.ReactNode; full?: boolean }) {
-  return <label className={cn("block", full && "sm:col-span-2")}><span className="mb-2 block text-sm font-semibold">{label}</span>{children}</label>;
+function Field({ label, children, error, full = false }: { label: string; children: React.ReactNode; error?: string; full?: boolean }) {
+  return <label className={cn("block", full && "sm:col-span-2")}><span className="mb-2 block text-sm font-semibold">{label}</span>{children}{error ? <FieldError>{error}</FieldError> : null}</label>;
 }
 
-function UploadField({ label, accept, loading, disabled, complete, onFile }: { label: string; accept: string; loading: boolean; disabled: boolean; complete: boolean; onFile: (file: File) => void }) {
-  return <div><p className="mb-2 text-sm font-semibold">{label}</p><label className={cn("flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-black/15 bg-[#f8fafb] p-4 text-center", disabled && "cursor-not-allowed opacity-60")}><input className="sr-only" type="file" accept={accept} disabled={disabled || loading} onChange={(event) => { const file = event.target.files?.[0]; if (file) onFile(file); }} />{complete ? <FileCheck2 className="size-6 text-[#5f8d11]" /> : <Upload className="size-6 text-[#68717b]" />}<span className="mt-2 text-sm font-semibold">{loading ? "Uploading securely…" : complete ? "Uploaded — choose another to replace" : "Choose a file"}</span><span className="mt-1 text-xs text-[#68717b]">Maximum size is enforced securely</span></label></div>;
+function FieldError({ children }: { children: React.ReactNode }) {
+  return <p className="mt-1.5 text-xs font-medium text-danger" role="alert">{children}</p>;
 }
 
-function ReviewPanel({ record, saving, onSubmit }: { record: OnboardingSummary; saving: boolean; onSubmit: () => void }) {
+function UploadField({ label, helper, accept, loading, disabled, complete, onFile }: { label: string; helper: string; accept: string; loading: boolean; disabled: boolean; complete: boolean; onFile: (file: File) => void }) {
+  return <div><p className="mb-2 text-sm font-semibold">{label}</p><label className={cn("flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-black/15 bg-[#f8fafb] p-4 text-center", disabled && "cursor-not-allowed opacity-60")}><input className="sr-only" type="file" aria-label={`${label} file`} accept={accept} disabled={disabled || loading} onChange={(event) => { const file = event.target.files?.[0]; if (file) onFile(file); }} />{complete ? <FileCheck2 className="size-6 text-[#5f8d11]" /> : <Upload className="size-6 text-[#68717b]" />}<span className="mt-2 text-sm font-semibold">{loading ? "Uploading securely…" : complete ? "Uploaded — choose another to replace" : "Choose a file"}</span><span className="mt-1 text-xs leading-5 text-[#68717b]">{helper}</span></label></div>;
+}
+
+function ReviewPanel({ header, progressCard, record, saving, onSubmit }: { header: React.ReactNode; progressCard: React.ReactNode; record: OnboardingSummary; saving: boolean; onSubmit: () => void }) {
   const rows = [
     ["Organisation", record.name],
     ["Business type", record.businessType ?? "Missing"],
@@ -443,5 +609,52 @@ function ReviewPanel({ record, saving, onSubmit }: { record: OnboardingSummary; 
     ["Evidence", `${record.documents.length} secure file${record.documents.length === 1 ? "" : "s"}`],
   ];
   const canSubmit = record.readiness.complete && ["draft", "requires_changes"].includes(record.status);
-  return <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]"><div><div className="grid gap-3 sm:grid-cols-2">{rows.map(([label, value]) => <div key={label} className="rounded-2xl border border-black/8 bg-[#f8fafb] p-4"><p className="text-xs text-[#68717b]">{label}</p><p className="mt-1 font-semibold capitalize">{value}</p></div>)}</div><div className="mt-6 rounded-2xl border border-black/8 p-5"><h2 className="font-bold">Submission history</h2><ol className="mt-4 space-y-4">{record.history.map((item) => <li key={item.id} className="flex gap-3"><span className="mt-1 size-2 rounded-full bg-primary" /><div><p className="text-sm font-semibold capitalize">{item.toStatus.replaceAll("_", " ")}</p><p className="text-xs text-[#68717b]">{new Date(item.createdAt).toLocaleString()}</p>{item.reason ? <p className="mt-1 text-sm text-[#68717b]">{item.reason}</p> : null}</div></li>)}</ol></div></div><aside className="h-fit rounded-[1.75rem] bg-[#071522] p-6 text-white"><Clock3 className="size-6 text-primary" /><h2 className="mt-4 text-xl font-bold">Review readiness</h2><p className="mt-2 text-sm leading-6 text-white/65">{record.readiness.completedCount} of {record.readiness.totalCount} requirements complete.</p>{record.readiness.missingFields.length ? <ul className="mt-4 space-y-2 text-xs text-white/75">{record.readiness.missingFields.map((field) => <li key={field}>• {field}</li>)}</ul> : <p className="mt-4 flex items-center gap-2 text-sm text-primary"><Check className="size-4" /> Ready to submit</p>}<Button className="mt-6 w-full" disabled={!canSubmit} loading={saving} onClick={onSubmit}>Submit for review</Button>{record.status === "pending_review" ? <p className="mt-3 text-center text-xs text-white/60">Submitted {record.submittedAt ? new Date(record.submittedAt).toLocaleString() : "recently"}</p> : null}</aside></div>;
+  return (
+    <main aria-label="Application review columns" className="mt-5 grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
+      {progressCard}
+      <Surface aria-label="Application details" className="overflow-hidden p-6 sm:p-9">
+        {header}
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          {rows.map(([label, value]) => (
+            <div key={label} className="rounded-2xl border border-black/8 bg-[#f8fafb] p-4">
+              <p className="text-xs text-[#68717b]">{label}</p>
+              <p className="mt-1 font-semibold capitalize">{value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-6 rounded-2xl border border-black/8 p-5">
+          <h2 className="font-bold">Submission history</h2>
+          <ol className="mt-4 space-y-4">
+            {record.history.map((item) => (
+              <li key={item.id} className="flex gap-3">
+                <span className="mt-1 size-2 rounded-full bg-primary" />
+                <div>
+                  <p className="text-sm font-semibold capitalize">{item.toStatus.replaceAll("_", " ")}</p>
+                  <p className="text-xs text-[#68717b]">{new Date(item.createdAt).toLocaleString()}</p>
+                  {item.reason ? <p className="mt-1 text-sm text-[#68717b]">{item.reason}</p> : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </Surface>
+      <aside aria-label="Review readiness" className="h-fit rounded-[1.75rem] bg-[#071522] p-6 text-white">
+        <Clock3 className="size-6 text-primary" />
+        <h2 className="mt-4 text-xl font-bold">Review readiness</h2>
+        <p className="mt-2 text-sm leading-6 text-white/65">{record.readiness.completedCount} of {record.readiness.totalCount} requirements complete.</p>
+        {record.readiness.missingFields.length ? (
+          <ul className="mt-4 space-y-2 text-xs text-white/75">
+            {record.readiness.missingFields.map((field) => <li key={field}>• {field}</li>)}
+          </ul>
+        ) : (
+          <p className="mt-4 flex items-center gap-2 text-sm text-primary"><Check className="size-4" /> Ready to submit</p>
+        )}
+        <div className="mt-6 grid gap-2">
+          <Link href="/professional/onboarding" className={cn(buttonVariants({ variant: "outline" }), "w-full border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white")}>Edit application</Link>
+          <Button className="w-full disabled:bg-white/10 disabled:text-white/45 disabled:opacity-100 disabled:shadow-none" disabled={!canSubmit} loading={saving} onClick={onSubmit}>Submit for review</Button>
+        </div>
+        {record.status === "pending_review" ? <p className="mt-3 text-center text-xs text-white/60">Submitted {record.submittedAt ? new Date(record.submittedAt).toLocaleString() : "recently"}</p> : null}
+      </aside>
+    </main>
+  );
 }

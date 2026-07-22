@@ -465,6 +465,7 @@ export function AuthFlipPanel() {
                 showSignup && "pointer-events-none",
               )}
               aria-hidden={showSignup}
+              inert={showSignup}
             >
               <SignInFace onFlipToSignUp={() => flipTo("signup")} />
             </div>
@@ -474,6 +475,7 @@ export function AuthFlipPanel() {
                 !showSignup && "pointer-events-none",
               )}
               aria-hidden={!showSignup}
+              inert={!showSignup}
             >
               <SignUpFace onFlipToSignIn={() => flipTo("signin")} />
             </div>

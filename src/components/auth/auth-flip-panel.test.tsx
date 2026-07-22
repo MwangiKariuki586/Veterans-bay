@@ -75,6 +75,23 @@ describe("account journey signup", () => {
     ).toBeInTheDocument();
   });
 
+  it("names signup fields and removes the inactive sign-in face from interaction", () => {
+    render(<AuthFlipPanel />);
+
+    expect(document.querySelector("#signup-name")).toHaveAccessibleName(
+      "Enter your full name",
+    );
+    expect(document.querySelector("#signup-email")).toHaveAccessibleName(
+      "Enter your email",
+    );
+    expect(document.querySelector("#signup-password")).toHaveAccessibleName(
+      "Enter your password",
+    );
+
+    const inactiveFace = document.querySelector('[aria-hidden="true"]');
+    expect(inactiveFace).toHaveAttribute("inert");
+  });
+
   it("creates a client account and enters the client journey", async () => {
     render(<AuthFlipPanel />);
     completeCommonFields();

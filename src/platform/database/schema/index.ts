@@ -15,6 +15,9 @@ export {
   professionalVerificationDocuments,
 } from "./professional-onboarding";
 export {
+  organisationInvitations,
+  organisationMembershipHistory,
+  organisationMembershipRoleHistory,
   organisationMemberships,
   permissions,
   platformRoleAssignments,
@@ -33,6 +36,9 @@ export {
   accountRestrictionsRelations,
   auditEventsRelations,
   fileAssetsRelations,
+  organisationInvitationsRelations,
+  organisationMembershipHistoryRelations,
+  organisationMembershipRoleHistoryRelations,
   organisationMembershipsRelations,
   organisationsRelations,
   outboxEventsRelations,
