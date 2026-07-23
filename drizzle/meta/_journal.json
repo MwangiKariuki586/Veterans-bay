@@ -43,6 +43,13 @@
       "when": 1784564950065,
       "tag": "0005_restrict-owner-platform-permission",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784741416352,
+      "tag": "0006_damp_naoko",
+      "breakpoints": true
     }
   ]
 }

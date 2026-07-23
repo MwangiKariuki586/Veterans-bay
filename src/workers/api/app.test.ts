@@ -329,4 +329,30 @@ describe("Veterans Bay API foundation", () => {
     const responses = await Promise.all(requests);
     expect(responses.map((response) => response.status)).toEqual([401, 401, 401]);
   });
+
+  it("protects the professional service lifecycle behind session authorization", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+    const json = { headers: { "content-type": "application/json" } };
+    const responses = await Promise.all([
+      app.request("/api/v1/professional/services", {}, environment),
+      app.request("/api/v1/professional/services/service-1", {}, environment),
+      app.request("/api/v1/professional/services/service-1", {
+        ...json,
+        method: "PATCH",
+        body: JSON.stringify({ version: 1, name: "Updated service" }),
+      }, environment),
+      app.request("/api/v1/professional/services/service-1/publish", {
+        ...json,
+        method: "POST",
+        body: JSON.stringify({ version: 1 }),
+      }, environment),
+      app.request("/api/v1/professional/services/service-1/unpublish", {
+        ...json,
+        method: "POST",
+        body: JSON.stringify({ version: 1 }),
+      }, environment),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 401, 401, 401]);
+  });
 });

@@ -12,6 +12,12 @@ import {
   professionalVerificationDocuments,
 } from "./professional-onboarding";
 import {
+  professionalPortfolioItems,
+  professionalServiceImages,
+  professionalServices,
+  professionalServiceSnapshots,
+} from "./professional-services";
+import {
   organisationInvitations,
   organisationMembershipHistory,
   organisationMembershipRoleHistory,
@@ -54,7 +60,63 @@ export const organisationsRelations = relations(organisations, ({ many }) => ({
   outboxEvents: many(outboxEvents),
   professionalProfiles: many(professionalProfiles),
   onboardingHistory: many(professionalOnboardingHistory),
+  services: many(professionalServices),
+  portfolioItems: many(professionalPortfolioItems),
 }));
+
+export const professionalServicesRelations = relations(
+  professionalServices,
+  ({ one, many }) => ({
+    organisation: one(organisations, {
+      fields: [professionalServices.organisationId],
+      references: [organisations.id],
+    }),
+    images: many(professionalServiceImages),
+    snapshots: many(professionalServiceSnapshots),
+  }),
+);
+
+export const professionalServiceImagesRelations = relations(
+  professionalServiceImages,
+  ({ one }) => ({
+    service: one(professionalServices, {
+      fields: [professionalServiceImages.serviceId],
+      references: [professionalServices.id],
+    }),
+    asset: one(fileAssets, {
+      fields: [professionalServiceImages.assetId],
+      references: [fileAssets.id],
+    }),
+  }),
+);
+
+export const professionalServiceSnapshotsRelations = relations(
+  professionalServiceSnapshots,
+  ({ one }) => ({
+    service: one(professionalServices, {
+      fields: [professionalServiceSnapshots.serviceId],
+      references: [professionalServices.id],
+    }),
+  }),
+);
+
+export const professionalPortfolioItemsRelations = relations(
+  professionalPortfolioItems,
+  ({ one }) => ({
+    organisation: one(organisations, {
+      fields: [professionalPortfolioItems.organisationId],
+      references: [organisations.id],
+    }),
+    asset: one(fileAssets, {
+      fields: [professionalPortfolioItems.assetId],
+      references: [fileAssets.id],
+    }),
+    createdBy: one(accountProfiles, {
+      fields: [professionalPortfolioItems.createdByAccountId],
+      references: [accountProfiles.id],
+    }),
+  }),
+);
 
 export const professionalProfilesRelations = relations(
   professionalProfiles,

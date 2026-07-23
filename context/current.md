@@ -16,7 +16,7 @@ The source document uses the working title ServiceLink. The implementation name 
 
 ## Active Feature
 
-Feature 01.03 — Professional Profile and Service Catalogue
+Feature 01.04 — Marketplace Discovery
 
 ## Status
 
@@ -24,11 +24,11 @@ Feature 01.03 — Professional Profile and Service Catalogue
 
 ## Current Step
 
-Feature 01.03 prerequisite verification passes. Features 01.01 and 01.02 are complete, and the live `Digital Qatalyst` organisation is publication-eligible with organisation status `active` and verification status `verified`.
+Feature 01.03 is complete. Feature 01.04 prerequisite and repository verification is now active.
 
 ## Next Step
 
-Inspect the existing `/professional/profile`, `/professional/services`, public profile, and service-detail implementations against Feature 01.03, then continue with the first incomplete requirement without pulling Feature 01.04 or 01.05 work forward.
+Verify searchable indexes and public projections against the actual repository, inspect the existing `/marketplace` implementation, and continue with the first incomplete Feature 01.04 requirement.
 
 ## Completed Phases
 
@@ -38,11 +38,12 @@ Inspect the existing `/professional/profile`, `/professional/services`, public p
 
 - Feature 01.01 — Professional Organisation Onboarding
 - Feature 01.02 — Team and Permission Management
+- Feature 01.03 — Professional Profile and Service Catalogue
 
 ## Dependencies
 
 - Phase 00 identity, workspace, database, and private-storage foundations verified
-- Dedicated `Veterans bay` Neon database configured and migrated through `0005_restrict-owner-platform-permission`
+- Dedicated `Veterans bay` Neon database configured and migrated through `0006_damp_naoko`
 - Feature 01.01 organisation and owner-membership lifecycle verified
 
 ## Design Reference
@@ -59,11 +60,11 @@ None.
 
 ## Review Gate
 
-None currently identified for the Feature 01.03 prerequisite gate.
+None currently identified for the Feature 01.04 prerequisite gate.
 
 ## Verification State
 
-Features 01.01 and 01.02 are complete. `admin@gmail.com` has an active audited `platform_admin` assignment and is not a member of `Digital Qatalyst`. Approval executed through the authorised review service and live database verification confirms the organisation transitioned from `pending_review` to `active`, verification transitioned to `verified`, and the reasoned history, administrator actor, audit record, and pending `professional.profile_approved` outbox event persisted. Review decisions enforce active account and `platform.admin` permission, forbid self-review, and validate state-specific approve/request-changes/reject/suspend transitions. Full lint, typecheck, 104 tests including database atomicity and invalid-repeat rollback, Next.js production build, and Cloudflare Worker dry-run build pass. Development migrations are applied through `0005_restrict-owner-platform-permission`. The broader review queue, evidence-review interface, category management, listing moderation, and administration UI remain in Feature 01.05.
+Features 01.01 through 01.03 are complete. Feature 01.03 provides authoritative organisation-scoped service persistence, authorised Hono contracts, professional profile and portfolio management, service-image management, publication snapshots, and bounded public projections. Chrome verified service creation, editing, publication, the public detail at desktop and mobile widths, and the final unavailable state after cleanup, plus profile, catalogue, public-profile, and unavailable states. Automated and database tests cover unpublication and its transaction-dependent event. The review found and resolved page-level unavailable heading semantics, canonical weekday ordering, and two visible encoding artifacts. The temporary review service remains unpublished. Development migrations are applied through `0006_damp_naoko`. Lint, typecheck, 136 tests, Next.js production build, Cloudflare Worker dry-run build, schema validation, and diff checks pass. Marketplace discovery is now active; moderation remains in Feature 01.05.
 
 ## Update Rule
 

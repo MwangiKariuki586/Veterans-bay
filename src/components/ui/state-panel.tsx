@@ -103,6 +103,7 @@ interface StatePanelProps {
   icon?: ReactNode;
   className?: string;
   children?: ReactNode;
+  headingLevel?: 1 | 2 | 3;
 }
 
 export function StatePanel({
@@ -111,6 +112,7 @@ export function StatePanel({
   className,
   description,
   icon,
+  headingLevel = 3,
   onAction,
   title,
   variant = "empty",
@@ -121,6 +123,7 @@ export function StatePanel({
       : (variant as FeedbackStateVariant);
   const config = variantConfig[resolvedVariant] ?? variantConfig.empty;
   const Icon = config.Icon;
+  const Heading = headingLevel === 1 ? "h1" : headingLevel === 2 ? "h2" : "h3";
   const showSpinner = resolvedVariant === "loading" || resolvedVariant === "processing";
 
   return (
@@ -146,7 +149,7 @@ export function StatePanel({
           ))}
       </span>
       <div className="grid max-w-sm gap-1">
-        <h3 className="font-bold">{title}</h3>
+        <Heading className="font-bold">{title}</Heading>
         <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
       {children}

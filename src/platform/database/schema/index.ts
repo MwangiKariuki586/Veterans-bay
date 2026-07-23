@@ -15,6 +15,12 @@ export {
   professionalVerificationDocuments,
 } from "./professional-onboarding";
 export {
+  professionalPortfolioItems,
+  professionalServiceImages,
+  professionalServices,
+  professionalServiceSnapshots,
+} from "./professional-services";
+export {
   organisationInvitations,
   organisationMembershipHistory,
   organisationMembershipRoleHistory,
@@ -43,7 +49,11 @@ export {
   organisationsRelations,
   outboxEventsRelations,
   professionalOnboardingHistoryRelations,
+  professionalPortfolioItemsRelations,
   professionalProfilesRelations,
+  professionalServiceImagesRelations,
+  professionalServicesRelations,
+  professionalServiceSnapshotsRelations,
   professionalVerificationDocumentsRelations,
   permissionsRelations,
   platformRoleAssignmentsRelations,

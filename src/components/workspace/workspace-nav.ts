@@ -11,6 +11,7 @@ import {
   Shield,
   ShoppingBag,
   Star,
+  Store,
   Users,
   Wrench,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const professionalNav: ReadonlyArray<WorkspaceNavGroup> = [
     items: [
       { href: "/professional", label: "Dashboard", icon: LayoutDashboard },
       { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
+      { href: "/professional/services", label: "Services", icon: Store },
       { href: "/professional/requests", label: "Requests", icon: ClipboardList },
       { href: "/professional/quotations", label: "Quotations", icon: FileText },
       { href: "/professional/bookings", label: "Bookings", icon: CalendarDays },
@@ -54,7 +56,7 @@ const professionalNav: ReadonlyArray<WorkspaceNavGroup> = [
     items: [
       { href: "/professional/team", label: "Team", icon: Users },
       { href: "/professional/analytics", label: "Analytics", icon: BarChart3 },
-      { href: "/professional/settings/profile", label: "Business Profile", icon: Settings },
+      { href: "/professional/profile", label: "Business Profile", icon: Settings },
       { href: "/account/profile", label: "Settings", icon: Settings },
     ],
   },

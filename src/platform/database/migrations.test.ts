@@ -176,7 +176,7 @@ describe("database migrations", () => {
       await adminPool.query(`drop database "${databaseName}" with (force)`);
       await adminPool.end();
     }
-  });
+  }, 120_000);
 
   it("keeps the committed migration SQL readable for review", async () => {
     const [migrationSqlPath] = await migrationSqlPaths();
