@@ -55,10 +55,12 @@ describe("public catalogue pages", () => {
   });
 
   it("renders an authoritative custom-quotation service without a numeric total", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ data: service }),
-    } as Response);
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: service }),
+      } as Response)
+      .mockResolvedValueOnce({ ok: true } as Response);
 
     render(<PublicServicePage slug={service.slug} />);
     expect(await screen.findByRole("heading", { name: service.name })).toBeInTheDocument();
@@ -71,10 +73,12 @@ describe("public catalogue pages", () => {
   });
 
   it("uses explicit new-professional states instead of fabricated metrics", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ data: profile }),
-    } as Response);
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: profile }),
+      } as Response)
+      .mockResolvedValueOnce({ ok: true } as Response);
 
     render(<PublicProfessionalPage slug={profile.slug} />);
     expect(await screen.findByRole("heading", { name: profile.businessName })).toBeInTheDocument();

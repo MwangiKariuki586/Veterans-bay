@@ -1,4 +1,15 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 
 import type { Database } from "../../platform/database/client";
 import { fileAssets } from "../../platform/database/schema/file-assets";
@@ -66,6 +77,25 @@ export interface ProfessionalOnboardingStore {
   ): Promise<boolean>;
   listDocuments(profileId: string): Promise<OnboardingAssetRecord[]>;
   listHistory(organisationId: string): Promise<OnboardingHistoryRecord[]>;
+  listForReview(input: {
+    status: string;
+    q?: string;
+    page: number;
+    pageSize: number;
+  }): Promise<{
+    items: Array<{
+      organisationId: string;
+      name: string;
+      status: string;
+      primaryCategory: string | null;
+      operatingLocation: string | null;
+      verificationStatus: string;
+      submittedAt: Date | null;
+      updatedAt: Date;
+      evidenceCount: number;
+    }>;
+    totalItems: number;
+  }>;
   createDraft(input: {
     accountProfileId: string;
     name: string;
@@ -108,16 +138,22 @@ export interface ProfessionalOnboardingStore {
   recordReviewDecision(input: {
     organisationId: string;
     actorAccountId: string;
-    fromStatus: "pending_review" | "active";
+    fromStatus: "pending_review" | "active" | "suspended";
     toStatus: "active" | "requires_changes" | "deactivated" | "suspended";
     verificationStatus?: "verified" | "rejected";
-    decision: "approve" | "request_changes" | "reject" | "suspend";
+    decision:
+      | "approve"
+      | "request_changes"
+      | "reject"
+      | "suspend"
+      | "restore";
     reason: string;
     eventType:
       | "professional.profile_approved"
       | "professional.profile_changes_requested"
       | "professional.profile_rejected"
-      | "professional.profile_suspended";
+      | "professional.profile_suspended"
+      | "professional.profile_restored";
     correlationId?: string;
   }): Promise<void>;
 }
@@ -264,6 +300,67 @@ export class ProfessionalOnboardingRepository
       .from(professionalOnboardingHistory)
       .where(eq(professionalOnboardingHistory.organisationId, organisationId))
       .orderBy(asc(professionalOnboardingHistory.createdAt));
+  }
+
+  async listForReview(input: {
+    status: string;
+    q?: string;
+    page: number;
+    pageSize: number;
+  }) {
+    const conditions: SQL[] = [eq(organisations.status, input.status)];
+    if (input.q) {
+      conditions.push(
+        or(
+          ilike(organisations.name, `%${input.q}%`),
+          ilike(professionalProfiles.primaryCategory, `%${input.q}%`),
+          ilike(professionalProfiles.operatingLocation, `%${input.q}%`),
+        )!,
+      );
+    }
+    const where = and(...conditions);
+    const evidenceCount = sql<number>`(
+      select count(*)::int
+      from ${professionalVerificationDocuments}
+      where ${professionalVerificationDocuments.professionalProfileId} = ${professionalProfiles.id}
+    )`;
+
+    const [items, [total]] = await Promise.all([
+      this.db
+        .select({
+          organisationId: organisations.id,
+          name: organisations.name,
+          status: organisations.status,
+          primaryCategory: professionalProfiles.primaryCategory,
+          operatingLocation: professionalProfiles.operatingLocation,
+          verificationStatus: professionalProfiles.verificationStatus,
+          submittedAt: professionalProfiles.submittedAt,
+          updatedAt: professionalProfiles.updatedAt,
+          evidenceCount,
+        })
+        .from(professionalProfiles)
+        .innerJoin(
+          organisations,
+          eq(professionalProfiles.organisationId, organisations.id),
+        )
+        .where(where)
+        .orderBy(
+          desc(professionalProfiles.submittedAt),
+          asc(organisations.id),
+        )
+        .limit(input.pageSize)
+        .offset((input.page - 1) * input.pageSize),
+      this.db
+        .select({ value: count() })
+        .from(professionalProfiles)
+        .innerJoin(
+          organisations,
+          eq(professionalProfiles.organisationId, organisations.id),
+        )
+        .where(where),
+    ]);
+
+    return { items, totalItems: total?.value ?? 0 };
   }
 
   async createDraft(input: {
@@ -495,16 +592,22 @@ export class ProfessionalOnboardingRepository
   async recordReviewDecision(input: {
     organisationId: string;
     actorAccountId: string;
-    fromStatus: "pending_review" | "active";
+    fromStatus: "pending_review" | "active" | "suspended";
     toStatus: "active" | "requires_changes" | "deactivated" | "suspended";
     verificationStatus?: "verified" | "rejected";
-    decision: "approve" | "request_changes" | "reject" | "suspend";
+    decision:
+      | "approve"
+      | "request_changes"
+      | "reject"
+      | "suspend"
+      | "restore";
     reason: string;
     eventType:
       | "professional.profile_approved"
       | "professional.profile_changes_requested"
       | "professional.profile_rejected"
-      | "professional.profile_suspended";
+      | "professional.profile_suspended"
+      | "professional.profile_restored";
     correlationId?: string;
   }): Promise<void> {
     await this.db.transaction(async (tx) => {

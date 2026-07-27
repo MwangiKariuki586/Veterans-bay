@@ -39,6 +39,13 @@ export const professionalServices = pgTable(
     warrantyTerms: text("warranty_terms"),
     directBookingEnabled: boolean("direct_booking_enabled").notNull().default(false),
     status: text("status").notNull().default("draft"),
+    moderationStatus: text("moderation_status").notNull().default("clear"),
+    moderationReason: text("moderation_reason"),
+    moderatedByAccountId: uuid("moderated_by_account_id").references(
+      () => accountProfiles.id,
+      { onDelete: "set null" },
+    ),
+    moderatedAt: timestamp("moderated_at", { withTimezone: true }),
     version: integer("version").notNull().default(1),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -67,6 +74,10 @@ export const professionalServices = pgTable(
       sql`${table.status} in ('draft', 'published', 'unpublished')`,
     ),
     check(
+      "professional_services_moderation_status_check",
+      sql`${table.moderationStatus} in ('clear', 'hidden')`,
+    ),
+    check(
       "professional_services_price_check",
       sql`${table.priceMinor} is null or ${table.priceMinor} >= 0`,
     ),
@@ -83,8 +94,33 @@ export const professionalServices = pgTable(
       table.organisationId,
       table.status,
     ),
+    index("professional_services_moderation_status_idx").on(
+      table.moderationStatus,
+      table.status,
+    ),
     index("professional_services_category_status_idx").on(
       table.category,
+      table.status,
+    ),
+    index("professional_services_marketplace_search_idx").using(
+      "gin",
+      sql`to_tsvector(
+        'simple',
+        coalesce(${table.name}, '') || ' ' ||
+        coalesce(${table.category}, '') || ' ' ||
+        coalesce(${table.description}, '')
+      )`,
+    ),
+    index("professional_services_service_areas_idx").using(
+      "gin",
+      table.serviceAreas,
+    ),
+    index("professional_services_fulfilment_status_idx").on(
+      table.fulfilmentModel,
+      table.status,
+    ),
+    index("professional_services_pricing_status_idx").on(
+      table.pricingModel,
       table.status,
     ),
   ],

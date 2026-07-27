@@ -134,7 +134,7 @@ function SignedInActions({
         <MessageCircle className="size-[1.15rem]" aria-hidden="true" />
       </Link>
       <Link
-        href="/saved"
+        href="/client/saved"
         className={cn(iconButtonClass, "hidden sm:grid")}
         aria-label="Saved professionals"
       >
@@ -231,7 +231,7 @@ export function SiteHeader() {
                   </SheetClose>
                   <SheetClose asChild>
                     <Link
-                      href="/saved"
+                      href="/client/saved"
                       className="flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]"
                     >
                       Saved professionals

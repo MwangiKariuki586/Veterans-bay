@@ -70,6 +70,13 @@ export const professionalProfiles = pgTable(
     index("professional_profiles_verification_status_idx").on(
       table.verificationStatus,
     ),
+    index("professional_profiles_service_areas_idx").using(
+      "gin",
+      table.serviceAreas,
+    ),
+    index("professional_profiles_operating_location_idx").on(
+      table.operatingLocation,
+    ),
   ],
 );
 

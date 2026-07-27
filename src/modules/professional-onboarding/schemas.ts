@@ -67,6 +67,27 @@ export const attachOnboardingAssetBodySchema = z.object({
 });
 
 export const onboardingReviewDecisionBodySchema = z.object({
-  decision: z.enum(["approve", "request_changes", "reject", "suspend"]),
+  decision: z.enum([
+    "approve",
+    "request_changes",
+    "reject",
+    "suspend",
+    "restore",
+  ]),
   reason: z.string().trim().min(5).max(500),
+});
+
+export const adminProfessionalReviewQuerySchema = z.object({
+  status: z
+    .enum([
+      "pending_review",
+      "requires_changes",
+      "active",
+      "suspended",
+      "deactivated",
+    ])
+    .default("pending_review"),
+  q: z.string().trim().min(2).max(120).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(10).default(10),
 });

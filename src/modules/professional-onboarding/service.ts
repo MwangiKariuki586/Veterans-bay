@@ -7,11 +7,20 @@ import type {
   OnboardingRecord,
   ProfessionalOnboardingStore,
 } from "./repository";
-import type { OnboardingSummary, OrganisationStatus } from "./types";
+import type {
+  AdminProfessionalReviewQueue,
+  OnboardingSummary,
+  OrganisationStatus,
+} from "./types";
 
 const editableStatuses = new Set(["draft", "requires_changes", "active"]);
 
-type ReviewDecision = "approve" | "request_changes" | "reject" | "suspend";
+type ReviewDecision =
+  | "approve"
+  | "request_changes"
+  | "reject"
+  | "suspend"
+  | "restore";
 
 const reviewTransitions = {
   approve: {
@@ -37,6 +46,12 @@ const reviewTransitions = {
     toStatus: "suspended",
     verificationStatus: undefined,
     eventType: "professional.profile_suspended",
+  },
+  restore: {
+    fromStatus: "suspended",
+    toStatus: "active",
+    verificationStatus: undefined,
+    eventType: "professional.profile_restored",
   },
 } as const;
 
@@ -292,6 +307,47 @@ export class ProfessionalOnboardingService {
       status: updated.status as OrganisationStatus,
       verificationStatus: updated.verificationStatus,
     };
+  }
+
+  async listForReview(
+    authUserId: string,
+    input: {
+      status: string;
+      q?: string;
+      page: number;
+      pageSize: number;
+    },
+  ): Promise<AdminProfessionalReviewQueue> {
+    await this.requirePlatformAdmin(authUserId);
+    const result = await this.store.listForReview(input);
+    return {
+      items: result.items.map((item) => ({
+        ...item,
+        status: item.status as OrganisationStatus,
+        submittedAt: item.submittedAt?.toISOString() ?? null,
+        updatedAt: item.updatedAt.toISOString(),
+      })),
+      page: input.page,
+      pageSize: input.pageSize,
+      totalItems: result.totalItems,
+      totalPages: Math.max(1, Math.ceil(result.totalItems / input.pageSize)),
+    };
+  }
+
+  async getForReview(
+    authUserId: string,
+    organisationId: string,
+  ): Promise<OnboardingSummary> {
+    await this.requirePlatformAdmin(authUserId);
+    const record = await this.store.findByOrganisationId(organisationId);
+    if (!record) {
+      throw new AppError({
+        code: "ONBOARDING_NOT_FOUND",
+        message: "Professional onboarding was not found.",
+        status: 404,
+      });
+    }
+    return this.toSummary(record);
   }
 
   private async toSummary(

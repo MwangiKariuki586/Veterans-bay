@@ -7,8 +7,15 @@ export {
   processedEvents,
 } from "./consumer-events";
 export { fileAssets } from "./file-assets";
+export { marketplaceCategories } from "./marketplace-moderation";
 export { organisations } from "./organisations";
 export { outboxEvents } from "./outbox-events";
+export { savedProfessionals } from "./saved-professionals";
+export {
+  serviceRequestAttachments,
+  serviceRequestHistory,
+  serviceRequests,
+} from "./service-requests";
 export {
   professionalOnboardingHistory,
   professionalProfiles,
@@ -55,6 +62,10 @@ export {
   professionalServicesRelations,
   professionalServiceSnapshotsRelations,
   professionalVerificationDocumentsRelations,
+  savedProfessionalsRelations,
+  serviceRequestAttachmentsRelations,
+  serviceRequestHistoryRelations,
+  serviceRequestsRelations,
   permissionsRelations,
   platformRoleAssignmentsRelations,
   rolePermissionsRelations,

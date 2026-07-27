@@ -15,6 +15,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/utils";
+import { recordMarketplaceEvent } from "@/lib/marketplace-analytics";
 import type {
   PublicProfessionalProfile,
   PublicServiceCard,
@@ -60,7 +61,13 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
 
   useEffect(() => {
     void getPublicData<PublicProfessionalProfile>(`/api/v1/public/professionals/${encodeURIComponent(slug)}`)
-      .then(setProfile)
+      .then((data) => {
+        setProfile(data);
+        recordMarketplaceEvent({
+          eventType: "professional.profile_viewed",
+          targetSlug: data.slug,
+        });
+      })
       .catch((cause) => setError(cause instanceof Error ? cause.message : "This professional is not currently available."));
   }, [slug]);
 
@@ -94,7 +101,13 @@ export function PublicServicePage({ slug }: { slug: string }) {
 
   useEffect(() => {
     void getPublicData<PublicServiceDetail>(`/api/v1/public/services/${encodeURIComponent(slug)}`)
-      .then(setService)
+      .then((data) => {
+        setService(data);
+        recordMarketplaceEvent({
+          eventType: "service.viewed",
+          targetSlug: data.slug,
+        });
+      })
       .catch((cause) => setError(cause instanceof Error ? cause.message : "This service is not currently available."));
   }, [slug]);
 

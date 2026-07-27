@@ -35,6 +35,6 @@ describe("onboardingReviewDecisionBodySchema", () => {
         decision: "restore",
         reason: "Evidence reviewed and accepted.",
       }).success,
-    ).toBe(false);
+    ).toBe(true);
   });
 });

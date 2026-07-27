@@ -112,6 +112,7 @@ export class PublicCatalogueRepository implements PublicCatalogueStore {
         and(
           eq(professionalServices.slug, slug),
           eq(professionalServices.status, "published"),
+          eq(professionalServices.moderationStatus, "clear"),
           eq(organisations.status, "active"),
         ),
       )
@@ -127,6 +128,7 @@ export class PublicCatalogueRepository implements PublicCatalogueStore {
         and(
           eq(professionalServices.organisationId, organisationId),
           eq(professionalServices.status, "published"),
+          eq(professionalServices.moderationStatus, "clear"),
         ),
       )
       .orderBy(asc(professionalServices.name), asc(professionalServices.id));

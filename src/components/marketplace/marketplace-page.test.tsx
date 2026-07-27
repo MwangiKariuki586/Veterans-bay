@@ -1,19 +1,209 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { MarketplaceSearchResult } from "@/modules/marketplace/types";
 
 import { MarketplacePage } from "./marketplace-page";
 
+const push = vi.fn();
+let currentSearch = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
+  useSearchParams: () => currentSearch,
+}));
+
+const result: MarketplaceSearchResult = {
+  page: 1,
+  pageSize: 10,
+  totalItems: 1,
+  totalPages: 1,
+  items: [
+    {
+      slug: "plumbing-inspection",
+      name: "Plumbing inspection",
+      category: "Plumbing",
+      description: "Inspect pipework and diagnose hidden leaks.",
+      fulfilmentModel: "on_site",
+      pricingModel: "fixed",
+      priceMinor: 120_000,
+      currency: "KES",
+      serviceAreas: ["Nairobi"],
+      imageUrl: null,
+      provider: {
+        slug: "trusted-plumbing",
+        businessName: "Trusted Plumbing",
+        operatingLocation: "Nairobi",
+        verified: true,
+      },
+    },
+  ],
+};
+
 describe("marketplace page", () => {
-  it("renders find services fixtures and trust strip", () => {
+  beforeEach(() => {
+    currentSearch = new URLSearchParams();
+    push.mockReset();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: result }),
+      }),
+    );
+  });
+
+  it("renders authoritative service results and trust context", async () => {
     render(<MarketplacePage />);
 
     expect(
       screen.getByRole("heading", { name: "Find Services" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Verified Pros")).toBeInTheDocument();
-    expect(screen.getByText("ProLine Plumbing")).toBeInTheDocument();
+    expect(screen.getByText("Published services only")).toBeInTheDocument();
+    expect(await screen.findByText("Trusted Plumbing")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /ProLine Plumbing/i }),
+      screen.getByRole("link", { name: "Plumbing inspection" }),
     ).toHaveAttribute("href", "/services/plumbing-inspection");
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/public/marketplace?pageSize=10",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  it("requires authentication before saving a professional", async () => {
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (
+        url === "/api/v1/client/saved-professionals/trusted-plumbing" &&
+        init?.method === "POST"
+      ) {
+        return { status: 401, ok: false, json: async () => ({}) } as Response;
+      }
+      if (url === "/api/v1/client/saved-professionals") {
+        return { status: 401, ok: false, json: async () => ({}) } as Response;
+      }
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({ data: result }),
+      } as Response;
+    });
+
+    render(<MarketplacePage />);
+    await screen.findByText("Trusted Plumbing");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save Trusted Plumbing" }),
+    );
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        "/login?redirect=%2Fmarketplace",
+      ),
+    );
+  });
+
+  it("renders and removes an existing saved state", async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/v1/client/saved-professionals") {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({ data: [{ slug: "trusted-plumbing" }] }),
+        } as Response;
+      }
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({ data: result }),
+      } as Response;
+    });
+
+    render(<MarketplacePage />);
+    const remove = await screen.findByRole("button", {
+      name: "Remove Trusted Plumbing from saved",
+    });
+    fireEvent.click(remove);
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/v1/client/saved-professionals/trusted-plumbing",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Save Trusted Plumbing" }),
+    ).toBeInTheDocument();
+  });
+
+  it("applies desktop filters through URL state", async () => {
+    render(<MarketplacePage />);
+    await screen.findByText("Trusted Plumbing");
+
+    fireEvent.change(screen.getByRole("textbox", { name: /Search/i }), {
+      target: { value: "hidden leaks" },
+    });
+    fireEvent.change(screen.getByLabelText("Category"), {
+      target: { value: "Plumbing" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Location" }), {
+      target: { value: "Nairobi" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        "/marketplace?q=hidden+leaks&category=Plumbing&location=Nairobi",
+      ),
+    );
+  });
+
+  it("shows the filtered no-result state and clears URL filters", async () => {
+    currentSearch = new URLSearchParams("category=Painting");
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input).startsWith("/api/v1/public/marketplace?")) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: { ...result, items: [], totalItems: 0 },
+          }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({ data: [] }),
+      } as Response;
+    });
+
+    render(<MarketplacePage />);
+
+    expect(
+      await screen.findByText("No services match these filters"),
+    ).toBeInTheDocument();
+    const clearButtons = screen.getAllByRole("button", { name: "Clear filters" });
+    fireEvent.click(clearButtons.at(-1)!);
+    expect(push).toHaveBeenCalledWith("/marketplace");
+  });
+
+  it("does not delay results when analytics delivery fails", async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/v1/public/marketplace/events") {
+        throw new Error("analytics offline");
+      }
+      if (url === "/api/v1/client/saved-professionals") {
+        return { status: 401, ok: false, json: async () => ({}) } as Response;
+      }
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({ data: result }),
+      } as Response;
+    });
+
+    render(<MarketplacePage />);
+
+    expect(await screen.findByText("Trusted Plumbing")).toBeInTheDocument();
+    expect(screen.queryByText(/analytics offline/i)).not.toBeInTheDocument();
   });
 });

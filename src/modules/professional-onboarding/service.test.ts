@@ -84,6 +84,7 @@ function store(record: OnboardingRecord | null): ProfessionalOnboardingStore {
         : [],
     ),
     listHistory: vi.fn().mockResolvedValue([]),
+    listForReview: vi.fn().mockResolvedValue({ items: [], totalItems: 0 }),
     createDraft: vi.fn().mockResolvedValue(record),
     updateDraft: vi.fn().mockResolvedValue(undefined),
     attachAsset: vi.fn().mockResolvedValue(undefined),
@@ -205,6 +206,88 @@ describe("ProfessionalOnboardingService", () => {
     ).rejects.toMatchObject({ code: "ACCOUNT_RESTRICTED" });
   });
 
+  it("authorizes, paginates, and serializes the administrator review queue", async () => {
+    const repository = store(onboarding());
+    repository.listForReview = vi.fn().mockResolvedValue({
+      items: [
+        {
+          organisationId: "organisation-1",
+          name: "ProLine Plumbing",
+          status: "pending_review",
+          primaryCategory: "Plumbing",
+          operatingLocation: "Nairobi, Kenya",
+          verificationStatus: "pending",
+          submittedAt: new Date("2026-07-22T08:00:00.000Z"),
+          updatedAt: new Date("2026-07-22T09:00:00.000Z"),
+          evidenceCount: 1,
+        },
+      ],
+      totalItems: 11,
+    });
+    const service = new ProfessionalOnboardingService(
+      repository,
+      identity(),
+      platformAuthorization(),
+    );
+
+    await expect(
+      service.listForReview("user-1", {
+        status: "pending_review",
+        q: "plumbing",
+        page: 2,
+        pageSize: 10,
+      }),
+    ).resolves.toMatchObject({
+      page: 2,
+      totalItems: 11,
+      totalPages: 2,
+      items: [
+        {
+          organisationId: "organisation-1",
+          submittedAt: "2026-07-22T08:00:00.000Z",
+          updatedAt: "2026-07-22T09:00:00.000Z",
+          evidenceCount: 1,
+        },
+      ],
+    });
+    expect(repository.listForReview).toHaveBeenCalledWith({
+      status: "pending_review",
+      q: "plumbing",
+      page: 2,
+      pageSize: 10,
+    });
+  });
+
+  it("protects administrator review reads and returns the full evidence summary", async () => {
+    const pending = onboarding({
+      status: "pending_review",
+      submittedAt: new Date("2026-07-22T08:00:00.000Z"),
+    });
+    const repository = store(pending);
+
+    await expect(
+      new ProfessionalOnboardingService(
+        repository,
+        identity(),
+        platformAuthorization([]),
+      ).getForReview("user-1", "organisation-1"),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+
+    const service = new ProfessionalOnboardingService(
+      repository,
+      identity(),
+      platformAuthorization(),
+    );
+    await expect(
+      service.getForReview("user-1", "organisation-1"),
+    ).resolves.toMatchObject({
+      organisationId: "organisation-1",
+      status: "pending_review",
+      documents: [{ assetId: "asset-1" }],
+      readiness: { complete: true },
+    });
+  });
+
   it("authorizes and records an approval from the pending-review state", async () => {
     const pending = onboarding({
       status: "pending_review",
@@ -270,8 +353,15 @@ describe("ProfessionalOnboardingService", () => {
       decision: "suspend" as const,
       fromStatus: "active",
       toStatus: "suspended",
-      verificationStatus: "verified",
+      verificationStatus: undefined,
       eventType: "professional.profile_suspended",
+    },
+    {
+      decision: "restore" as const,
+      fromStatus: "suspended",
+      toStatus: "active",
+      verificationStatus: undefined,
+      eventType: "professional.profile_restored",
     },
   ])(
     "maps the $decision decision to its authoritative transition",
@@ -282,8 +372,14 @@ describe("ProfessionalOnboardingService", () => {
       verificationStatus,
       eventType,
     }) => {
-      const current = onboarding({ status: fromStatus, verificationStatus });
-      const updated = onboarding({ status: toStatus, verificationStatus });
+      const current = onboarding({
+        status: fromStatus,
+        verificationStatus: verificationStatus ?? "verified",
+      });
+      const updated = onboarding({
+        status: toStatus,
+        verificationStatus: verificationStatus ?? "verified",
+      });
       const repository = store(current);
       repository.findByOrganisationId = vi
         .fn()
@@ -308,7 +404,7 @@ describe("ProfessionalOnboardingService", () => {
           fromStatus,
           toStatus,
           eventType,
-          ...(decision === "suspend" ? {} : { verificationStatus: "rejected" }),
+          ...(verificationStatus ? { verificationStatus } : {}),
         }),
       );
     },

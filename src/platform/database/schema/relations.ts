@@ -6,6 +6,12 @@ import { auditEvents } from "./audit-events";
 import { fileAssets } from "./file-assets";
 import { organisations } from "./organisations";
 import { outboxEvents } from "./outbox-events";
+import { savedProfessionals } from "./saved-professionals";
+import {
+  serviceRequestAttachments,
+  serviceRequestHistory,
+  serviceRequests,
+} from "./service-requests";
 import {
   professionalOnboardingHistory,
   professionalProfiles,
@@ -34,6 +40,8 @@ export const accountProfilesRelations = relations(accountProfiles, ({ many }) =>
   platformRoleAssignments: many(platformRoleAssignments),
   ownedFiles: many(fileAssets),
   auditEvents: many(auditEvents),
+  savedProfessionals: many(savedProfessionals),
+  serviceRequests: many(serviceRequests),
 }));
 
 export const accountRestrictionsRelations = relations(
@@ -58,10 +66,12 @@ export const organisationsRelations = relations(organisations, ({ many }) => ({
   files: many(fileAssets),
   auditEvents: many(auditEvents),
   outboxEvents: many(outboxEvents),
+  savedByAccounts: many(savedProfessionals),
   professionalProfiles: many(professionalProfiles),
   onboardingHistory: many(professionalOnboardingHistory),
   services: many(professionalServices),
   portfolioItems: many(professionalPortfolioItems),
+  serviceRequests: many(serviceRequests),
 }));
 
 export const professionalServicesRelations = relations(
@@ -295,3 +305,69 @@ export const outboxEventsRelations = relations(outboxEvents, ({ one }) => ({
     references: [accountProfiles.id],
   }),
 }));
+
+export const savedProfessionalsRelations = relations(
+  savedProfessionals,
+  ({ one }) => ({
+    accountProfile: one(accountProfiles, {
+      fields: [savedProfessionals.accountProfileId],
+      references: [accountProfiles.id],
+    }),
+    organisation: one(organisations, {
+      fields: [savedProfessionals.organisationId],
+      references: [organisations.id],
+    }),
+  }),
+);
+
+export const serviceRequestsRelations = relations(
+  serviceRequests,
+  ({ one, many }) => ({
+    client: one(accountProfiles, {
+      fields: [serviceRequests.clientAccountId],
+      references: [accountProfiles.id],
+    }),
+    organisation: one(organisations, {
+      fields: [serviceRequests.organisationId],
+      references: [organisations.id],
+    }),
+    preferredService: one(professionalServices, {
+      fields: [serviceRequests.preferredServiceId],
+      references: [professionalServices.id],
+    }),
+    history: many(serviceRequestHistory),
+    attachments: many(serviceRequestAttachments),
+  }),
+);
+
+export const serviceRequestHistoryRelations = relations(
+  serviceRequestHistory,
+  ({ one }) => ({
+    request: one(serviceRequests, {
+      fields: [serviceRequestHistory.requestId],
+      references: [serviceRequests.id],
+    }),
+    actor: one(accountProfiles, {
+      fields: [serviceRequestHistory.actorAccountId],
+      references: [accountProfiles.id],
+    }),
+  }),
+);
+
+export const serviceRequestAttachmentsRelations = relations(
+  serviceRequestAttachments,
+  ({ one }) => ({
+    request: one(serviceRequests, {
+      fields: [serviceRequestAttachments.requestId],
+      references: [serviceRequests.id],
+    }),
+    asset: one(fileAssets, {
+      fields: [serviceRequestAttachments.assetId],
+      references: [fileAssets.id],
+    }),
+    addedBy: one(accountProfiles, {
+      fields: [serviceRequestAttachments.addedByAccountId],
+      references: [accountProfiles.id],
+    }),
+  }),
+);

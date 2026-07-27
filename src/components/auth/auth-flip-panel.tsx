@@ -10,7 +10,7 @@ import {
   User,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -58,8 +58,10 @@ function mapSignUpError(error: { code?: string; message?: string } | undefined) 
 
 function SignInFace({
   onFlipToSignUp,
+  redirectTo,
 }: {
   onFlipToSignUp: () => void;
+  redirectTo: string;
 }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -83,7 +85,7 @@ function SignInFace({
     }
 
     toast.success("Signed in.");
-    router.push("/account/profile");
+    router.push(redirectTo);
     router.refresh();
   }
 
@@ -439,10 +441,21 @@ function SignUpFace({
 export function AuthFlipPanel() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const requestedRedirect = searchParams.get("redirect");
+  const redirectTo =
+    requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//")
+      ? requestedRedirect
+      : "/account/profile";
 
   function flipTo(next: AuthMode) {
     // Keep the panel mounted via shared (auth) layout; only sync the URL.
-    router.replace(next === "signup" ? "/register" : "/login", { scroll: false });
+    const destination = next === "signup" ? "/register" : "/login";
+    const suffix =
+      redirectTo !== "/account/profile"
+        ? `?redirect=${encodeURIComponent(redirectTo)}`
+        : "";
+    router.replace(`${destination}${suffix}`, { scroll: false });
   }
 
   const showSignup = pathname === "/register";
@@ -467,7 +480,10 @@ export function AuthFlipPanel() {
               aria-hidden={showSignup}
               inert={showSignup}
             >
-              <SignInFace onFlipToSignUp={() => flipTo("signup")} />
+              <SignInFace
+                onFlipToSignUp={() => flipTo("signup")}
+                redirectTo={redirectTo}
+              />
             </div>
             <div
               className={cn(

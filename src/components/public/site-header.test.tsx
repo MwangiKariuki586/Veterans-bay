@@ -69,7 +69,7 @@ describe("site header", () => {
     );
     expect(
       screen.getAllByRole("link", { name: "Saved professionals" })[0],
-    ).toHaveAttribute("href", "/saved");
+    ).toHaveAttribute("href", "/client/saved");
     expect(screen.getAllByRole("link", { name: "Notifications" })[0]).toHaveAttribute(
       "href",
       "/notifications",

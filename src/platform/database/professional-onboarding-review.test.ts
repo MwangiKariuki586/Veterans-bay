@@ -105,6 +105,41 @@ describe("professional onboarding review persistence", () => {
         expect(audit).toHaveLength(1);
         expect(outbox).toHaveLength(1);
 
+        await repository.recordReviewDecision({
+          organisationId: organisation.id,
+          actorAccountId: administrator.id,
+          fromStatus: "active",
+          toStatus: "suspended",
+          decision: "suspend",
+          reason: "Marketplace access suspended after a policy review.",
+          eventType: "professional.profile_suspended",
+        });
+        await repository.recordReviewDecision({
+          organisationId: organisation.id,
+          actorAccountId: administrator.id,
+          fromStatus: "suspended",
+          toStatus: "active",
+          decision: "restore",
+          reason: "The policy issue was resolved and access can be restored.",
+          eventType: "professional.profile_restored",
+        });
+
+        const [restoredOrganisation] = await db
+          .select({ status: organisations.status })
+          .from(organisations)
+          .where(eq(organisations.id, organisation.id));
+        const moderationEvents = await db
+          .select({ eventType: outboxEvents.eventType })
+          .from(outboxEvents)
+          .where(eq(outboxEvents.organisationId, organisation.id));
+        expect(restoredOrganisation?.status).toBe("active");
+        expect(moderationEvents.map((event) => event.eventType)).toEqual(
+          expect.arrayContaining([
+            "professional.profile_suspended",
+            "professional.profile_restored",
+          ]),
+        );
+
         await expect(
           repository.recordReviewDecision({
             organisationId: organisation.id,
@@ -128,7 +163,7 @@ describe("professional onboarding review persistence", () => {
                 organisation.id,
               ),
             ),
-        ).toHaveLength(1);
+        ).toHaveLength(3);
       } finally {
         await db
           .delete(outboxEvents)

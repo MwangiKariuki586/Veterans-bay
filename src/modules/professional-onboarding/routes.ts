@@ -3,7 +3,10 @@ import { Hono } from "hono";
 import { createDatabaseClient } from "../../platform/database/client";
 import { AppError } from "../../platform/errors/app-error";
 import type { ApiSuccessBody } from "../../platform/http/contracts";
-import { parseJsonBody } from "../../platform/http/validation";
+import {
+  parseJsonBody,
+  parseQuery,
+} from "../../platform/http/validation";
 import { requireSessionMiddleware } from "../../workers/api/middleware/authorization";
 import type { ApiAppEnvironment } from "../../workers/api/types";
 import { IdentityRepository } from "../identity/repository";
@@ -11,6 +14,7 @@ import { WorkspaceRepository } from "../workspace/repository";
 import { ProfessionalOnboardingRepository } from "./repository";
 import {
   attachOnboardingAssetBodySchema,
+  adminProfessionalReviewQuerySchema,
   createOnboardingBodySchema,
   onboardingReviewDecisionBodySchema,
   updateOnboardingBodySchema,
@@ -74,6 +78,63 @@ export function createProfessionalOnboardingRoutes() {
           { data, requestId: context.get("requestId") },
           201,
         );
+      } finally {
+        await client.close();
+      }
+    },
+  );
+
+  routes.get(
+    "/v1/admin/professionals",
+    requireSessionMiddleware,
+    async (context) => {
+      const account = context.get("account");
+      if (!account) throw new Error("Authenticated account is required.");
+      const input = parseQuery(
+        adminProfessionalReviewQuerySchema,
+        context.req.url,
+      );
+      const { client, service } = createService(
+        context.get("environment").DATABASE_URL,
+      );
+      try {
+        const data = await service.listForReview(account.authUserId, input);
+        return context.json({
+          data,
+          requestId: context.get("requestId"),
+        });
+      } finally {
+        await client.close();
+      }
+    },
+  );
+
+  routes.get(
+    "/v1/admin/professionals/:organisationId",
+    requireSessionMiddleware,
+    async (context) => {
+      const account = context.get("account");
+      if (!account) throw new Error("Authenticated account is required.");
+      const organisationId = context.req.param("organisationId");
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(organisationId)) {
+        throw new AppError({
+          code: "VALIDATION_ERROR",
+          message: "The organisation identifier is invalid.",
+          status: 422,
+        });
+      }
+      const { client, service } = createService(
+        context.get("environment").DATABASE_URL,
+      );
+      try {
+        const data = await service.getForReview(
+          account.authUserId,
+          organisationId,
+        );
+        return context.json({
+          data,
+          requestId: context.get("requestId"),
+        });
       } finally {
         await client.close();
       }

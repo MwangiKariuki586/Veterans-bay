@@ -57,3 +57,22 @@ export interface OnboardingSummary {
   updatedAt: string;
 }
 
+export interface AdminProfessionalReviewQueueItem {
+  organisationId: string;
+  name: string;
+  status: OrganisationStatus;
+  primaryCategory: string | null;
+  operatingLocation: string | null;
+  verificationStatus: string;
+  submittedAt: string | null;
+  updatedAt: string;
+  evidenceCount: number;
+}
+
+export interface AdminProfessionalReviewQueue {
+  items: AdminProfessionalReviewQueueItem[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}

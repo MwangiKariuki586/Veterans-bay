@@ -259,6 +259,54 @@ export class StorageService {
     };
   }
 
+  async getAdminEvidenceDeliveryUrl(input: {
+    authUserId: string;
+    organisationId: string;
+    assetId: string;
+    correlationId?: string;
+  }): Promise<{ url: string; visibility: "private" }> {
+    const profile = await this.requirePlatformAdmin(input.authUserId);
+    const asset = await this.repository.findById(input.assetId);
+    if (
+      !asset ||
+      asset.organisationId !== input.organisationId ||
+      asset.purpose !== "VERIFICATION_DOCUMENT" ||
+      asset.visibility !== "private" ||
+      asset.linkedEntityType !== "professional_profile" ||
+      asset.status === "deleted"
+    ) {
+      throw new AppError({
+        code: "NOT_FOUND",
+        message: "The requested evidence was not found.",
+        status: 404,
+      });
+    }
+    if (asset.status !== "ready" && asset.status !== "replaced") {
+      throw new AppError({
+        code: "INVALID_ASSET_STATE",
+        message: "The evidence is not available for delivery.",
+        status: 409,
+      });
+    }
+
+    const policy = getStoragePurposePolicy(asset.purpose as StoragePurpose);
+    const url = await this.provider.createDeliveryUrl({
+      publicId: asset.cloudinaryPublicId,
+      resourceType: policy.resourceType,
+      visibility: "private",
+    });
+    await this.identityStore.recordAuditEvent({
+      actorAccountId: profile.id,
+      action: "professional.verification_evidence_viewed",
+      entityType: "file_asset",
+      entityId: asset.id,
+      correlationId: input.correlationId,
+      metadata: { organisationId: input.organisationId },
+    });
+
+    return { url, visibility: "private" };
+  }
+
   async linkAsset(input: {
     authUserId: string;
     assetId: string;

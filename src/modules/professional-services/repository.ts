@@ -4,6 +4,7 @@ import type { Database } from "../../platform/database/client";
 import { AppError } from "../../platform/errors/app-error";
 import { fileAssets } from "../../platform/database/schema/file-assets";
 import { organisations } from "../../platform/database/schema/organisations";
+import { marketplaceCategories } from "../../platform/database/schema/marketplace-moderation";
 import { outboxEvents } from "../../platform/database/schema/outbox-events";
 import { professionalProfiles } from "../../platform/database/schema/professional-onboarding";
 import {
@@ -47,6 +48,7 @@ export type ManagedServiceImageRecord = {
 
 export interface ProfessionalServicesStore {
   getOrganisationStatus(organisationId: string): Promise<string | null>;
+  isActiveCategory(name: string): Promise<boolean>;
   list(organisationId: string): Promise<ProfessionalServiceRecord[]>;
   get(organisationId: string, serviceId: string): Promise<ProfessionalServiceRecord | null>;
   createDraft(input: {
@@ -130,6 +132,20 @@ export class ProfessionalServicesRepository implements ProfessionalServicesStore
       .where(eq(organisations.id, organisationId))
       .limit(1);
     return organisation?.status ?? null;
+  }
+
+  async isActiveCategory(name: string): Promise<boolean> {
+    const [category] = await this.db
+      .select({ id: marketplaceCategories.id })
+      .from(marketplaceCategories)
+      .where(
+        and(
+          eq(marketplaceCategories.status, "active"),
+          sql`lower(${marketplaceCategories.name}) = lower(${name})`,
+        ),
+      )
+      .limit(1);
+    return Boolean(category);
   }
 
   async list(organisationId: string): Promise<ProfessionalServiceRecord[]> {

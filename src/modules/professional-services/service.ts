@@ -276,6 +276,13 @@ export class ProfessionalServicesService {
       });
     }
     this.assertPublishable(current);
+    if (!(await this.store.isActiveCategory(current.category!))) {
+      throw new AppError({
+        code: "CATEGORY_NOT_AVAILABLE",
+        message: "Choose an active marketplace category before publishing.",
+        status: 409,
+      });
+    }
     const published = await this.store.publish(input);
     if (!published) throw new StaleConflictError();
     return toSummary(published);

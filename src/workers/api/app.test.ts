@@ -185,6 +185,50 @@ describe("Veterans Bay API foundation", () => {
     ]);
   });
 
+  it("rejects unbounded public marketplace queries before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request(
+      "/api/v1/public/marketplace?pageSize=11",
+      {},
+      bindings(),
+    );
+    const body = await response.json<{
+      error: { code: string; issues: Array<{ path: string }> };
+    }>();
+
+    expect(response.status).toBe(422);
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+    expect(body.error.issues).toEqual([
+      { code: "too_big", path: "pageSize" },
+    ]);
+  });
+
+  it("rejects unsafe marketplace analytics payloads before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const response = await app.request(
+      "/api/v1/public/marketplace/events",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          eventType: "marketplace.search_performed",
+          activeFilters: ["rawSearchText"],
+          page: 1,
+          resultCount: -1,
+          sort: "relevance",
+          query: "private address details",
+        }),
+      },
+      bindings(),
+    );
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "VALIDATION_ERROR" },
+    });
+  });
+
   it("keeps routes thin while returning a mapped probe contract", async () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
 
@@ -354,5 +398,64 @@ describe("Veterans Bay API foundation", () => {
       }, environment),
     ]);
     expect(responses.map((response) => response.status)).toEqual([401, 401, 401, 401, 401]);
+  });
+
+  it("protects saved professionals behind session authorization", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+    const responses = await Promise.all([
+      app.request("/api/v1/client/saved-professionals", {}, environment),
+      app.request(
+        "/api/v1/client/saved-professionals/trusted-plumbing",
+        { method: "POST" },
+        environment,
+      ),
+      app.request(
+        "/api/v1/client/saved-professionals/trusted-plumbing",
+        { method: "DELETE" },
+        environment,
+      ),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 401]);
+  });
+
+  it("protects marketplace moderation behind session authorization", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+    const json = { headers: { "content-type": "application/json" } };
+    const id = "11111111-1111-4111-8111-111111111111";
+    const responses = await Promise.all([
+      app.request("/api/v1/admin/categories", {}, environment),
+      app.request(
+        "/api/v1/admin/categories",
+        { ...json, method: "POST", body: JSON.stringify({ name: "Roofing" }) },
+        environment,
+      ),
+      app.request(
+        `/api/v1/admin/categories/${id}/status`,
+        {
+          ...json,
+          method: "POST",
+          body: JSON.stringify({
+            action: "deactivate",
+            reason: "Policy review.",
+          }),
+        },
+        environment,
+      ),
+      app.request("/api/v1/admin/marketplace/listings", {}, environment),
+      app.request(
+        `/api/v1/admin/marketplace/listings/${id}/moderation`,
+        {
+          ...json,
+          method: "POST",
+          body: JSON.stringify({ action: "hide", reason: "Policy review." }),
+        },
+        environment,
+      ),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401, 401,
+    ]);
   });
 });

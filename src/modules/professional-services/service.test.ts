@@ -26,6 +26,10 @@ function record(overrides: Partial<ProfessionalServiceRecord> = {}): Professiona
     warrantyTerms: null,
     directBookingEnabled: false,
     status: "draft",
+    moderationStatus: "clear",
+    moderationReason: null,
+    moderatedByAccountId: null,
+    moderatedAt: null,
     version: 1,
     publishedAt: null,
     createdAt: new Date("2026-07-22T18:00:00.000Z"),
@@ -37,6 +41,7 @@ function record(overrides: Partial<ProfessionalServiceRecord> = {}): Professiona
 function store(status = "active"): ProfessionalServicesStore {
   return {
     getOrganisationStatus: vi.fn().mockResolvedValue(status),
+    isActiveCategory: vi.fn().mockResolvedValue(true),
     list: vi.fn().mockResolvedValue([]),
     get: vi.fn().mockResolvedValue(record()),
     createDraft: vi.fn().mockResolvedValue(record()),
@@ -128,6 +133,30 @@ describe("ProfessionalServicesService", () => {
       expectedVersion: 1,
     })).resolves.toMatchObject({ status: "published", version: 2 });
     expect(repository.publish).toHaveBeenCalledWith(expect.objectContaining({ expectedVersion: 1 }));
+  });
+
+  it("blocks publication into an inactive marketplace category", async () => {
+    const repository = store();
+    vi.mocked(repository.get).mockResolvedValue(
+      record({
+        category: "Retired category",
+        description: "A complete service description for policy validation.",
+        fulfilmentModel: "on_site",
+        pricingModel: "fixed",
+        priceMinor: 5_000,
+      }),
+    );
+    vi.mocked(repository.isActiveCategory).mockResolvedValue(false);
+
+    await expect(
+      new ProfessionalServicesService(repository).publish({
+        organisationId: "organisation-1",
+        serviceId: "service-1",
+        actorAccountId: "account-1",
+        expectedVersion: 1,
+      }),
+    ).rejects.toMatchObject({ code: "CATEGORY_NOT_AVAILABLE" });
+    expect(repository.publish).not.toHaveBeenCalled();
   });
 
   it("blocks publication when the organisation is suspended", async () => {

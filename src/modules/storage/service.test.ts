@@ -322,4 +322,81 @@ describe("StorageService", () => {
       }),
     ).rejects.toMatchObject({ code: "DELETION_FORBIDDEN" });
   });
+
+  it("delivers exact-tenant verification evidence to an administrator and audits access", async () => {
+    const identityStore = {
+      findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
+      findActiveRestrictions: vi.fn().mockResolvedValue([]),
+      recordAuditEvent: vi.fn().mockResolvedValue(undefined),
+    } as unknown as IdentityStore;
+    const evidence = pendingAsset({
+      id: "evidence-1",
+      cloudinaryPublicId: "veterans-bay/verification/evidence-1.pdf",
+      purpose: "VERIFICATION_DOCUMENT",
+      mimeType: "application/pdf",
+      status: "ready",
+      visibility: "private",
+      organisationId: "organisation-1",
+      linkedEntityType: "professional_profile",
+      linkedEntityId: "professional-profile-1",
+    });
+    const repository = {
+      findById: vi.fn().mockResolvedValue(evidence),
+    } as unknown as StorageRepository;
+    const provider = {
+      createDeliveryUrl: vi
+        .fn()
+        .mockResolvedValue("https://res.cloudinary.test/signed-evidence"),
+    } as unknown as StorageProvider;
+    const workspaceStore = {
+      findActiveMembership: vi.fn(),
+      listActivePlatformAssignments: vi.fn().mockResolvedValue([
+        {
+          assignmentId: "assignment-1",
+          roleId: "platform-role-1",
+          roleKey: "platform_admin",
+          status: "active",
+        },
+      ]),
+      listPermissionKeysForRoleIds: vi
+        .fn()
+        .mockResolvedValue(
+          new Map([["platform-role-1", ["platform.admin"]]]),
+        ),
+    };
+    const service = new StorageService(
+      repository,
+      identityStore,
+      provider,
+      workspaceStore,
+    );
+
+    await expect(
+      service.getAdminEvidenceDeliveryUrl({
+        authUserId: "user-1",
+        organisationId: "organisation-1",
+        assetId: "evidence-1",
+        correlationId: "request-1",
+      }),
+    ).resolves.toEqual({
+      url: "https://res.cloudinary.test/signed-evidence",
+      visibility: "private",
+    });
+    expect(identityStore.recordAuditEvent).toHaveBeenCalledWith({
+      actorAccountId: "profile-1",
+      action: "professional.verification_evidence_viewed",
+      entityType: "file_asset",
+      entityId: "evidence-1",
+      correlationId: "request-1",
+      metadata: { organisationId: "organisation-1" },
+    });
+
+    await expect(
+      service.getAdminEvidenceDeliveryUrl({
+        authUserId: "user-1",
+        organisationId: "another-organisation",
+        assetId: "evidence-1",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
 });

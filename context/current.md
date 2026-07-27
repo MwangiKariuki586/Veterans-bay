@@ -12,11 +12,11 @@ The source document uses the working title ServiceLink. The implementation name 
 
 ## Active Phase
 
-`context/phases/01-marketplace-foundation.md`
+`context/phases/02-commercial-workflow.md`
 
 ## Active Feature
 
-Feature 01.04 — Marketplace Discovery
+Feature 02.01 — Service Requests and Enquiries
 
 ## Status
 
@@ -24,27 +24,26 @@ Feature 01.04 — Marketplace Discovery
 
 ## Current Step
 
-Feature 01.03 is complete. Feature 01.04 prerequisite and repository verification is now active.
+Feature 02.01 prerequisites are verified. Implementing the authoritative client request draft and submission lifecycle.
 
 ## Next Step
 
-Verify searchable indexes and public projections against the actual repository, inspect the existing `/marketplace` implementation, and continue with the first incomplete Feature 01.04 requirement.
+Implement and verify request persistence, client access, draft updates, submission history, outbox events, attachments, and client request routes.
 
 ## Completed Phases
 
 - `Phase 00 — Establish the Platform Foundation`
+- `Phase 01 — Establish the Professional Marketplace`
 
 ## Completed Features in Active Phase
 
-- Feature 01.01 — Professional Organisation Onboarding
-- Feature 01.02 — Team and Permission Management
-- Feature 01.03 — Professional Profile and Service Catalogue
+None.
 
 ## Dependencies
 
 - Phase 00 identity, workspace, database, and private-storage foundations verified
-- Dedicated `Veterans bay` Neon database configured and migrated through `0006_damp_naoko`
-- Feature 01.01 organisation and owner-membership lifecycle verified
+- Dedicated `Veterans bay` Neon database configured and migrated through `0009_kind_zombie`
+- Phase 01 marketplace, organisation, service catalogue, moderation, and discovery foundations verified
 
 ## Design Reference
 
@@ -60,11 +59,11 @@ None.
 
 ## Review Gate
 
-None currently identified for the Feature 01.04 prerequisite gate.
+None currently identified for Feature 02.01.
 
 ## Verification State
 
-Features 01.01 through 01.03 are complete. Feature 01.03 provides authoritative organisation-scoped service persistence, authorised Hono contracts, professional profile and portfolio management, service-image management, publication snapshots, and bounded public projections. Chrome verified service creation, editing, publication, the public detail at desktop and mobile widths, and the final unavailable state after cleanup, plus profile, catalogue, public-profile, and unavailable states. Automated and database tests cover unpublication and its transaction-dependent event. The review found and resolved page-level unavailable heading semantics, canonical weekday ordering, and two visible encoding artifacts. The temporary review service remains unpublished. Development migrations are applied through `0006_damp_naoko`. Lint, typecheck, 136 tests, Next.js production build, Cloudflare Worker dry-run build, schema validation, and diff checks pass. Marketplace discovery is now active; moderation remains in Feature 01.05.
+Phase 01 is complete. Platform administrators can review professional evidence, record approval and rejection decisions, suspend and restore organisations, manage discovery categories, and hide or restore published listings. Moderation state is preserved separately from professional publication state, hidden listings are excluded from marketplace, public catalogue, analytics, and saved-professional projections, inactive categories cannot receive new publications, and affected changes write audit and outbox evidence. Migration `0009_kind_zombie` is applied. Typecheck, lint, 172 tests, Drizzle schema validation, Next.js production build, Cloudflare Worker dry-run build, and diff checks pass. Rating and completed-job ordering remain explicitly deferred to Phases 03 and 04.
 
 ## Update Rule
 

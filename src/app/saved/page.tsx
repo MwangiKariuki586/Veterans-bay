@@ -1,8 +1,5 @@
-import { createUnavailableRoute } from "@/components/public/create-unavailable-route";
+import { redirect } from "next/navigation";
 
-export default createUnavailableRoute({
-  eyebrow: "Saved",
-  title: "Saved professionals.",
-  description:
-    "Saved professionals will arrive with marketplace discovery.",
-});
+export default function SavedProfessionalsRedirect() {
+  redirect("/client/saved");
+}
