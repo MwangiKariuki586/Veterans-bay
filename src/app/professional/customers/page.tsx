@@ -1,11 +1,15 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { CustomerList } from "@/components/customers/customer-list";
+import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default function ProfessionalCustomersPage() {
   return (
-    <WorkspaceUnavailablePage
+    <AuthenticatedShell
       kind="professional"
       title="Customers"
-      description="Customer CRM will arrive with professional operations features."
-    />
+      description="Manage marketplace and existing customers in this organisation."
+      hideIntro
+    >
+      <CustomerList />
+    </AuthenticatedShell>
   );
 }

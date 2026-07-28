@@ -1,11 +1,15 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { InvoiceList } from "@/components/invoices/invoice-list";
+import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default function ClientInvoicesPage() {
   return (
-    <WorkspaceUnavailablePage
+    <AuthenticatedShell
       kind="client"
-      title="Invoices"
-      description="Client invoices will arrive with the financial phase."
-    />
+      title="My invoices"
+      description="Review issued amounts and manually recorded payments."
+      hideIntro
+    >
+      <InvoiceList audience="client" />
+    </AuthenticatedShell>
   );
 }

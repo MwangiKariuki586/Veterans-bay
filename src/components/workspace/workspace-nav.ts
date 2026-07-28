@@ -80,6 +80,7 @@ const clientNav: ReadonlyArray<WorkspaceNavGroup> = [
       { href: "/client/jobs", label: "Jobs", icon: Wrench },
       { href: "/client/saved", label: "Saved", icon: Heart },
       { href: "/client/invoices", label: "Invoices", icon: FileText },
+      { href: "/client/warranties", label: "Warranties", icon: ShieldCheck },
     ],
   },
   {

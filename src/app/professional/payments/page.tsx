@@ -1,11 +1,15 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { PaymentList } from "@/components/invoices/payment-list";
+import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default function ProfessionalPaymentsPage() {
   return (
-    <WorkspaceUnavailablePage
+    <AuthenticatedShell
       kind="professional"
       title="Payments"
-      description="Payment records will arrive with the financial phase."
-    />
+      description="Review manual payment records and preserved adjustments."
+      hideIntro
+    >
+      <PaymentList />
+    </AuthenticatedShell>
   );
 }

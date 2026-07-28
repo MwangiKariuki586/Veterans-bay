@@ -1,11 +1,15 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { ProfessionalReviews } from "@/components/reviews/professional-reviews";
+import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default function ProfessionalReviewsPage() {
   return (
-    <WorkspaceUnavailablePage
+    <AuthenticatedShell
       kind="professional"
       title="Reviews"
-      description="Review management will arrive with the review phase."
-    />
+      description="Read verified feedback and publish one professional response."
+      hideIntro
+    >
+      <ProfessionalReviews />
+    </AuthenticatedShell>
   );
 }

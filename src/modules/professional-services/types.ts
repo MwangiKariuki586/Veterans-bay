@@ -113,6 +113,14 @@ export interface PublicProfessionalProfile {
   reviewCount: number;
   completedJobs: number;
   responseIndicator: string | null;
+  reviews?: Array<{
+    id: string;
+    clientName: string;
+    overallRating: number;
+    feedback: string;
+    submittedAt: string;
+    response: { body: string; createdAt: string } | null;
+  }>;
   portfolio: PublicPortfolioItem[];
   services: PublicServiceCard[];
 }

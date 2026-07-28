@@ -1,6 +1,7 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import type { Database } from "../../platform/database/client";
+import { accountProfiles } from "../../platform/database/schema/account-profiles";
 import { fileAssets } from "../../platform/database/schema/file-assets";
 import { organisations } from "../../platform/database/schema/organisations";
 import { professionalProfiles } from "../../platform/database/schema/professional-onboarding";
@@ -9,6 +10,11 @@ import {
   professionalServiceImages,
   professionalServices,
 } from "../../platform/database/schema/professional-services";
+import {
+  professionalReputation,
+  reviewResponses,
+  reviews,
+} from "../../platform/database/schema/reviews";
 
 export interface PublicProfessionalRecord {
   organisationId: string;
@@ -44,6 +50,18 @@ export interface PublicCatalogueStore {
   listServices(organisationId: string): Promise<PublicServiceRecord[]>;
   listPortfolio(organisationId: string): Promise<PublicPortfolioRecord[]>;
   listServiceImages(serviceId: string): Promise<PublicAssetRecord[]>;
+  getReputation?(
+    organisationId: string,
+  ): Promise<typeof professionalReputation.$inferSelect | null>;
+  listReviews?(organisationId: string): Promise<Array<{
+    id: string;
+    clientName: string;
+    overallRating: number;
+    feedback: string;
+    submittedAt: Date;
+    responseBody: string | null;
+    responseCreatedAt: Date | null;
+  }>>;
 }
 
 const professionalSelection = {
@@ -169,5 +187,38 @@ export class PublicCatalogueRepository implements PublicCatalogueStore {
         ),
       )
       .orderBy(asc(professionalServiceImages.position), asc(professionalServiceImages.id));
+  }
+
+  async getReputation(organisationId: string) {
+    const [record] = await this.db
+      .select()
+      .from(professionalReputation)
+      .where(eq(professionalReputation.organisationId, organisationId))
+      .limit(1);
+    return record ?? null;
+  }
+
+  async listReviews(organisationId: string) {
+    return this.db
+      .select({
+        id: reviews.id,
+        clientName: accountProfiles.displayName,
+        overallRating: reviews.overallRating,
+        feedback: reviews.feedback,
+        submittedAt: reviews.submittedAt,
+        responseBody: reviewResponses.body,
+        responseCreatedAt: reviewResponses.createdAt,
+      })
+      .from(reviews)
+      .innerJoin(accountProfiles, eq(accountProfiles.id, reviews.clientAccountId))
+      .leftJoin(reviewResponses, eq(reviewResponses.reviewId, reviews.id))
+      .where(
+        and(
+          eq(reviews.organisationId, organisationId),
+          eq(reviews.status, "PUBLISHED"),
+        ),
+      )
+      .orderBy(desc(reviews.submittedAt), desc(reviews.id))
+      .limit(20);
   }
 }

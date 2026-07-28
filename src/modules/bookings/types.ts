@@ -182,4 +182,14 @@ export type ProfessionalCreateBookingInput =
       requestedStartAt: string;
       timezone: string;
       cancellationPolicyAcknowledged: true;
+    }
+  | {
+      origin: "REPEAT_BOOKING";
+      customerId: string;
+      sourceBookingId: string;
+      serviceId: string;
+      membershipId: string;
+      requestedStartAt: string;
+      timezone: string;
+      cancellationPolicyAcknowledged: true;
     };

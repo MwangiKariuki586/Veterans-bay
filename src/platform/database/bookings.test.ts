@@ -5,6 +5,7 @@ import { BookingsRepository } from "../../modules/bookings/repository";
 import type { Database } from "./client";
 import { accountProfiles } from "./schema/account-profiles";
 import { bookings, paymentRequirements } from "./schema/commercial";
+import { customerRecords } from "./schema/customers";
 import { organisations } from "./schema/organisations";
 import { outboxEvents } from "./schema/outbox-events";
 import { professionalServices } from "./schema/professional-services";
@@ -272,6 +273,10 @@ describe("booking persistence", () => {
           action: "COMPLETED",
           now: addMinutes(initialStart, 61),
         });
+        await testDb
+          .update(professionalServices)
+          .set({ priceMinor: 275000, estimatedDurationMinutes: 90 })
+          .where(eq(professionalServices.id, fixture.serviceId));
 
         const repeatId = await repository.createClient({
           clientAccountId: fixture.clientId,
@@ -330,6 +335,8 @@ describe("booking persistence", () => {
             origin: bookings.origin,
             sourceBookingId: bookings.sourceBookingId,
             requestId: bookings.requestId,
+            totalMinor: bookings.totalMinor,
+            expectedDurationMinutes: bookings.expectedDurationMinutes,
           })
           .from(bookings)
           .where(
@@ -341,6 +348,8 @@ describe("booking persistence", () => {
               id: repeatId,
               origin: "REPEAT_BOOKING",
               sourceBookingId,
+              totalMinor: 275000,
+              expectedDurationMinutes: 90,
             }),
             expect.objectContaining({
               id: professionalCustomerId,
@@ -655,6 +664,9 @@ async function cleanupSchedulingFixture(
   await db.execute(
     sql`delete from availability_rules where organisation_id = ${fixture.organisationId}`,
   );
+  await db
+    .delete(customerRecords)
+    .where(eq(customerRecords.organisationId, fixture.organisationId));
   await db
     .delete(professionalServices)
     .where(eq(professionalServices.id, fixture.serviceId));

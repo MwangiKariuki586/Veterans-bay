@@ -36,6 +36,8 @@ import {
 } from "../../platform/database/schema/fulfilment";
 import { organisations } from "../../platform/database/schema/organisations";
 import { outboxEvents } from "../../platform/database/schema/outbox-events";
+import { warranties } from "../../platform/database/schema/warranties";
+import { deriveWarrantyCoverage } from "../../platform/warranties/coverage";
 import { professionalServices } from "../../platform/database/schema/professional-services";
 import { organisationMemberships } from "../../platform/database/schema/roles";
 import { bookingReservations } from "../../platform/database/schema/scheduling";
@@ -898,6 +900,7 @@ export class JobsRepository {
         })
         .where(eq(jobs.id, input.jobId));
       if (confirmed) {
+        const completedAt = new Date();
         await tx
           .update(bookings)
           .set({
@@ -911,6 +914,76 @@ export class JobsRepository {
               inArray(bookings.status, ["CONFIRMED", "RESCHEDULED"]),
             ),
           );
+        const coverage = deriveWarrantyCoverage(
+          job.warrantyTermsSnapshot,
+          completedAt,
+        );
+        if (coverage) {
+          const [warranty] = await tx
+            .insert(warranties)
+            .values({
+              jobId: job.id,
+              organisationId: job.organisationId,
+              clientAccountId: job.clientAccountId,
+              createdByAccountId: input.clientAccountId,
+              serviceNameSnapshot: job.serviceName,
+              termsSnapshot: job.warrantyTermsSnapshot,
+              exclusionsSnapshot: job.exclusionsSnapshot,
+              startsAt: coverage.startsAt,
+              endsAt: coverage.endsAt,
+            })
+            .onConflictDoNothing()
+            .returning({ id: warranties.id });
+          if (warranty) {
+            await tx.insert(outboxEvents).values({
+              eventType: "warranty.created",
+              eventVersion: 1,
+              aggregateType: "warranty",
+              aggregateId: warranty.id,
+              organisationId: job.organisationId,
+              actorAccountId: null,
+              correlationId: input.correlationId,
+              payload: {
+                jobId: job.id,
+                clientAccountId: job.clientAccountId,
+                startsAt: coverage.startsAt.toISOString(),
+                endsAt: coverage.endsAt.toISOString(),
+              },
+            });
+          }
+        }
+        await tx.insert(outboxEvents).values([
+          {
+            eventType: "review.requested",
+            eventVersion: 1,
+            aggregateType: "job",
+            aggregateId: job.id,
+            organisationId: job.organisationId,
+            actorAccountId: null,
+            correlationId: input.correlationId,
+            payload: {
+              jobId: job.id,
+              organisationId: job.organisationId,
+              clientAccountId: job.clientAccountId,
+              reviewDeadline: new Date(
+                completedAt.getTime() + 30 * 86_400_000,
+              ).toISOString(),
+            },
+          },
+          {
+            eventType: "reputation.recalculation_requested",
+            eventVersion: 1,
+            aggregateType: "professional_reputation",
+            aggregateId: job.organisationId,
+            organisationId: job.organisationId,
+            actorAccountId: null,
+            correlationId: input.correlationId,
+            payload: {
+              organisationId: job.organisationId,
+              reason: "job_completed",
+            },
+          },
+        ]);
       }
       await recordJobChange(tx, {
         jobId: input.jobId,

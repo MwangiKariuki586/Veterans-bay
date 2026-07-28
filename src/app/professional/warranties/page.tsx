@@ -1,11 +1,15 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { WarrantyList } from "@/components/warranties/warranty-list";
+import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default function ProfessionalWarrantiesPage() {
   return (
-    <WorkspaceUnavailablePage
+    <AuthenticatedShell
       kind="professional"
       title="Warranties"
-      description="Warranty tracking will arrive with the post-service phase."
-    />
+      description="Review coverage, claims, return visits, and resolution history."
+      hideIntro
+    >
+      <WarrantyList audience="professional" />
+    </AuthenticatedShell>
   );
 }

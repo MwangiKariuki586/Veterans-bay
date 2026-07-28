@@ -239,11 +239,32 @@ export class StorageService {
             asset.linkedEntityId,
           )
         : false;
+    const linkedPaymentAccess =
+      asset.purpose === "PAYMENT_EVIDENCE" &&
+      asset.linkedEntityType &&
+      asset.linkedEntityId
+        ? await this.repository.canAccessPaymentEvidence(
+            profile.id,
+            asset.linkedEntityType,
+            asset.linkedEntityId,
+          )
+        : false;
+    const linkedWarrantyAccess =
+      asset.purpose === "WARRANTY_EVIDENCE" &&
+      asset.linkedEntityType === "warranty_claim" &&
+      asset.linkedEntityId
+        ? await this.repository.canAccessWarrantyEvidence(
+            profile.id,
+            asset.linkedEntityId,
+          )
+        : false;
 
     if (
       asset.visibility === "private" &&
       asset.ownerAccountId !== profile.id &&
-      !linkedJobAccess
+      !linkedJobAccess &&
+      !linkedPaymentAccess &&
+      !linkedWarrantyAccess
     ) {
       throw new AppError({
         code: "PERMISSION_DENIED",

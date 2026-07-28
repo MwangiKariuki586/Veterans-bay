@@ -13,6 +13,9 @@ import { OutboxProofConsumer } from "./consumer";
 import { OutboxPublisher } from "./publisher";
 import { OutboxRepository } from "./repository";
 import { OutboxService } from "./service";
+import { ReputationConsumer } from "../reviews/consumer";
+import { ReviewsRepository } from "../reviews/repository";
+import { ServiceRemindersRepository } from "../service-reminders/repository";
 
 export async function handleDomainEventsQueue(
   batch: MessageBatch<unknown>,
@@ -27,15 +30,19 @@ export async function handleDomainEventsQueue(
       new NotificationsRepository(client.db),
       outboxRepository,
     );
+    const reputationConsumer = new ReputationConsumer(
+      new ReviewsRepository(client.db),
+    );
 
     for (const message of batch.messages) {
       const attempts = message.attempts ?? 1;
       const parsed = domainEventEnvelopeSchema.safeParse(message.body);
       const result =
-        parsed.success &&
-        parsed.data.eventType === "system.outbox_proof"
+        parsed.success && parsed.data.eventType === "system.outbox_proof"
           ? await proofConsumer.handleMessage(message.body, attempts)
-          : await notificationConsumer.handleMessage(message.body, attempts);
+          : parsed.success && parsed.data.eventType === "reputation.recalculation_requested"
+            ? await reputationConsumer.handleMessage(message.body, attempts)
+            : await notificationConsumer.handleMessage(message.body, attempts);
 
       if (result === "ack") {
         message.ack();
@@ -94,6 +101,14 @@ export async function handleOutboxScheduled(
         { path: "enabled", code: String(completionResult.enabled) },
         { path: "completed", code: String(completionResult.completed) },
       ],
+    });
+    const reminderCount = await new ServiceRemindersRepository(
+      client.db,
+    ).dispatchDue();
+    logInfo({
+      event: "service_reminder.scheduled.completed",
+      status: 200,
+      issues: [{ path: "dispatched", code: String(reminderCount) }],
     });
 
     if (!env.DOMAIN_EVENTS_QUEUE) {

@@ -85,6 +85,16 @@ export const professionalCreateBookingBodySchema = z.discriminatedUnion(
       timezone: timezoneSchema,
       cancellationPolicyAcknowledged: z.literal(true),
     }),
+    z.object({
+      origin: z.literal(bookingOrigins[3]),
+      customerId: uuidSchema,
+      sourceBookingId: uuidSchema,
+      serviceId: uuidSchema,
+      membershipId: uuidSchema,
+      requestedStartAt: dateTimeSchema,
+      timezone: timezoneSchema,
+      cancellationPolicyAcknowledged: z.literal(true),
+    }),
   ],
 );
 

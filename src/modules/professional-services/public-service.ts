@@ -71,9 +71,11 @@ export class PublicCatalogueService {
   async getProfessional(slug: string): Promise<PublicProfessionalProfile> {
     const professional = await this.store.findProfessionalBySlug(slug);
     if (!professional) throw this.unavailable("professional");
-    const [services, portfolio] = await Promise.all([
+    const [services, portfolio, reputation, publishedReviews] = await Promise.all([
       this.store.listServices(professional.organisationId),
       this.store.listPortfolio(professional.organisationId),
+      this.store.getReputation?.(professional.organisationId) ?? null,
+      this.store.listReviews?.(professional.organisationId) ?? [],
     ]);
     const completeServices = services.filter(isComplete);
     const serviceImages = await Promise.all(
@@ -103,10 +105,30 @@ export class PublicCatalogueService {
       availabilitySummary: availabilitySummary(professional.workingHours),
       verified: professional.verificationStatus === "verified",
       logoUrl: publicImageUrl(this.cloudName, professional.logoPublicId),
-      rating: null,
-      reviewCount: 0,
-      completedJobs: 0,
-      responseIndicator: null,
+      rating:
+        reputation?.averageRatingHundredths == null
+          ? null
+          : reputation.averageRatingHundredths / 100,
+      reviewCount: reputation?.reviewCount ?? 0,
+      completedJobs: reputation?.verifiedJobs ?? 0,
+      responseIndicator:
+        reputation && reputation.reviewCount > 0
+          ? `${Math.round(reputation.responseRateBasisPoints / 100)}%`
+          : null,
+      reviews: publishedReviews.map((review) => ({
+        id: review.id,
+        clientName: review.clientName,
+        overallRating: review.overallRating,
+        feedback: review.feedback,
+        submittedAt: review.submittedAt.toISOString(),
+        response:
+          review.responseBody && review.responseCreatedAt
+            ? {
+                body: review.responseBody,
+                createdAt: review.responseCreatedAt.toISOString(),
+              }
+            : null,
+      })),
       portfolio: portfolio.map((item) => ({
         id: item.id,
         title: item.title,
@@ -146,6 +168,7 @@ export class PublicCatalogueService {
         reviewCount: 0,
         completedJobs: 0,
         responseIndicator: null,
+        reviews: [],
       },
     };
   }

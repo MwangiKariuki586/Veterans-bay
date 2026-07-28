@@ -20,6 +20,7 @@ import { organisations } from "./schema/organisations";
 import { outboxEvents } from "./schema/outbox-events";
 import { professionalServices } from "./schema/professional-services";
 import { organisationMemberships, roles } from "./schema/roles";
+import { warranties } from "./schema/warranties";
 import {
   withRolledBackTransaction,
   withTestDatabase,
@@ -409,6 +410,12 @@ describe("job fulfilment persistence", () => {
           .from(bookings)
           .where(eq(bookings.id, fixture.bookingId));
         expect(completedBooking.status).toBe("COMPLETED");
+        expect(
+          await testDb
+            .select()
+            .from(warranties)
+            .where(eq(warranties.jobId, jobId!)),
+        ).toHaveLength(1);
         expect(
           await testDb
             .select()

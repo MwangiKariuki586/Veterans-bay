@@ -91,6 +91,34 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
 
     <section><div className="flex items-end justify-between gap-4"><div><p className="text-sm font-semibold text-[#5f8d11]">Active services</p><h2 className="mt-2 text-2xl font-bold tracking-[-0.035em]">What you can request</h2></div></div>{profile.services.length > 0 ? <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">{profile.services.map((service) => <PublicServiceCardView key={service.slug} service={service} />)}</div> : <StatePanel title="No active services" description="This professional does not currently have a published service." className="mt-5" />}</section>
 
+    <section>
+      <p className="text-sm font-semibold text-[#5f8d11]">Verified reviews</p>
+      <h2 className="mt-2 text-2xl font-bold tracking-[-0.035em]">What clients say</h2>
+      {profile.reviews && profile.reviews.length > 0 ? (
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          {profile.reviews.map((review) => (
+            <Surface key={review.id} className="p-5 shadow-none">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-bold">{review.clientName}</p>
+                <span className="rounded-full bg-[#eef8c8] px-3 py-1 text-xs font-bold text-[#5f8d11]">
+                  {review.overallRating}/5
+                </span>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-[#68717b]">{review.feedback}</p>
+              {review.response ? (
+                <div className="mt-4 rounded-2xl bg-[#f3f5f6] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#68717b]">Professional response</p>
+                  <p className="mt-2 text-sm leading-6">{review.response.body}</p>
+                </div>
+              ) : null}
+            </Surface>
+          ))}
+        </div>
+      ) : (
+        <StatePanel title="Reviews will appear here" description="Verified feedback from completed Veterans Bay jobs will be published here." className="mt-5" />
+      )}
+    </section>
+
     <section><p className="text-sm font-semibold text-[#5f8d11]">Portfolio</p><h2 className="mt-2 text-2xl font-bold tracking-[-0.035em]">Recent work</h2>{profile.portfolio.length > 0 ? <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{profile.portfolio.map((item) => <Surface key={item.id} className="overflow-hidden p-0 shadow-none">{item.imageUrl ? <div className="relative aspect-[4/3]"><Image src={item.imageUrl} alt={item.title} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" /></div> : null}<div className="p-5"><h3 className="font-bold">{item.title}</h3>{item.description ? <p className="mt-2 text-sm leading-6 text-[#68717b]">{item.description}</p> : null}</div></Surface>)}</div> : <StatePanel title="Portfolio coming soon" description="No public portfolio work has been added yet." className="mt-5" />}</section>
   </div>;
 }

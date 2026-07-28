@@ -52,6 +52,8 @@ import {
   cancelJobForBooking,
   ensureJobForBooking,
 } from "../jobs/repository";
+import { ensureRegisteredCustomer } from "../customers/repository";
+import { customerRecords } from "../../platform/database/schema/customers";
 import type {
   AvailabilityConfiguration,
   BookingDetail,
@@ -411,6 +413,38 @@ export class BookingsRepository {
       : null;
   }
 
+  async currentServiceSlotContext(serviceId: string) {
+    const [service] = await this.db
+      .select({
+        organisationId: professionalServices.organisationId,
+        durationMinutes: professionalServices.estimatedDurationMinutes,
+      })
+      .from(professionalServices)
+      .innerJoin(
+        organisations,
+        eq(organisations.id, professionalServices.organisationId),
+      )
+      .where(
+        and(
+          eq(professionalServices.id, serviceId),
+          eq(organisations.status, "active"),
+          eq(professionalServices.status, "published"),
+          eq(professionalServices.moderationStatus, "clear"),
+          eq(professionalServices.directBookingEnabled, true),
+          ne(professionalServices.pricingModel, "custom_quote"),
+          isNotNull(professionalServices.priceMinor),
+          isNotNull(professionalServices.estimatedDurationMinutes),
+        ),
+      )
+      .limit(1);
+    return service?.durationMinutes
+      ? {
+          organisationId: service.organisationId,
+          durationMinutes: service.durationMinutes,
+        }
+      : null;
+  }
+
   async listCalendar(input: {
     organisationId: string;
     from: Date;
@@ -556,6 +590,11 @@ export class BookingsRepository {
           and(
             eq(professionalServices.id, input.values.serviceId),
             eq(professionalServices.organisationId, input.organisationId),
+            eq(professionalServices.status, "published"),
+            eq(professionalServices.moderationStatus, "clear"),
+            eq(professionalServices.directBookingEnabled, true),
+            ne(professionalServices.pricingModel, "custom_quote"),
+            isNotNull(professionalServices.priceMinor),
             isNotNull(professionalServices.estimatedDurationMinutes),
           ),
         )
@@ -581,7 +620,7 @@ export class BookingsRepository {
         if (!request) return null;
         requestId = request.id;
         clientAccountId = request.clientAccountId;
-      } else {
+      } else if (input.values.origin === "PROFESSIONAL_CUSTOMER") {
         const [client] = await tx
           .select({ id: accountProfiles.id })
           .from(accountProfiles)
@@ -594,6 +633,30 @@ export class BookingsRepository {
           .limit(1);
         if (!client) return null;
         clientAccountId = client.id;
+      } else {
+        const [customer] = await tx
+          .select({ accountProfileId: customerRecords.accountProfileId })
+          .from(customerRecords)
+          .innerJoin(
+            bookings,
+            and(
+              eq(bookings.id, input.values.sourceBookingId),
+              eq(bookings.organisationId, input.organisationId),
+              eq(bookings.clientAccountId, customerRecords.accountProfileId),
+              eq(bookings.status, "COMPLETED"),
+              eq(bookings.professionalServiceId, input.values.serviceId),
+            ),
+          )
+          .where(
+            and(
+              eq(customerRecords.id, input.values.customerId),
+              eq(customerRecords.organisationId, input.organisationId),
+              eq(customerRecords.status, "REGISTERED"),
+            ),
+          )
+          .limit(1);
+        if (!customer?.accountProfileId) return null;
+        clientAccountId = customer.accountProfileId;
       }
       const startsAt = new Date(input.values.requestedStartAt);
       const endsAt = addMinutes(startsAt, service.estimatedDurationMinutes);
@@ -614,6 +677,10 @@ export class BookingsRepository {
         actorAccountId: input.actorAccountId,
         requestId,
         professionalServiceId: service.id,
+        sourceBookingId:
+          input.values.origin === "REPEAT_BOOKING"
+            ? input.values.sourceBookingId
+            : undefined,
         requestedMembershipId: input.values.membershipId,
         requestedStartAt: startsAt,
         requestedEndAt: endsAt,
@@ -649,6 +716,23 @@ export class BookingsRepository {
           fromStatus: "ASSESSMENT_REQUIRED",
           toStatus: "CONVERTED",
           clientVisibleNote: "The approved assessment has become a booking.",
+        });
+      }
+      if (input.values.origin === "REPEAT_BOOKING") {
+        await tx.insert(outboxEvents).values({
+          eventType: "customer.repeat_booking_started",
+          eventVersion: 1,
+          aggregateType: "booking",
+          aggregateId: bookingId,
+          organisationId: input.organisationId,
+          actorAccountId: input.actorAccountId,
+          correlationId: input.correlationId,
+          payload: {
+            bookingId,
+            sourceBookingId: input.values.sourceBookingId,
+            customerId: input.values.customerId,
+            clientAccountId,
+          },
         });
       }
       return bookingId;
@@ -1086,20 +1170,41 @@ export class BookingsRepository {
     correlationId?: string;
   }): Promise<string | null> {
     return this.db.transaction(async (tx) => {
-      const [source] = await tx
-        .select()
+      const [record] = await tx
+        .select({
+          source: getTableColumns(bookings),
+          service: getTableColumns(professionalServices),
+        })
         .from(bookings)
+        .innerJoin(
+          professionalServices,
+          eq(professionalServices.id, bookings.professionalServiceId),
+        )
+        .innerJoin(
+          organisations,
+          eq(organisations.id, professionalServices.organisationId),
+        )
         .where(
           and(
             eq(bookings.id, input.values.sourceBookingId),
             eq(bookings.clientAccountId, input.clientAccountId),
             eq(bookings.status, "COMPLETED"),
+            eq(organisations.status, "active"),
+            eq(professionalServices.status, "published"),
+            eq(professionalServices.moderationStatus, "clear"),
+            eq(professionalServices.directBookingEnabled, true),
+            ne(professionalServices.pricingModel, "custom_quote"),
+            isNotNull(professionalServices.priceMinor),
+            isNotNull(professionalServices.estimatedDurationMinutes),
           ),
         )
         .limit(1);
-      if (!source) return null;
+      const durationMinutes = record?.service.estimatedDurationMinutes;
+      const currentPriceMinor = record?.service.priceMinor;
+      if (!record || !durationMinutes || currentPriceMinor == null) return null;
+      const { source, service } = record;
       const startsAt = new Date(input.values.requestedStartAt);
-      const endsAt = addMinutes(startsAt, source.expectedDurationMinutes);
+      const endsAt = addMinutes(startsAt, durationMinutes);
       if (
         !(await windowAvailable(tx, {
           organisationId: source.organisationId,
@@ -1110,7 +1215,7 @@ export class BookingsRepository {
       ) {
         return null;
       }
-      return insertBooking(tx, {
+      const bookingId = await insertBooking(tx, {
         origin: "REPEAT_BOOKING",
         organisationId: source.organisationId,
         clientAccountId: input.clientAccountId,
@@ -1122,16 +1227,36 @@ export class BookingsRepository {
         requestedEndAt: endsAt,
         timezone: input.values.timezone,
         cancellationAcknowledgedAt: new Date(),
-        currency: source.currency,
-        totalMinor: source.totalMinor,
-        depositMinor: source.depositMinor,
-        expectedDurationMinutes: source.expectedDurationMinutes,
-        scope: source.scope,
-        exclusions: source.exclusions,
-        warrantyTerms: source.warrantyTerms,
-        paymentTerms: source.paymentTerms,
+        currency: service.currency,
+        totalMinor: currentPriceMinor,
+        depositMinor: 0,
+        expectedDurationMinutes: durationMinutes,
+        scope: service.description ?? service.name,
+        exclusions: "Work outside the current published service scope is excluded.",
+        warrantyTerms:
+          service.warrantyTerms ??
+          "Warranty eligibility will follow the completed service record.",
+        paymentTerms:
+          service.priceMinor && service.priceMinor > 0
+            ? "Payment is recorded separately after service confirmation."
+            : "No advance payment is required.",
         correlationId: input.correlationId,
       });
+      await tx.insert(outboxEvents).values({
+        eventType: "customer.repeat_booking_started",
+        eventVersion: 1,
+        aggregateType: "booking",
+        aggregateId: bookingId,
+        organisationId: source.organisationId,
+        actorAccountId: input.actorAccountId,
+        correlationId: input.correlationId,
+        payload: {
+          bookingId,
+          sourceBookingId: source.id,
+          clientAccountId: input.clientAccountId,
+        },
+      });
+      return bookingId;
     });
   }
 
@@ -1532,6 +1657,12 @@ async function insertBooking(
     endsAt: input.requestedEndAt,
     membershipId: input.requestedMembershipId,
     correlationId: input.correlationId,
+  });
+  await ensureRegisteredCustomer(tx, {
+    organisationId: input.organisationId,
+    clientAccountId: input.clientAccountId,
+    actorAccountId: input.actorAccountId,
+    origin: input.origin,
   });
   return booking.id;
 }

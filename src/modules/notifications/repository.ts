@@ -13,6 +13,7 @@ import type { DomainEventEnvelope } from "../../platform/events/contracts";
 import type { Database } from "../../platform/database/client";
 import { accountProfiles } from "../../platform/database/schema/account-profiles";
 import { bookings } from "../../platform/database/schema/commercial";
+import { invoices } from "../../platform/database/schema/financial";
 import { engagementConversations } from "../../platform/database/schema/engagement-conversations";
 import {
   jobAssignments,
@@ -22,6 +23,7 @@ import { notifications } from "../../platform/database/schema/notifications";
 import { outboxEvents } from "../../platform/database/schema/outbox-events";
 import { processedEvents } from "../../platform/database/schema/consumer-events";
 import { professionalServices } from "../../platform/database/schema/professional-services";
+import { reviews } from "../../platform/database/schema/reviews";
 import {
   organisationMemberships,
   permissions,
@@ -29,6 +31,10 @@ import {
 } from "../../platform/database/schema/roles";
 import { serviceRequests } from "../../platform/database/schema/service-requests";
 import { quotations } from "../../platform/database/schema/commercial";
+import {
+  warranties,
+  warrantyClaims,
+} from "../../platform/database/schema/warranties";
 import {
   buildPageResult,
   paginationOffset,
@@ -69,6 +75,25 @@ export const notificationSourceEvents = [
   "job.variation_requested",
   "job.variation_approved",
   "job.completed",
+  "warranty.created",
+  "warranty.claim_submitted",
+  "warranty.claim_under_review",
+  "warranty.claim_accepted",
+  "warranty.claim_rejected",
+  "warranty.claim_escalated",
+  "warranty.return_visit_scheduled",
+  "warranty.resolved",
+  "service_reminder.due",
+  "invoice.issued",
+  "invoice.cancelled",
+  "invoice.paid",
+  "payment.recorded",
+  "payment.reversed",
+  "refund.recorded",
+  "review.requested",
+  "review.submitted",
+  "review.responded",
+  "review.reported",
   "attachment.added",
 ] as const;
 
@@ -349,7 +374,223 @@ async function resolveNotificationDrafts(
   ) {
     return jobDrafts(tx, event, event.aggregateId);
   }
+  if (event.eventType.startsWith("warranty.")) {
+    return warrantyDrafts(tx, event);
+  }
+  if (event.eventType === "service_reminder.due") {
+    const recipientAccountId =
+      typeof event.payload.recipientAccountId === "string"
+        ? event.payload.recipientAccountId
+        : null;
+    if (!recipientAccountId) return [];
+    const [recipient] = await tx
+      .select({ id: accountProfiles.id })
+      .from(accountProfiles)
+      .where(
+        and(
+          eq(accountProfiles.id, recipientAccountId),
+          eq(accountProfiles.status, "active"),
+        ),
+      )
+      .limit(1);
+    if (!recipient) return [];
+    return [
+      {
+        recipientAccountId,
+        organisationId: event.organisationId ?? null,
+        title: "Service reminder",
+        body:
+          typeof event.payload.reason === "string"
+            ? event.payload.reason
+            : "A scheduled service may be due.",
+        actionTarget: "/client/bookings",
+      },
+    ];
+  }
+  if (
+    event.eventType.startsWith("invoice.") ||
+    event.eventType === "payment.recorded" ||
+    event.eventType === "payment.reversed" ||
+    event.eventType === "refund.recorded"
+  ) {
+    return invoiceDrafts(tx, event);
+  }
+  if (event.eventType.startsWith("review.")) {
+    return reviewDrafts(tx, event);
+  }
   return [];
+}
+
+async function invoiceDrafts(tx: Tx, event: DomainEventEnvelope) {
+  const invoiceId =
+    event.aggregateType === "invoice"
+      ? event.aggregateId
+      : typeof event.payload.invoiceId === "string"
+        ? event.payload.invoiceId
+        : null;
+  if (!invoiceId) return [];
+  const [invoice] = await tx
+    .select({
+      id: invoices.id,
+      organisationId: invoices.organisationId,
+      clientAccountId: invoices.clientAccountId,
+    })
+    .from(invoices)
+    .where(eq(invoices.id, invoiceId))
+    .limit(1);
+  if (!invoice) return [];
+  if (event.eventType === "payment.recorded") {
+    const client = await activeClientDraft(tx, {
+      event,
+      clientAccountId: invoice.clientAccountId,
+      organisationId: invoice.organisationId,
+      title: "Payment record updated",
+      body: "A payment record was added to your invoice.",
+      actionTarget: `/client/invoices/${invoice.id}`,
+    });
+    return client ? [client] : [];
+  }
+  if (event.eventType === "payment.reversed" || event.eventType === "refund.recorded") {
+    const client = await activeClientDraft(tx, {
+      event,
+      clientAccountId: invoice.clientAccountId,
+      organisationId: invoice.organisationId,
+      title: "Invoice payment record changed",
+      body: "A payment adjustment was recorded. Open the invoice for the current balance.",
+      actionTarget: `/client/invoices/${invoice.id}`,
+    });
+    return client ? [client] : [];
+  }
+  const client = await activeClientDraft(tx, {
+    event,
+    clientAccountId: invoice.clientAccountId,
+    organisationId: invoice.organisationId,
+    title:
+      event.eventType === "invoice.issued"
+        ? "Invoice issued"
+        : event.eventType === "invoice.paid"
+          ? "Invoice marked paid"
+          : "Invoice cancelled",
+    body:
+      event.eventType === "invoice.issued"
+        ? "A new invoice is ready to review."
+        : event.eventType === "invoice.paid"
+          ? "Your invoice payment record is complete."
+          : "An invoice was cancelled. Open it for the preserved record.",
+    actionTarget: `/client/invoices/${invoice.id}`,
+  });
+  return client ? [client] : [];
+}
+
+async function reviewDrafts(tx: Tx, event: DomainEventEnvelope) {
+  if (event.eventType === "review.requested") {
+    const [job] = await tx
+      .select({
+        id: jobs.id,
+        organisationId: jobs.organisationId,
+        clientAccountId: jobs.clientAccountId,
+      })
+      .from(jobs)
+      .where(eq(jobs.id, event.aggregateId))
+      .limit(1);
+    if (!job) return [];
+    const client = await activeClientDraft(tx, {
+      event,
+      clientAccountId: job.clientAccountId,
+      organisationId: job.organisationId,
+      title: "How did the service go?",
+      body: "Your completed job is ready for a verified review.",
+      actionTarget: `/client/jobs/${job.id}`,
+    });
+    return client ? [client] : [];
+  }
+  const [review] = await tx
+    .select({
+      id: reviews.id,
+      jobId: reviews.jobId,
+      organisationId: reviews.organisationId,
+      clientAccountId: reviews.clientAccountId,
+    })
+    .from(reviews)
+    .where(eq(reviews.id, event.aggregateId))
+    .limit(1);
+  if (!review) return [];
+  if (event.eventType === "review.responded") {
+    const client = await activeClientDraft(tx, {
+      event,
+      clientAccountId: review.clientAccountId,
+      organisationId: review.organisationId,
+      title: "Professional responded to your review",
+      body: "A public response was added to your verified review.",
+      actionTarget: `/client/jobs/${review.jobId}`,
+    });
+    return client ? [client] : [];
+  }
+  return professionalDrafts(tx, {
+    event,
+    organisationId: review.organisationId,
+    permission: permissionKeys.jobsView,
+    title:
+      event.eventType === "review.submitted"
+        ? "New verified review"
+        : "Review moderation status changed",
+    body:
+      event.eventType === "review.submitted"
+        ? "A client submitted verified feedback for a completed job."
+        : "A review was reported. The original record remains preserved.",
+    actionTarget: "/professional/reviews",
+  });
+}
+
+async function warrantyDrafts(tx: Tx, event: DomainEventEnvelope) {
+  const [warranty] =
+    event.aggregateType === "warranty"
+      ? await tx
+          .select({
+            id: warranties.id,
+            jobId: warranties.jobId,
+            clientAccountId: warranties.clientAccountId,
+            organisationId: warranties.organisationId,
+            serviceName: warranties.serviceNameSnapshot,
+          })
+          .from(warranties)
+          .where(eq(warranties.id, event.aggregateId))
+          .limit(1)
+      : await tx
+          .select({
+            id: warranties.id,
+            jobId: warranties.jobId,
+            clientAccountId: warranties.clientAccountId,
+            organisationId: warranties.organisationId,
+            serviceName: warranties.serviceNameSnapshot,
+          })
+          .from(warrantyClaims)
+          .innerJoin(warranties, eq(warranties.id, warrantyClaims.warrantyId))
+          .where(eq(warrantyClaims.id, event.aggregateId))
+          .limit(1);
+  if (!warranty) return [];
+  if (event.actorAccountId === warranty.clientAccountId) {
+    return professionalDrafts(tx, {
+      event,
+      organisationId: warranty.organisationId,
+      permission: permissionKeys.jobsView,
+      title:
+        event.eventType === "warranty.claim_escalated"
+          ? "Warranty claim escalated"
+          : "New warranty claim",
+      body: `The ${warranty.serviceName} warranty needs professional attention.`,
+      actionTarget: `/professional/warranties/${warranty.id}`,
+    });
+  }
+  const client = await activeClientDraft(tx, {
+    event,
+    clientAccountId: warranty.clientAccountId,
+    organisationId: warranty.organisationId,
+    title: warrantyClientTitle(event.eventType),
+    body: `Your ${warranty.serviceName} warranty has new activity.`,
+    actionTarget: `/client/warranties/${warranty.id}`,
+  });
+  return client ? [client] : [];
 }
 
 async function jobDrafts(
@@ -721,11 +962,21 @@ async function activeClientDraft(
 }
 
 function safeActionTarget(target: string): string | null {
-  return /^\/(?:client|professional)\/(?:requests|enquiries|quotations|bookings|jobs)\/[0-9a-f-]{36}$/.test(
-    target,
-  )
+  return /^(?:\/(?:client|professional)\/(?:requests|enquiries|quotations|bookings|jobs|warranties|invoices|customers)\/[0-9a-f-]{36}|\/professional\/reviews|\/client\/bookings)$/.test(target)
     ? target
     : null;
+}
+
+function warrantyClientTitle(eventType: string) {
+  const titles: Record<string, string> = {
+    "warranty.created": "Warranty coverage recorded",
+    "warranty.claim_under_review": "Warranty claim under review",
+    "warranty.claim_accepted": "Warranty claim accepted",
+    "warranty.claim_rejected": "Warranty claim decision recorded",
+    "warranty.return_visit_scheduled": "Warranty return visit scheduled",
+    "warranty.resolved": "Warranty claim resolved",
+  };
+  return titles[eventType] ?? "Warranty updated";
 }
 
 function jobProfessionalTitle(event: DomainEventEnvelope) {

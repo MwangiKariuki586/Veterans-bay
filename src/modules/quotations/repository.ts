@@ -39,6 +39,7 @@ import type {
   QuotationSummary,
 } from "./types";
 import { recordBookingChange } from "../bookings/repository";
+import { ensureRegisteredCustomer } from "../customers/repository";
 
 export interface QuotationMutationInput {
   values: QuotationDraftValues;
@@ -896,6 +897,12 @@ export class QuotationsRepository implements QuotationsStore {
             )
           : null,
         correlationId: input.correlationId,
+      });
+      await ensureRegisteredCustomer(tx, {
+        organisationId: quotation.organisationId,
+        clientAccountId: input.clientAccountId,
+        actorAccountId: input.clientAccountId,
+        origin: "ACCEPTED_QUOTATION",
       });
       const requirements = [
         ...(version.depositMinor > 0

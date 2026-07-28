@@ -7,11 +7,22 @@ import {
   jobs,
 } from "../../platform/database/schema/fulfilment";
 import {
+  invoiceItems,
+  invoices,
+  paymentAdjustments,
+  paymentAllocations,
+  payments,
+} from "../../platform/database/schema/financial";
+import {
   organisationMemberships,
   permissions,
   rolePermissions,
 } from "../../platform/database/schema/roles";
 import { permissionKeys } from "../../platform/permissions/keys";
+import {
+  warranties,
+  warrantyClaims,
+} from "../../platform/database/schema/warranties";
 
 export type FileAssetRecord = typeof fileAssets.$inferSelect;
 
@@ -84,6 +95,103 @@ export class StorageRepository {
                   or exists (
                     select 1 from ${jobAssignments}
                     where ${jobAssignments.jobId} = ${jobs.id}
+                      and ${jobAssignments.membershipId} = ${organisationMemberships.id}
+                      and ${jobAssignments.active} = true
+                  )
+                )
+            )
+          )`,
+        ),
+      )
+      .limit(1);
+    return Boolean(allowed);
+  }
+
+  async canAccessPaymentEvidence(
+    accountProfileId: string,
+    linkedEntityType: string,
+    linkedEntityId: string,
+  ): Promise<boolean> {
+    const paymentId =
+      linkedEntityType === "payment"
+        ? linkedEntityId
+        : linkedEntityType === "payment_adjustment"
+          ? (
+              await this.db
+                .select({ paymentId: paymentAdjustments.paymentId })
+                .from(paymentAdjustments)
+                .where(eq(paymentAdjustments.id, linkedEntityId))
+                .limit(1)
+            )[0]?.paymentId
+          : null;
+    if (!paymentId) return false;
+    const [allowed] = await this.db
+      .select({ id: payments.id })
+      .from(payments)
+      .innerJoin(
+        paymentAllocations,
+        eq(paymentAllocations.paymentId, payments.id),
+      )
+      .innerJoin(
+        invoiceItems,
+        eq(invoiceItems.id, paymentAllocations.invoiceItemId),
+      )
+      .innerJoin(invoices, eq(invoices.id, invoiceItems.invoiceId))
+      .where(
+        and(
+          eq(payments.id, paymentId),
+          sql`(
+            ${invoices.clientAccountId} = ${accountProfileId}
+            or exists (
+              select 1
+              from ${organisationMemberships}
+              join ${rolePermissions}
+                on ${rolePermissions.roleId} = ${organisationMemberships.roleId}
+              join ${permissions}
+                on ${permissions.id} = ${rolePermissions.permissionId}
+              where ${organisationMemberships.organisationId} = ${invoices.organisationId}
+                and ${organisationMemberships.accountProfileId} = ${accountProfileId}
+                and ${organisationMemberships.status} = 'active'
+                and ${organisationMemberships.financialDataAccess} = true
+                and ${permissions.key} = ${permissionKeys.paymentsView}
+            )
+          )`,
+        ),
+      )
+      .limit(1);
+    return Boolean(allowed);
+  }
+
+  async canAccessWarrantyEvidence(
+    accountProfileId: string,
+    claimId: string,
+  ): Promise<boolean> {
+    const [allowed] = await this.db
+      .select({ id: warrantyClaims.id })
+      .from(warrantyClaims)
+      .innerJoin(warranties, eq(warranties.id, warrantyClaims.warrantyId))
+      .innerJoin(jobs, eq(jobs.id, warranties.jobId))
+      .where(
+        and(
+          eq(warrantyClaims.id, claimId),
+          sql`(
+            ${warranties.clientAccountId} = ${accountProfileId}
+            or exists (
+              select 1
+              from ${organisationMemberships}
+              join ${rolePermissions}
+                on ${rolePermissions.roleId} = ${organisationMemberships.roleId}
+              join ${permissions}
+                on ${permissions.id} = ${rolePermissions.permissionId}
+              where ${organisationMemberships.organisationId} = ${warranties.organisationId}
+                and ${organisationMemberships.accountProfileId} = ${accountProfileId}
+                and ${organisationMemberships.status} = 'active'
+                and ${permissions.key} = ${permissionKeys.jobsView}
+                and (
+                  ${organisationMemberships.assignedJobsOnly} = false
+                  or exists (
+                    select 1 from ${jobAssignments}
+                    where ${jobAssignments.jobId} = ${warranties.jobId}
                       and ${jobAssignments.membershipId} = ${organisationMemberships.id}
                       and ${jobAssignments.active} = true
                   )

@@ -19,6 +19,9 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { EngagementConversation } from "@/components/conversations/engagement-conversation";
+import { createInvoiceFromJob } from "@/components/invoices/invoice-api";
+import { ensureWarrantyFromJob } from "@/components/warranties/warranty-api";
+import { ReviewJobPanel } from "@/components/reviews/review-job-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
@@ -175,6 +178,9 @@ export function JobDetail({
       ) : (
         <ClientActions job={job} busy={busy} run={run} />
       )}
+      {audience === "client" && job.status === "COMPLETED" ? (
+        <ReviewJobPanel jobId={job.id} />
+      ) : null}
 
       <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,.7fr)]">
         <div className="grid gap-5">
@@ -336,6 +342,59 @@ export function JobDetail({
                 </span>
               </div>
             </div>
+            {audience === "professional" && job.status === "COMPLETED" ? (
+              <div className="mt-5 grid gap-2">
+                <Button
+                  className="w-full"
+                  loading={busy === "invoice"}
+                  onClick={() => {
+                    setBusy("invoice");
+                    setError(null);
+                    void createInvoiceFromJob(job.id)
+                      .then((invoice) => {
+                        window.location.assign(
+                          `/professional/invoices/${invoice.id}`,
+                        );
+                      })
+                      .catch((cause: unknown) =>
+                        setError(
+                          cause instanceof Error
+                            ? cause.message
+                            : "Invoice creation failed.",
+                        ),
+                      )
+                      .finally(() => setBusy(null));
+                  }}
+                >
+                  Create or open invoice
+                </Button>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  loading={busy === "warranty"}
+                  onClick={() => {
+                    setBusy("warranty");
+                    setError(null);
+                    void ensureWarrantyFromJob(job.id)
+                      .then((warranty) => {
+                        window.location.assign(
+                          `/professional/warranties/${warranty.id}`,
+                        );
+                      })
+                      .catch((cause: unknown) =>
+                        setError(
+                          cause instanceof Error
+                            ? cause.message
+                            : "Warranty creation failed.",
+                        ),
+                      )
+                      .finally(() => setBusy(null));
+                  }}
+                >
+                  Create or open warranty
+                </Button>
+              </div>
+            ) : null}
           </Surface>
 
           <Surface className="p-5 shadow-none">

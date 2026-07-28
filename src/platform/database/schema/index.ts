@@ -8,6 +8,22 @@ export {
 } from "./consumer-events";
 export { fileAssets } from "./file-assets";
 export {
+  customerNotes,
+  customerRecords,
+  customerRecordTags,
+  customerTags,
+} from "./customers";
+export { serviceReminders } from "./service-reminders";
+export {
+  invoiceItems,
+  invoices,
+  paymentAdjustmentAllocations,
+  paymentAdjustments,
+  paymentAllocations,
+  payments,
+  platformFeeRecords,
+} from "./financial";
+export {
   jobAssignments,
   jobChecklistItems,
   jobCommercialHistory,
@@ -70,6 +86,19 @@ export {
   rolePermissions,
   roles,
 } from "./roles";
+export {
+  warranties,
+  warrantyClaimEvidence,
+  warrantyClaimHistory,
+  warrantyClaims,
+} from "./warranties";
+export {
+  professionalReputation,
+  reviewModerationHistory,
+  reviewReports,
+  reviewResponses,
+  reviews,
+} from "./reviews";
 export {
   account,
   authSchema,

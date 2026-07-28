@@ -12,11 +12,11 @@ The source document uses the working title ServiceLink. The implementation name 
 
 ## Active Phase
 
-`context/phases/04-trust-retention.md`
+`context/phases/05-operational-maturity.md`
 
 ## Active Feature
 
-Feature 04.01 — Invoices and Manual Payment Records
+Feature 05.01 — Complete Platform Administration and Moderation
 
 ## Status
 
@@ -24,11 +24,11 @@ Feature 04.01 — Invoices and Manual Payment Records
 
 ## Current Step
 
-Verify the completed-job, transaction, financial-permission, and private-evidence foundations required for auditable invoices and manual payment records.
+Verify platform-role authority, existing moderation records, report/evidence foundations, and immutable transaction boundaries.
 
 ## Next Step
 
-Inspect the completed job commercial snapshots and existing money/permission patterns, then begin the invoice and payment schema.
+Inspect existing administration and marketplace-moderation implementations, then identify the first missing prerequisite for Feature 05.01.
 
 ## Completed Phases
 
@@ -36,6 +36,7 @@ Inspect the completed job commercial snapshots and existing money/permission pat
 - `Phase 01 — Establish the Professional Marketplace`
 - `Phase 02 — Enable Request-to-Booking Commerce`
 - `Phase 03 — Enable Service Fulfilment`
+- `Phase 04 — Establish Trust, Financial Records, and Retention`
 
 ## Completed Features in Active Phase
 
@@ -53,6 +54,12 @@ None.
 - Feature 02.05 idempotent Queue consumption, permission-derived recipient resolution, safe internal targets, unread state, retry/dead-letter handling, and client/professional notification-centre integration verified
 - Phase 03 idempotent job creation, assignment history, field execution, checklists, evidence, variations, commercial snapshots, client completion, unresolved-work handling, conversations, timeline, and notification coverage verified
 - Phase 04 can build invoices from completed job commercial snapshots and the existing transaction, permission, outbox, and private-evidence foundations
+- Feature 04.01 provides auditable invoice items, manual payments, item allocations, balances, private evidence, preserved reversals/refunds, financial permissions, and transactional financial events
+- Feature 04.02 provides completion-derived warranty coverage, structured participant-scoped claims, private evidence, reasoned decisions, escalation, return-visit job history, resolution, and notification events
+- Feature 04.03 provides completed-job review eligibility, one verified review and response per job, report/moderation preservation, public review projections, rebuildable reputation metrics, and idempotent Queue recalculation
+- Feature 04.04 provides organisation-scoped imported and registered customer records, preserved origins, duplicate candidates, invitation/reconciliation, private notes and tags, paginated search, service history, and permissioned balances
+- Feature 04.05 revalidates current service and professional rules for client/professional repeat work, preserves source history without stale commercial reuse, and provides cancellable repeat-safe scheduled in-app reminders
+- Feature 04.06 provides permission/participant-derived post-service notifications for invoices, payments, completion, warranties, reviews, and service reminders with private preview text, safe targets, and idempotent delivery
 
 ## Design Reference
 
@@ -68,11 +75,11 @@ None.
 
 ## Review Gate
 
-None currently identified for Feature 04.01.
+None currently identified for Feature 05.01.
 
 ## Verification State
 
-Phase 03 is complete. Confirmed bookings create idempotent jobs with assignment history and immutable commercial snapshots; authorised field execution, checklists, evidence, variations, client completion, unresolved-work handling, job conversations, timeline, and notifications are verified. Automatic completion remains intentionally disabled pending an approved visible policy. Migration `0022_omniscient_squadron_supreme` is applied and Drizzle validation passes. Typecheck, lint, 71 UI tests, 134 Worker tests, and all 29 database tests are covered; the initial full database run exposed one cleanup dependency and one timeout threshold, and both affected files passed after correction. Next.js production build, Cloudflare Worker dry-run, and authenticated professional/client desktop/mobile browser review pass without page-level horizontal overflow.
+Phase 04 is complete. Migrations `0023_real_marten_broadcloak` through `0027_dusty_old_lace` are applied and Drizzle validation passes. The full repository suite passes: 81 UI tests, 135 Worker/API tests, and 38 live database tests. Typecheck, lint, the 74-route Next.js production build, and the Cloudflare Worker dry-run pass. Phase 05 Feature 05.01 has not started.
 
 ## Update Rule
 

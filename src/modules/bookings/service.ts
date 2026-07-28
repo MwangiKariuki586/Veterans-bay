@@ -184,6 +184,17 @@ export class BookingsService {
       input.organisationId,
       input.bookingId,
     );
+    if (booking.status === "COMPLETED" && booking.professionalServiceId) {
+      const current = await this.store.currentServiceSlotContext(
+        booking.professionalServiceId,
+      );
+      if (!current) throw bookingUnavailable();
+      return this.slotsForWindow({
+        ...current,
+        from: input.from,
+        to: input.to,
+      });
+    }
     return this.slots(booking, input.from, input.to);
   }
 
@@ -194,6 +205,17 @@ export class BookingsService {
     to: string;
   }): Promise<BookingSlot[]> {
     const booking = await this.getClient(input.authUserId, input.bookingId);
+    if (booking.status === "COMPLETED" && booking.professionalServiceId) {
+      const current = await this.store.currentServiceSlotContext(
+        booking.professionalServiceId,
+      );
+      if (!current) throw bookingUnavailable();
+      return this.slotsForWindow({
+        ...current,
+        from: input.from,
+        to: input.to,
+      });
+    }
     return this.slots(booking, input.from, input.to);
   }
 

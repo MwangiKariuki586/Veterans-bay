@@ -311,6 +311,34 @@ describe("Veterans Bay API foundation", () => {
     ]);
   });
 
+  it("protects client and professional warranty routes before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const warrantyId = "00000000-0000-4000-8000-000000000080";
+    const claimId = "00000000-0000-4000-8000-000000000081";
+    const responses = await Promise.all([
+      app.request("/api/v1/client/warranties", {}, bindings()),
+      app.request(
+        `/api/v1/client/warranties/${warrantyId}`,
+        {},
+        bindings(),
+      ),
+      app.request("/api/v1/professional/warranties", {}, bindings()),
+      app.request(
+        `/api/v1/professional/warranties/${warrantyId}`,
+        {},
+        bindings(),
+      ),
+      app.request(
+        `/api/v1/professional/warranty-claims/${claimId}/action`,
+        { method: "POST" },
+        bindings(),
+      ),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401, 401,
+    ]);
+  });
+
   it("rejects unsafe marketplace analytics payloads before database access", async () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     const response = await app.request(
