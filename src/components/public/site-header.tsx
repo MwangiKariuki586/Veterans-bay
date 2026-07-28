@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { Brand } from "@/components/public/brand";
 import { iconButtonClass } from "@/components/public/design";
@@ -24,6 +25,52 @@ import {
 } from "@/components/ui/sheet";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { getUnreadNotificationCount } from "@/components/notifications/notification-api";
+
+function NotificationBell() {
+  const [unreadCount, setUnreadCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = () =>
+      void getUnreadNotificationCount()
+        .then((result) => {
+          if (active) setUnreadCount(result.unreadCount);
+        })
+        .catch(() => {
+          if (active) setUnreadCount(null);
+        });
+    refresh();
+    const interval = window.setInterval(refresh, 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  return (
+    <Link
+      href="/notifications"
+      className={cn(iconButtonClass, "relative hidden sm:grid")}
+      aria-label="Notifications"
+      title={
+        unreadCount
+          ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
+          : "Notifications"
+      }
+    >
+      <Bell className="size-[1.15rem]" aria-hidden="true" />
+      {unreadCount ? (
+        <span
+          className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#7cb518] px-1 text-[0.6rem] font-bold leading-none text-white"
+          aria-hidden="true"
+        >
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
 
 function HeaderSearch({ className }: { className?: string }) {
   return (
@@ -140,14 +187,7 @@ function SignedInActions({
       >
         <Heart className="size-[1.15rem]" aria-hidden="true" />
       </Link>
-      <Link
-        href="/notifications"
-        className={cn(iconButtonClass, "relative hidden sm:grid")}
-        aria-label="Notifications"
-      >
-        <Bell className="size-[1.15rem]" aria-hidden="true" />
-        <span className="absolute top-1.5 right-1.5 size-2.5 rounded-full border-2 border-white bg-[#7cb518]" />
-      </Link>
+      <NotificationBell />
       <div className="hidden sm:block">
         <AccountChip displayName={displayName} href="/account/profile" />
       </div>

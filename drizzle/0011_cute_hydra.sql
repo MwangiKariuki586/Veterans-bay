@@ -1,0 +1,2 @@
+ALTER TABLE "service_request_history" ALTER COLUMN "actor_account_id" DROP NOT NULL;--> statement-breakpoint
+CREATE INDEX "service_requests_expiry_idx" ON "service_requests" USING btree ("status","expires_at","id");

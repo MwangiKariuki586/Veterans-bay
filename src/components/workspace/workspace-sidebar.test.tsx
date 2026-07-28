@@ -21,9 +21,9 @@ describe("workspace sidebar", () => {
     expect(dashboard).toHaveAttribute("href", "/professional");
     expect(dashboard).toHaveAttribute("aria-current", "page");
 
-    expect(screen.getByRole("link", { name: "Requests" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Enquiries" })).toHaveAttribute(
       "href",
-      "/professional/requests",
+      "/professional/enquiries",
     );
     expect(screen.getByRole("link", { name: "Open help center" })).toHaveAttribute(
       "href",
@@ -39,6 +39,8 @@ describe("workspace sidebar", () => {
       "/client/invoices",
     );
     expect(screen.queryByText("Verified Pro")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Quotations" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Quotations" }),
+    ).toHaveAttribute("href", "/client/quotations");
   });
 });

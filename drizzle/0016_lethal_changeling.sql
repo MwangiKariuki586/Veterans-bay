@@ -1,0 +1,1 @@
+ALTER TABLE "quotation_history" ALTER COLUMN "actor_account_id" DROP NOT NULL;

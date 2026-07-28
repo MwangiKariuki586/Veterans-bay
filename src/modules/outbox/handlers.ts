@@ -1,6 +1,13 @@
 import { createDatabaseClient } from "../../platform/database/client";
 import { logError, logInfo } from "../../platform/logging/logger";
+import { domainEventEnvelopeSchema } from "../../platform/events/contracts";
 import type { ApiBindings } from "../../workers/api/types";
+import { ServiceRequestExpiryService } from "../service-requests/expiry";
+import { ServiceRequestsRepository } from "../service-requests/repository";
+import { QuotationExpiryService } from "../quotations/expiry";
+import { QuotationsRepository } from "../quotations/repository";
+import { NotificationConsumer } from "../notifications/consumer";
+import { NotificationsRepository } from "../notifications/repository";
 import { OutboxProofConsumer } from "./consumer";
 import { OutboxPublisher } from "./publisher";
 import { OutboxRepository } from "./repository";
@@ -13,11 +20,21 @@ export async function handleDomainEventsQueue(
   const client = createDatabaseClient(env.DATABASE_URL);
 
   try {
-    const consumer = new OutboxProofConsumer(new OutboxRepository(client.db));
+    const outboxRepository = new OutboxRepository(client.db);
+    const proofConsumer = new OutboxProofConsumer(outboxRepository);
+    const notificationConsumer = new NotificationConsumer(
+      new NotificationsRepository(client.db),
+      outboxRepository,
+    );
 
     for (const message of batch.messages) {
       const attempts = message.attempts ?? 1;
-      const result = await consumer.handleMessage(message.body, attempts);
+      const parsed = domainEventEnvelopeSchema.safeParse(message.body);
+      const result =
+        parsed.success &&
+        parsed.data.eventType === "system.outbox_proof"
+          ? await proofConsumer.handleMessage(message.body, attempts)
+          : await notificationConsumer.handleMessage(message.body, attempts);
 
       if (result === "ack") {
         message.ack();
@@ -43,17 +60,40 @@ export async function handleDomainEventsQueue(
 export async function handleOutboxScheduled(
   env: ApiBindings,
 ): Promise<void> {
-  if (!env.DOMAIN_EVENTS_QUEUE) {
-    logError({
-      event: "outbox.scheduled.queue_missing",
-      errorCategory: "configuration",
-    });
-    return;
-  }
-
   const client = createDatabaseClient(env.DATABASE_URL);
 
   try {
+    const expiryResult = await new ServiceRequestExpiryService(
+      new ServiceRequestsRepository(client.db),
+    ).runScheduledExpiry();
+    logInfo({
+      event: "service_request.expiry_scheduled.completed",
+      status: 200,
+      issues: [
+        { path: "expired", code: String(expiryResult.expired) },
+        { path: "batchSize", code: "50" },
+      ],
+    });
+    const quotationExpiryResult = await new QuotationExpiryService(
+      new QuotationsRepository(client.db),
+    ).runScheduledExpiry();
+    logInfo({
+      event: "quotation.expiry_scheduled.completed",
+      status: 200,
+      issues: [
+        { path: "expired", code: String(quotationExpiryResult.expired) },
+        { path: "batchSize", code: "50" },
+      ],
+    });
+
+    if (!env.DOMAIN_EVENTS_QUEUE) {
+      logError({
+        event: "outbox.scheduled.queue_missing",
+        errorCategory: "configuration",
+      });
+      return;
+    }
+
     const repository = new OutboxRepository(client.db);
     const publisher = new OutboxPublisher(
       repository,

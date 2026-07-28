@@ -12,7 +12,6 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Brand } from "@/components/public/brand";
 import {
   getWorkspaceNav,
   shellContextLabel,
@@ -48,11 +47,9 @@ export function WorkspaceSidebar({
       )}
       aria-label="Workspace"
     >
-      <Brand compact />
-
       <Link
         href="/workspace/select"
-        className="mt-5 flex items-center gap-3 rounded-[18px] border border-black/8 bg-white p-3"
+        className="mt-3 flex items-center gap-3 rounded-[18px] border border-black/8 bg-white p-3"
       >
         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#eef8c8] text-[#5f8d11]">
           <Store className="size-5" aria-hidden="true" />
@@ -65,7 +62,10 @@ export function WorkspaceSidebar({
             {shellContextLabel[kind]}
           </span>
         </span>
-        <ChevronDown className="size-4 shrink-0 text-[#68717b]" aria-hidden="true" />
+        <ChevronDown
+          className="size-4 shrink-0 text-[#68717b]"
+          aria-hidden="true"
+        />
       </Link>
 
       {kind === "professional" ? (
@@ -75,13 +75,19 @@ export function WorkspaceSidebar({
             Verified Pro
           </span>
           <span className="inline-flex items-center gap-1 text-[0.72rem] font-semibold">
-            <Star className="size-3.5 fill-[#ffb81c] text-[#ffb81c]" aria-hidden="true" />
+            <Star
+              className="size-3.5 fill-[#ffb81c] text-[#ffb81c]"
+              aria-hidden="true"
+            />
             4.9
           </span>
         </div>
       ) : null}
 
-      <nav className="mt-5 flex-1 space-y-4 overflow-y-auto" aria-label="Workspace navigation">
+      <nav
+        className="mt-5 flex-1 space-y-4 overflow-y-auto"
+        aria-label="Workspace navigation"
+      >
         {groups.map((group, groupIndex) => (
           <div key={group.id}>
             {groupIndex > 0 ? (
@@ -116,7 +122,10 @@ export function WorkspaceSidebar({
 
       <div className="mt-4 rounded-[18px] bg-[#eef8c8] p-4">
         <div className="flex items-start gap-3">
-          <Headphones className="mt-0.5 size-4 shrink-0 text-[#5f8d11]" aria-hidden="true" />
+          <Headphones
+            className="mt-0.5 size-4 shrink-0 text-[#5f8d11]"
+            aria-hidden="true"
+          />
           <p className="flex-1 text-[0.78rem] leading-5 text-[#3d4a2a]">
             Need help? Our support team is here for you.
           </p>

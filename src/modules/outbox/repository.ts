@@ -265,16 +265,31 @@ export class OutboxRepository {
     attemptCount: number;
     payload?: Record<string, unknown>;
   }): Promise<void> {
-    await this.db.insert(deadLetterEvents).values({
-      eventId: input.eventId,
-      consumerName: input.consumerName,
-      eventType: input.eventType,
-      eventVersion: input.eventVersion,
-      failureCategory: input.failureCategory,
-      attemptCount: input.attemptCount,
-      payload: input.payload ?? null,
-      resolutionState: "open",
-    });
+    await this.db
+      .insert(deadLetterEvents)
+      .values({
+        eventId: input.eventId,
+        consumerName: input.consumerName,
+        eventType: input.eventType,
+        eventVersion: input.eventVersion,
+        failureCategory: input.failureCategory,
+        attemptCount: input.attemptCount,
+        payload: input.payload ?? null,
+        resolutionState: "open",
+      })
+      .onConflictDoUpdate({
+        target: [
+          deadLetterEvents.eventId,
+          deadLetterEvents.consumerName,
+        ],
+        set: {
+          failureCategory: input.failureCategory,
+          attemptCount: input.attemptCount,
+          payload: input.payload ?? null,
+          resolutionState: "open",
+          resolvedAt: null,
+        },
+      });
   }
 
   async countProofEffects(eventId: string): Promise<number> {

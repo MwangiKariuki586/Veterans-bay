@@ -1,0 +1,1 @@
+ALTER TABLE "dead_letter_events" ADD CONSTRAINT "dead_letter_events_event_consumer_unique" UNIQUE("event_id","consumer_name");

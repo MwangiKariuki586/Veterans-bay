@@ -5,16 +5,21 @@ import {
   AppError,
   type ValidationIssue,
 } from "../../platform/errors/app-error";
+import { createBookingRoutes } from "../../modules/bookings/routes";
+import { createNotificationRoutes } from "../../modules/notifications/routes";
 import type { ApiErrorBody } from "../../platform/http/contracts";
 import { logError } from "../../platform/logging/logger";
 import { createIdentityRoutes } from "../../modules/identity/routes";
+import { createConversationRoutes } from "../../modules/conversations/routes";
 import { createMarketplaceRoutes } from "../../modules/marketplace/routes";
 import { createMarketplaceModerationRoutes } from "../../modules/marketplace-moderation/routes";
 import { createOutboxRoutes } from "../../modules/outbox/routes";
+import { createQuotationRoutes } from "../../modules/quotations/routes";
 import { createProfessionalOnboardingRoutes } from "../../modules/professional-onboarding/routes";
 import { createProfessionalServicesRoutes } from "../../modules/professional-services/routes";
 import { createProfessionalTeamRoutes } from "../../modules/professional-team/routes";
 import { createSavedProfessionalsRoutes } from "../../modules/saved-professionals/routes";
+import { createServiceRequestRoutes } from "../../modules/service-requests/routes";
 import { createStorageRoutes } from "../../modules/storage/routes";
 import type { SystemRepository } from "../../modules/system/repository";
 import { createSystemRoutes } from "../../modules/system/routes";
@@ -81,6 +86,11 @@ export function createApiApp(dependencies: ApiAppDependencies = {}) {
   api.route("/api", createMarketplaceRoutes());
   api.route("/api", createMarketplaceModerationRoutes());
   api.route("/api", createSavedProfessionalsRoutes());
+  api.route("/api", createServiceRequestRoutes());
+  api.route("/api", createConversationRoutes());
+  api.route("/api", createQuotationRoutes());
+  api.route("/api", createBookingRoutes());
+  api.route("/api", createNotificationRoutes());
   api.route("/api", createWorkspaceRoutes());
   api.route("/api", createStorageRoutes());
   api.route("/api", createOutboxRoutes());

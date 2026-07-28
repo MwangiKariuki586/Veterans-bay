@@ -8,6 +8,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -60,6 +61,10 @@ export const deadLetterEvents = pgTable(
     index("dead_letter_events_open_idx").on(
       table.resolutionState,
       table.createdAt,
+    ),
+    unique("dead_letter_events_event_consumer_unique").on(
+      table.eventId,
+      table.consumerName,
     ),
   ],
 );

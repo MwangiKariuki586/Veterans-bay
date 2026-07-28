@@ -70,6 +70,10 @@ describe("public catalogue pages", () => {
       "href",
       "/professionals/digital-qatalyst",
     );
+    expect(screen.getByRole("link", { name: "Request this service" })).toHaveAttribute(
+      "href",
+      "/client/requests/new?source=DIRECT_SERVICE_PAGE&professional=digital-qatalyst&service=custom-home-repair&category=Repairs",
+    );
   });
 
   it("uses explicit new-professional states instead of fabricated metrics", async () => {
@@ -85,6 +89,31 @@ describe("public catalogue pages", () => {
     expect(screen.getByText("No verified reviews yet")).toBeInTheDocument();
     expect(screen.getByText("Not enough activity yet")).toBeInTheDocument();
     expect(screen.getByText("Portfolio coming soon")).toBeInTheDocument();
+  });
+
+  it("routes eligible fixed-price services into direct slot selection", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            ...service,
+            pricingModel: "fixed",
+            priceMinor: 15_000,
+            directBookingEnabled: true,
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({ ok: true } as Response);
+
+    render(<PublicServicePage slug={service.slug} />);
+
+    expect(
+      await screen.findByRole("link", { name: "Book this service" }),
+    ).toHaveAttribute(
+      "href",
+      "/client/bookings/new?professionalSlug=digital-qatalyst&serviceSlug=custom-home-repair&serviceName=Custom%20home%20repair&providerName=Digital%20Qatalyst",
+    );
   });
 
   it("shows the public unavailable state returned by the API", async () => {

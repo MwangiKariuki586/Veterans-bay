@@ -1,0 +1,1 @@
+ALTER TABLE "payment_requirements" ALTER COLUMN "quotation_version_id" DROP NOT NULL;

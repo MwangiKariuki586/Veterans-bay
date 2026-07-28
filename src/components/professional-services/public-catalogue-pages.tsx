@@ -122,7 +122,80 @@ export function PublicServicePage({ slug }: { slug: string }) {
         <div className="relative min-h-[320px] overflow-hidden rounded-[26px] border border-black/8 sm:min-h-[460px]"><Image src={heroImage} alt={service.name} fill priority className="object-cover" sizes="(max-width: 1280px) 100vw, 65vw" /><div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-6 pt-20 text-white sm:p-8"><div className="flex flex-wrap gap-2"><span className="rounded-full bg-[#b8f52a] px-3 py-1 text-xs font-semibold text-[#071522]">{service.category}</span><span className="rounded-full border border-white/25 bg-black/20 px-3 py-1 text-xs font-semibold capitalize">{service.fulfilmentModel.replace("_", "-")}</span></div><h1 className="mt-4 text-4xl font-bold tracking-[-0.05em] sm:text-5xl">{service.name}</h1></div></div>
         <Surface className="p-6 shadow-none sm:p-8"><h2 className="text-xl font-bold">About this service</h2><p className="mt-3 text-sm leading-7 text-[#68717b]">{service.description}</p><div className="mt-6 grid gap-5 sm:grid-cols-2"><Detail label="Estimated duration" value={durationLabel(service.estimatedDurationMinutes)} /><Detail label="Service areas" value={service.serviceAreas.length > 0 ? service.serviceAreas.join(", ") : "Confirmed with provider"} /><Detail label="Warranty" value={service.warrantyDurationDays == null ? "Ask the provider" : `${service.warrantyDurationDays} days`} /><Detail label="Booking" value={service.directBookingEnabled ? "Direct booking available" : "Request confirmation first"} /></div>{service.requirements.length > 0 ? <div className="mt-7 border-t border-black/8 pt-6"><h3 className="font-bold">What the provider needs from you</h3><ul className="mt-3 grid gap-2 sm:grid-cols-2">{service.requirements.map((item) => <li key={item} className="flex gap-2 text-sm text-[#68717b]"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#5f8d11]" />{item}</li>)}</ul></div> : null}{service.warrantyTerms ? <div className="mt-7 rounded-2xl bg-[#eef8c8] p-5"><h3 className="font-bold">Warranty information</h3><p className="mt-2 text-sm leading-6 text-[#3d4a2a]">{service.warrantyTerms}</p></div> : null}</Surface>
       </div>
-      <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start"><Surface className="p-6 shadow-none"><p className="text-sm text-[#68717b]">{service.pricingModel === "starting_from" ? "Starting price" : "Price"}</p><p className="mt-1 text-3xl font-bold text-[#5f8d11]">{formatPrice(service)}</p><p className="mt-3 text-xs leading-5 text-[#68717b]">Final scope and availability are confirmed directly with the professional.</p></Surface><Surface className="p-6 shadow-none"><div className="flex items-center gap-3">{service.provider.logoUrl ? <Image src={service.provider.logoUrl} alt="" width={52} height={52} className="size-13 rounded-2xl object-cover" /> : <span className="grid size-13 place-items-center rounded-2xl bg-[#eef8c8] font-bold text-[#5f8d11]">{service.provider.businessName.slice(0, 2).toUpperCase()}</span>}<div><p className="font-bold">{service.provider.businessName}</p>{service.provider.verified ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#5f8d11]"><BadgeCheck className="size-3.5" /> Verified professional</p> : null}</div></div>{service.provider.operatingLocation ? <p className="mt-4 inline-flex items-center gap-2 text-sm text-[#68717b]"><MapPin className="size-4" />{service.provider.operatingLocation}</p> : null}<Link href={`/professionals/${service.provider.slug}`} className={cn(buttonVariants({ variant: "outline" }), "mt-5 w-full")}>View professional profile</Link></Surface></aside>
+      <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+        <Surface className="p-6 shadow-none">
+          <p className="text-sm text-[#68717b]">
+            {service.pricingModel === "starting_from"
+              ? "Starting price"
+              : "Price"}
+          </p>
+          <p className="mt-1 text-3xl font-bold text-[#5f8d11]">
+            {formatPrice(service)}
+          </p>
+          <p className="mt-3 text-xs leading-5 text-[#68717b]">
+            Final scope and availability are confirmed directly with the
+            professional.
+          </p>
+          {service.directBookingEnabled &&
+          service.estimatedDurationMinutes &&
+          service.priceMinor != null &&
+          service.pricingModel !== "custom_quote" ? (
+            <Link
+              href={`/client/bookings/new?professionalSlug=${encodeURIComponent(service.provider.slug)}&serviceSlug=${encodeURIComponent(service.slug)}&serviceName=${encodeURIComponent(service.name)}&providerName=${encodeURIComponent(service.provider.businessName)}`}
+              className={cn(buttonVariants(), "mt-5 w-full")}
+            >
+              Book this service
+            </Link>
+          ) : (
+            <Link
+              href={`/client/requests/new?source=DIRECT_SERVICE_PAGE&professional=${encodeURIComponent(service.provider.slug)}&service=${encodeURIComponent(service.slug)}&category=${encodeURIComponent(service.category)}`}
+              className={cn(buttonVariants(), "mt-5 w-full")}
+            >
+              Request this service
+            </Link>
+          )}
+        </Surface>
+        <Surface className="p-6 shadow-none">
+          <div className="flex items-center gap-3">
+            {service.provider.logoUrl ? (
+              <Image
+                src={service.provider.logoUrl}
+                alt=""
+                width={52}
+                height={52}
+                className="size-13 rounded-2xl object-cover"
+              />
+            ) : (
+              <span className="grid size-13 place-items-center rounded-2xl bg-[#eef8c8] font-bold text-[#5f8d11]">
+                {service.provider.businessName.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+            <div>
+              <p className="font-bold">{service.provider.businessName}</p>
+              {service.provider.verified ? (
+                <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#5f8d11]">
+                  <BadgeCheck className="size-3.5" /> Verified professional
+                </p>
+              ) : null}
+            </div>
+          </div>
+          {service.provider.operatingLocation ? (
+            <p className="mt-4 inline-flex items-center gap-2 text-sm text-[#68717b]">
+              <MapPin className="size-4" />
+              {service.provider.operatingLocation}
+            </p>
+          ) : null}
+          <Link
+            href={`/professionals/${service.provider.slug}`}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "mt-5 w-full",
+            )}
+          >
+            View professional profile
+          </Link>
+        </Surface>
+      </aside>
     </div>
   </div>;
 }

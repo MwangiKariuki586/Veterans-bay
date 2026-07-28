@@ -1,11 +1,15 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { ClientRequestsPage as ClientRequestsWorkspace } from "@/components/service-requests/client-requests-page";
+import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default function ClientRequestsPage() {
   return (
-    <WorkspaceUnavailablePage
+    <AuthenticatedShell
       kind="client"
       title="Your requests"
-      description="Client request tracking will arrive with the request workflow."
-    />
+      description="Create, submit, and track service requirements."
+      hideIntro
+    >
+      <ClientRequestsWorkspace />
+    </AuthenticatedShell>
   );
 }

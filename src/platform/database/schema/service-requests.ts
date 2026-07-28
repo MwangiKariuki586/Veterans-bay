@@ -41,7 +41,7 @@ export const serviceRequests = pgTable(
     currency: text("currency").notNull().default("KES"),
     urgency: text("urgency"),
     contactPreference: text("contact_preference"),
-    status: text("status").notNull().default("draft"),
+    status: text("status").notNull().default("DRAFT"),
     version: integer("version").notNull().default(1),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
@@ -98,6 +98,11 @@ export const serviceRequests = pgTable(
       table.status,
       table.updatedAt,
     ),
+    index("service_requests_expiry_idx").on(
+      table.status,
+      table.expiresAt,
+      table.id,
+    ),
   ],
 );
 
@@ -108,9 +113,10 @@ export const serviceRequestHistory = pgTable(
     requestId: uuid("request_id")
       .notNull()
       .references(() => serviceRequests.id, { onDelete: "restrict" }),
-    actorAccountId: uuid("actor_account_id")
-      .notNull()
-      .references(() => accountProfiles.id, { onDelete: "restrict" }),
+    actorAccountId: uuid("actor_account_id").references(
+      () => accountProfiles.id,
+      { onDelete: "restrict" },
+    ),
     action: text("action").notNull(),
     fromStatus: text("from_status"),
     toStatus: text("to_status").notNull(),

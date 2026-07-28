@@ -1,15 +1,15 @@
 import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
-import { ClientBookingsPage } from "@/components/workspace/client-bookings-page";
+import { BookingList } from "@/components/bookings/booking-list";
 
 export default function ClientBookingsRoute() {
   return (
     <AuthenticatedShell
       kind="client"
       title="Your bookings"
-      description="Client bookings will arrive with the fulfilment phase."
+      description="Choose times and manage confirmed service arrangements."
       hideIntro
     >
-      <ClientBookingsPage />
+      <BookingList audience="client" />
     </AuthenticatedShell>
   );
 }

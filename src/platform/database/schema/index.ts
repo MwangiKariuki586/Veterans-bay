@@ -7,9 +7,31 @@ export {
   processedEvents,
 } from "./consumer-events";
 export { fileAssets } from "./file-assets";
+export {
+  bookings,
+  paymentRequirements,
+  quotationHistory,
+  quotationLineItems,
+  quotations,
+  quotationVersions,
+} from "./commercial";
+export {
+  engagementActivities,
+  engagementConversationReads,
+  engagementConversations,
+  engagementMessageAttachments,
+  engagementMessages,
+} from "./engagement-conversations";
 export { marketplaceCategories } from "./marketplace-moderation";
+export { notifications } from "./notifications";
 export { organisations } from "./organisations";
 export { outboxEvents } from "./outbox-events";
+export {
+  availabilityBlocks,
+  availabilityRules,
+  bookingHistory,
+  bookingReservations,
+} from "./scheduling";
 export { savedProfessionals } from "./saved-professionals";
 export {
   serviceRequestAttachments,

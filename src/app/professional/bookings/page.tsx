@@ -1,11 +1,15 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { BookingList } from "@/components/bookings/booking-list";
+import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default function ProfessionalBookingsPage() {
   return (
-    <WorkspaceUnavailablePage
+    <AuthenticatedShell
       kind="professional"
       title="Bookings"
-      description="Booking management will arrive with the fulfilment phase."
-    />
+      description="Confirm schedules, assignments, and booking changes."
+      hideIntro
+    >
+      <BookingList audience="professional" />
+    </AuthenticatedShell>
   );
 }

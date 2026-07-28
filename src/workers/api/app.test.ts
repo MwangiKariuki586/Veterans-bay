@@ -204,6 +204,113 @@ describe("Veterans Bay API foundation", () => {
     ]);
   });
 
+  it("protects client and professional conversation routes before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const requestId = "00000000-0000-4000-8000-000000000010";
+
+    const [clientResponse, professionalResponse] = await Promise.all([
+      app.request(
+        `/api/v1/client/requests/${requestId}/conversation`,
+        {},
+        bindings(),
+      ),
+      app.request(
+        `/api/v1/professional/enquiries/${requestId}/conversation`,
+        {},
+        bindings(),
+      ),
+    ]);
+
+    expect(clientResponse.status).toBe(401);
+    expect(professionalResponse.status).toBe(401);
+    await expect(clientResponse.json()).resolves.toMatchObject({
+      error: { code: "UNAUTHORIZED" },
+    });
+    await expect(professionalResponse.json()).resolves.toMatchObject({
+      error: { code: "UNAUTHORIZED" },
+    });
+  });
+
+  it("protects client and professional quotation routes before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const quotationId = "00000000-0000-4000-8000-000000000020";
+    const responses = await Promise.all([
+      app.request("/api/v1/client/quotations", {}, bindings()),
+      app.request(
+        `/api/v1/client/quotations/${quotationId}`,
+        {},
+        bindings(),
+      ),
+      app.request("/api/v1/professional/quotations", {}, bindings()),
+      app.request(
+        `/api/v1/professional/quotations/${quotationId}`,
+        {},
+        bindings(),
+      ),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401,
+    ]);
+  });
+
+  it("protects booking, calendar, and availability routes before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const bookingId = "00000000-0000-4000-8000-000000000030";
+    const blockId = "00000000-0000-4000-8000-000000000031";
+    const responses = await Promise.all([
+      app.request("/api/v1/client/bookings", {}, bindings()),
+      app.request(
+        "/api/v1/client/services/veteran-repairs/home-repair/booking-slots?from=2026-07-28T00%3A00%3A00.000Z&to=2026-07-29T00%3A00%3A00.000Z",
+        {},
+        bindings(),
+      ),
+      app.request(
+        `/api/v1/client/bookings/${bookingId}`,
+        {},
+        bindings(),
+      ),
+      app.request("/api/v1/professional/bookings", {}, bindings()),
+      app.request(
+        `/api/v1/professional/bookings/${bookingId}`,
+        {},
+        bindings(),
+      ),
+      app.request("/api/v1/professional/calendar", {}, bindings()),
+      app.request("/api/v1/professional/availability", {}, bindings()),
+      app.request(
+        `/api/v1/professional/availability/blocks/${blockId}`,
+        { method: "DELETE" },
+        bindings(),
+      ),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401, 401, 401, 401, 401,
+    ]);
+  });
+
+  it("protects notification list, count, and read actions before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const notificationId = "00000000-0000-4000-8000-000000000070";
+    const responses = await Promise.all([
+      app.request("/api/v1/notifications", {}, bindings()),
+      app.request("/api/v1/notifications/unread-count", {}, bindings()),
+      app.request(
+        `/api/v1/notifications/${notificationId}/read`,
+        { method: "POST" },
+        bindings(),
+      ),
+      app.request(
+        "/api/v1/notifications/read-all",
+        { method: "POST" },
+        bindings(),
+      ),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401,
+    ]);
+  });
+
   it("rejects unsafe marketplace analytics payloads before database access", async () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     const response = await app.request(

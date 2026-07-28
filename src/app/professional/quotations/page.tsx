@@ -1,11 +1,15 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { QuotationList } from "@/components/quotations/quotation-list";
+import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default function ProfessionalQuotationsPage() {
   return (
-    <WorkspaceUnavailablePage
+    <AuthenticatedShell
       kind="professional"
       title="Quotations"
-      description="Quotation tools will arrive with the quotation workflow phase."
-    />
+      description="Prepare and manage formal commercial terms."
+      hideIntro
+    >
+      <QuotationList audience="professional" />
+    </AuthenticatedShell>
   );
 }
