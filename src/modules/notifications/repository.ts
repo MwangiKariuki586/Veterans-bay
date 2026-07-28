@@ -14,6 +14,10 @@ import type { Database } from "../../platform/database/client";
 import { accountProfiles } from "../../platform/database/schema/account-profiles";
 import { bookings } from "../../platform/database/schema/commercial";
 import { engagementConversations } from "../../platform/database/schema/engagement-conversations";
+import {
+  jobAssignments,
+  jobs,
+} from "../../platform/database/schema/fulfilment";
 import { notifications } from "../../platform/database/schema/notifications";
 import { outboxEvents } from "../../platform/database/schema/outbox-events";
 import { processedEvents } from "../../platform/database/schema/consumer-events";
@@ -57,6 +61,15 @@ export const notificationSourceEvents = [
   "booking.rescheduled",
   "booking.cancelled",
   "booking.no_show_recorded",
+  "job.created",
+  "job.assigned",
+  "job.started",
+  "job.progress_updated",
+  "job.awaiting_confirmation",
+  "job.variation_requested",
+  "job.variation_approved",
+  "job.completed",
+  "attachment.added",
 ] as const;
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -318,6 +331,9 @@ async function resolveNotificationDrafts(
     if (conversation?.contextType === "SERVICE_REQUEST") {
       return requestDrafts(tx, event, conversation.contextId);
     }
+    if (conversation?.contextType === "JOB") {
+      return jobDrafts(tx, event, conversation.contextId);
+    }
     return [];
   }
   if (event.eventType.startsWith("quotation.")) {
@@ -326,7 +342,132 @@ async function resolveNotificationDrafts(
   if (event.eventType.startsWith("booking.")) {
     return bookingDrafts(tx, event);
   }
+  if (
+    event.eventType.startsWith("job.") ||
+    (event.eventType === "attachment.added" &&
+      event.aggregateType === "job")
+  ) {
+    return jobDrafts(tx, event, event.aggregateId);
+  }
   return [];
+}
+
+async function jobDrafts(
+  tx: Tx,
+  event: DomainEventEnvelope,
+  jobId: string,
+) {
+  const [job] = await tx
+    .select({
+      clientAccountId: jobs.clientAccountId,
+      organisationId: jobs.organisationId,
+      serviceName: jobs.serviceName,
+    })
+    .from(jobs)
+    .where(eq(jobs.id, jobId))
+    .limit(1);
+  if (!job) return [];
+  if (event.eventType === "job.assigned") {
+    const professional = await professionalJobDrafts(tx, {
+      event,
+      jobId,
+      organisationId: job.organisationId,
+      title: "Job assignment updated",
+      body: `The ${job.serviceName} job assignment changed.`,
+      actionTarget: `/professional/jobs/${jobId}`,
+    });
+    const client = await activeClientDraft(tx, {
+      event,
+      clientAccountId: job.clientAccountId,
+      organisationId: job.organisationId,
+      title: "Team assigned",
+      body: `The team for your ${job.serviceName} job has been updated.`,
+      actionTarget: `/client/jobs/${jobId}`,
+    });
+    return client ? [...professional, client] : professional;
+  }
+  const professionalEvent =
+    event.actorAccountId === job.clientAccountId ||
+    event.eventType === "job.created";
+  if (professionalEvent) {
+    return professionalJobDrafts(tx, {
+      event,
+      jobId,
+      organisationId: job.organisationId,
+      title: jobProfessionalTitle(event),
+      body: `The ${job.serviceName} job needs professional attention.`,
+      actionTarget: `/professional/jobs/${jobId}`,
+    });
+  }
+  const client = await activeClientDraft(tx, {
+    event,
+    clientAccountId: job.clientAccountId,
+    organisationId: job.organisationId,
+    title: jobClientTitle(event.eventType),
+    body: `Your ${job.serviceName} job has new activity.`,
+    actionTarget: `/client/jobs/${jobId}`,
+  });
+  return client ? [client] : [];
+}
+
+async function professionalJobDrafts(
+  tx: Tx,
+  input: {
+    event: DomainEventEnvelope;
+    jobId: string;
+    organisationId: string;
+    title: string;
+    body: string;
+    actionTarget: string;
+  },
+): Promise<NotificationDraft[]> {
+  const recipients = await tx
+    .selectDistinct({ accountId: organisationMemberships.accountProfileId })
+    .from(organisationMemberships)
+    .innerJoin(
+      accountProfiles,
+      eq(accountProfiles.id, organisationMemberships.accountProfileId),
+    )
+    .innerJoin(
+      rolePermissions,
+      eq(rolePermissions.roleId, organisationMemberships.roleId),
+    )
+    .innerJoin(
+      permissions,
+      eq(permissions.id, rolePermissions.permissionId),
+    )
+    .where(
+      and(
+        eq(organisationMemberships.organisationId, input.organisationId),
+        eq(organisationMemberships.status, "active"),
+        eq(accountProfiles.status, "active"),
+        eq(permissions.key, permissionKeys.jobsView),
+        sql`(
+          ${organisationMemberships.assignedJobsOnly} = false
+          or exists (
+            select 1 from ${jobAssignments}
+            where ${jobAssignments.jobId} = ${input.jobId}
+              and ${jobAssignments.membershipId} = ${organisationMemberships.id}
+              and ${jobAssignments.active} = true
+          )
+        )`,
+        ...(input.event.actorAccountId
+          ? [
+              ne(
+                organisationMemberships.accountProfileId,
+                input.event.actorAccountId,
+              ),
+            ]
+          : []),
+      ),
+    );
+  return recipients.map((recipient) => ({
+    recipientAccountId: recipient.accountId,
+    organisationId: input.organisationId,
+    title: input.title,
+    body: input.body,
+    actionTarget: safeActionTarget(input.actionTarget),
+  }));
 }
 
 async function requestDrafts(
@@ -580,11 +721,39 @@ async function activeClientDraft(
 }
 
 function safeActionTarget(target: string): string | null {
-  return /^\/(?:client|professional)\/(?:requests|enquiries|quotations|bookings)\/[0-9a-f-]{36}$/.test(
+  return /^\/(?:client|professional)\/(?:requests|enquiries|quotations|bookings|jobs)\/[0-9a-f-]{36}$/.test(
     target,
   )
     ? target
     : null;
+}
+
+function jobProfessionalTitle(event: DomainEventEnvelope) {
+  if (event.eventType === "job.variation_approved") {
+    return "Variation approved";
+  }
+  const action = String(event.payload.action ?? "");
+  if (action === "UNRESOLVED_REPORTED") return "Unresolved work reported";
+  if (action === "CLARIFICATION_REQUESTED") {
+    return "Completion clarification requested";
+  }
+  return event.eventType === "job.created"
+    ? "Job ready for fulfilment"
+    : "Job updated";
+}
+
+function jobClientTitle(eventType: string) {
+  const titles: Record<string, string> = {
+    "job.assigned": "Team assigned",
+    "job.started": "Work started",
+    "job.progress_updated": "Job progress updated",
+    "job.awaiting_confirmation": "Work ready for confirmation",
+    "job.variation_requested": "Additional work approval needed",
+    "job.completed": "Job completed",
+    "attachment.added": "New job evidence",
+    "message.sent": "New job message",
+  };
+  return titles[eventType] ?? "Job updated";
 }
 
 function mapNotification(

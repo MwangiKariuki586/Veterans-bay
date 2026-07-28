@@ -7,6 +7,7 @@ import { ServiceRequestsRepository } from "../service-requests/repository";
 import { QuotationExpiryService } from "../quotations/expiry";
 import { QuotationsRepository } from "../quotations/repository";
 import { NotificationConsumer } from "../notifications/consumer";
+import { JobCompletionScheduledService } from "../jobs/completion-policy";
 import { NotificationsRepository } from "../notifications/repository";
 import { OutboxProofConsumer } from "./consumer";
 import { OutboxPublisher } from "./publisher";
@@ -83,6 +84,15 @@ export async function handleOutboxScheduled(
       issues: [
         { path: "expired", code: String(quotationExpiryResult.expired) },
         { path: "batchSize", code: "50" },
+      ],
+    });
+    const completionResult = await new JobCompletionScheduledService().run();
+    logInfo({
+      event: "job.completion_scheduled.completed",
+      status: 200,
+      issues: [
+        { path: "enabled", code: String(completionResult.enabled) },
+        { path: "completed", code: String(completionResult.completed) },
       ],
     });
 

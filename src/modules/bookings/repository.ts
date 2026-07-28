@@ -48,6 +48,10 @@ import {
   paginationOffset,
   type PageResult,
 } from "../../platform/http/pagination";
+import {
+  cancelJobForBooking,
+  ensureJobForBooking,
+} from "../jobs/repository";
 import type {
   AvailabilityConfiguration,
   BookingDetail,
@@ -908,6 +912,12 @@ export class BookingsRepository {
         membershipId: input.membershipId,
         correlationId: input.correlationId,
       });
+      await ensureJobForBooking(tx, {
+        bookingId: input.bookingId,
+        actorAccountId: input.actorAccountId,
+        organisationId: input.organisationId,
+        correlationId: input.correlationId,
+      });
       return { kind: "scheduled" };
     });
   }
@@ -922,6 +932,16 @@ export class BookingsRepository {
     correlationId?: string;
   }): Promise<boolean> {
     return this.db.transaction(async (tx) => {
+      if (
+        !(await cancelJobForBooking(tx, {
+          bookingId: input.bookingId,
+          actorAccountId: input.actorAccountId,
+          reason: input.reason,
+          correlationId: input.correlationId,
+        }))
+      ) {
+        return false;
+      }
       const now = new Date();
       const [changed] = await tx
         .update(bookings)

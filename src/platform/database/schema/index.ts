@@ -8,6 +8,17 @@ export {
 } from "./consumer-events";
 export { fileAssets } from "./file-assets";
 export {
+  jobAssignments,
+  jobChecklistItems,
+  jobCommercialHistory,
+  jobCompletionResponses,
+  jobEvidence,
+  jobHistory,
+  jobs,
+  jobUpdates,
+  jobVariations,
+} from "./fulfilment";
+export {
   bookings,
   paymentRequirements,
   quotationHistory,

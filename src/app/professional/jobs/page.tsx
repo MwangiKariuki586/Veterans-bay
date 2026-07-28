@@ -1,11 +1,15 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { JobList } from "@/components/jobs/job-list";
+import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default function ProfessionalJobsPage() {
   return (
-    <WorkspaceUnavailablePage
+    <AuthenticatedShell
       kind="professional"
       title="Active jobs"
-      description="Job boards will arrive with the fulfilment phase."
-    />
+      description="Coordinate assignments, field work, evidence, and client approval."
+      hideIntro
+    >
+      <JobList audience="professional" />
+    </AuthenticatedShell>
   );
 }

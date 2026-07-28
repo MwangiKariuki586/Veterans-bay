@@ -518,6 +518,96 @@ async function cleanupSchedulingFixture(
   bookingIds: string[],
 ) {
   if (bookingIds.length > 0) {
+    const bookingIdList = sql.join(
+      bookingIds.map((id) => sql`${id}`),
+      sql`, `,
+    );
+    await db.execute(
+      sql`delete from outbox_events
+          where aggregate_type = 'job'
+            and aggregate_id in (
+              select id::text from jobs where booking_id in (${bookingIdList})
+            )`,
+    );
+    await db.execute(
+      sql`delete from engagement_activities
+          where conversation_id in (
+            select ec.id from engagement_conversations ec
+            join jobs j on j.id::text = ec.context_id
+            where ec.context_type = 'JOB'
+              and j.booking_id in (${bookingIdList})
+          )`,
+    );
+    await db.execute(
+      sql`delete from engagement_conversation_reads
+          where conversation_id in (
+            select ec.id from engagement_conversations ec
+            join jobs j on j.id::text = ec.context_id
+            where ec.context_type = 'JOB'
+              and j.booking_id in (${bookingIdList})
+          )`,
+    );
+    await db.execute(
+      sql`delete from engagement_message_attachments
+          where message_id in (
+            select em.id from engagement_messages em
+            join engagement_conversations ec on ec.id = em.conversation_id
+            join jobs j on j.id::text = ec.context_id
+            where ec.context_type = 'JOB'
+              and j.booking_id in (${bookingIdList})
+          )`,
+    );
+    await db.execute(
+      sql`delete from engagement_messages
+          where conversation_id in (
+            select ec.id from engagement_conversations ec
+            join jobs j on j.id::text = ec.context_id
+            where ec.context_type = 'JOB'
+              and j.booking_id in (${bookingIdList})
+          )`,
+    );
+    await db.execute(
+      sql`delete from engagement_conversations
+          where context_type = 'JOB'
+            and context_id in (
+              select id::text from jobs where booking_id in (${bookingIdList})
+            )`,
+    );
+    await db.execute(
+      sql`delete from job_completion_responses
+          where job_id in (select id from jobs where booking_id in (${bookingIdList}))`,
+    );
+    await db.execute(
+      sql`delete from job_commercial_history
+          where job_id in (select id from jobs where booking_id in (${bookingIdList}))`,
+    );
+    await db.execute(
+      sql`delete from job_variations
+          where job_id in (select id from jobs where booking_id in (${bookingIdList}))`,
+    );
+    await db.execute(
+      sql`delete from job_evidence
+          where job_id in (select id from jobs where booking_id in (${bookingIdList}))`,
+    );
+    await db.execute(
+      sql`delete from job_updates
+          where job_id in (select id from jobs where booking_id in (${bookingIdList}))`,
+    );
+    await db.execute(
+      sql`delete from job_checklist_items
+          where job_id in (select id from jobs where booking_id in (${bookingIdList}))`,
+    );
+    await db.execute(
+      sql`delete from job_assignments
+          where job_id in (select id from jobs where booking_id in (${bookingIdList}))`,
+    );
+    await db.execute(
+      sql`delete from job_history
+          where job_id in (select id from jobs where booking_id in (${bookingIdList}))`,
+    );
+    await db.execute(
+      sql`delete from jobs where booking_id in (${bookingIdList})`,
+    );
     await db.execute(
       sql`delete from outbox_events where aggregate_id in (${sql.join(
         bookingIds.map((id) => sql`${id}`),

@@ -230,7 +230,21 @@ export class StorageService {
       });
     }
 
-    if (asset.visibility === "private" && asset.ownerAccountId !== profile.id) {
+    const linkedJobAccess =
+      asset.purpose === "JOB_EVIDENCE" &&
+      asset.linkedEntityType === "job" &&
+      asset.linkedEntityId
+        ? await this.repository.canAccessJobEvidence(
+            profile.id,
+            asset.linkedEntityId,
+          )
+        : false;
+
+    if (
+      asset.visibility === "private" &&
+      asset.ownerAccountId !== profile.id &&
+      !linkedJobAccess
+    ) {
       throw new AppError({
         code: "PERMISSION_DENIED",
         message: "You do not have permission to access this asset.",

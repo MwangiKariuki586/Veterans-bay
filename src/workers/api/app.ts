@@ -12,6 +12,7 @@ import { logError } from "../../platform/logging/logger";
 import { createIdentityRoutes } from "../../modules/identity/routes";
 import { createConversationRoutes } from "../../modules/conversations/routes";
 import { createMarketplaceRoutes } from "../../modules/marketplace/routes";
+import { createJobRoutes } from "../../modules/jobs/routes";
 import { createMarketplaceModerationRoutes } from "../../modules/marketplace-moderation/routes";
 import { createOutboxRoutes } from "../../modules/outbox/routes";
 import { createQuotationRoutes } from "../../modules/quotations/routes";
@@ -90,6 +91,7 @@ export function createApiApp(dependencies: ApiAppDependencies = {}) {
   api.route("/api", createConversationRoutes());
   api.route("/api", createQuotationRoutes());
   api.route("/api", createBookingRoutes());
+  api.route("/api", createJobRoutes());
   api.route("/api", createNotificationRoutes());
   api.route("/api", createWorkspaceRoutes());
   api.route("/api", createStorageRoutes());

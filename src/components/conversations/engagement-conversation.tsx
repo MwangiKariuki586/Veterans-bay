@@ -21,9 +21,15 @@ import type { EngagementConversation as Conversation } from "@/modules/conversat
 export function EngagementConversation({
   requestId,
   audience,
+  basePath: providedBasePath,
+  contextLabel = "request",
+  allowAttachments = true,
 }: {
-  requestId: string;
+  requestId?: string;
   audience: "client" | "professional";
+  basePath?: string;
+  contextLabel?: string;
+  allowAttachments?: boolean;
 }) {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [body, setBody] = useState("");
@@ -36,9 +42,10 @@ export function EngagementConversation({
   const [error, setError] = useState<string | null>(null);
   const idempotencyKey = useRef(crypto.randomUUID());
   const basePath =
-    audience === "client"
-      ? `/api/v1/client/requests/${encodeURIComponent(requestId)}/conversation`
-      : `/api/v1/professional/enquiries/${encodeURIComponent(requestId)}/conversation`;
+    providedBasePath ??
+    (audience === "client"
+      ? `/api/v1/client/requests/${encodeURIComponent(requestId ?? "")}/conversation`
+      : `/api/v1/professional/enquiries/${encodeURIComponent(requestId ?? "")}/conversation`);
 
   const refresh = useCallback(
     async (quiet = false) => {
@@ -111,7 +118,9 @@ export function EngagementConversation({
         body: JSON.stringify({
           idempotencyKey: idempotencyKey.current,
           body: body.trim(),
-          assetIds: attachment ? [attachment.assetId] : [],
+          ...(allowAttachments
+            ? { assetIds: attachment ? [attachment.assetId] : [] }
+            : {}),
         }),
       });
       setConversation(next);
@@ -205,7 +214,7 @@ export function EngagementConversation({
               <p className="mt-3 font-semibold">No messages yet</p>
               <p className="mt-1 max-w-sm text-sm text-[#68717b]">
                 Send the first message to keep service details attached to this
-                request.
+                {` ${contextLabel}.`}
               </p>
             </div>
           </div>
@@ -280,10 +289,10 @@ export function EngagementConversation({
           onChange={(event) => setBody(event.target.value)}
           rows={3}
           maxLength={4_000}
-          placeholder="Write a message about this request…"
+          placeholder={`Write a message about this ${contextLabel}…`}
           className="w-full resize-none rounded-2xl border border-black/10 bg-white p-3 text-sm leading-6 outline-none focus:border-[#5f8d11]"
         />
-        {attachment ? (
+        {allowAttachments && attachment ? (
           <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-[#f2f5f6] px-3 py-2 text-xs">
             <span className="truncate">{attachment.name}</span>
             <button
@@ -296,21 +305,27 @@ export function EngagementConversation({
           </div>
         ) : null}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-black/10 px-4 text-xs font-semibold">
-            <Paperclip className="size-4" />
-            {busy === "upload" ? "Uploading…" : "Attach file"}
-            <input
-              type="file"
-              accept="application/pdf,image/jpeg,image/png,image/webp"
-              className="sr-only"
-              disabled={busy !== null || Boolean(attachment)}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void addAttachment(file);
-                event.currentTarget.value = "";
-              }}
-            />
-          </label>
+          {allowAttachments ? (
+            <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-black/10 px-4 text-xs font-semibold">
+              <Paperclip className="size-4" />
+              {busy === "upload" ? "Uploading…" : "Attach file"}
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={busy !== null || Boolean(attachment)}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void addAttachment(file);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+          ) : (
+            <span className="text-xs text-[#7a838c]">
+              Use job evidence for work files.
+            </span>
+          )}
           <Button
             type="button"
             disabled={busy !== null || !body.trim()}
@@ -326,7 +341,9 @@ export function EngagementConversation({
             ? "Sending message…"
             : busy === "upload"
               ? "Uploading attachment…"
-              : "PDF, JPG, PNG, or WebP up to 8 MB."}
+              : allowAttachments
+                ? "PDF, JPG, PNG, or WebP up to 8 MB."
+                : "Messages stay connected to this job timeline."}
         </p>
       </div>
     </Surface>

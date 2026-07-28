@@ -77,6 +77,7 @@ const clientNav: ReadonlyArray<WorkspaceNavGroup> = [
       { href: "/client/requests", label: "Requests", icon: ClipboardList },
       { href: "/client/quotations", label: "Quotations", icon: FileText },
       { href: "/client/bookings", label: "Bookings", icon: CalendarDays },
+      { href: "/client/jobs", label: "Jobs", icon: Wrench },
       { href: "/client/saved", label: "Saved", icon: Heart },
       { href: "/client/invoices", label: "Invoices", icon: FileText },
     ],
