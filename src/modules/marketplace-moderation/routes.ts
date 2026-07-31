@@ -15,6 +15,7 @@ import {
   marketplaceListingsQuerySchema,
 } from "./schemas";
 import { MarketplaceModerationService } from "./service";
+import { applyPublicProjectionCache } from "../../platform/http/public-cache";
 
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -35,6 +36,7 @@ export function createMarketplaceModerationRoutes() {
   const routes = new Hono<ApiAppEnvironment>();
 
   routes.get("/v1/public/categories", async (context) => {
+    applyPublicProjectionCache(context);
     const { client, service } = createService(
       context.get("environment").DATABASE_URL,
     );

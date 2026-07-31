@@ -10,6 +10,7 @@ import {
   requireWorkspaceMiddleware,
 } from "../../workers/api/middleware/authorization";
 import type { ApiAppEnvironment } from "../../workers/api/types";
+import { applyPublicProjectionCache } from "../../platform/http/public-cache";
 import { ProfessionalServicesRepository } from "./repository";
 import { PublicCatalogueRepository } from "./public-repository";
 import { PublicCatalogueService } from "./public-service";
@@ -57,6 +58,7 @@ export function createProfessionalServicesRoutes() {
   ] as const;
 
   routes.get("/v1/public/professionals/:slug", async (context) => {
+    applyPublicProjectionCache(context);
     const environment = context.get("environment");
     const client = createDatabaseClient(environment.DATABASE_URL);
     try {
@@ -75,6 +77,7 @@ export function createProfessionalServicesRoutes() {
   });
 
   routes.get("/v1/public/services/:slug", async (context) => {
+    applyPublicProjectionCache(context);
     const environment = context.get("environment");
     const client = createDatabaseClient(environment.DATABASE_URL);
     try {

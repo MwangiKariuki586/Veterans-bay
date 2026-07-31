@@ -50,6 +50,22 @@ export function createAuth(env: AuthEnvironment) {
       provider: "pg",
       schema: authSchema,
     }),
+    user: {
+      additionalFields: {
+        termsAccepted: {
+          type: "boolean",
+          required: true,
+          input: true,
+          returned: false,
+        },
+        privacyAccepted: {
+          type: "boolean",
+          required: true,
+          input: true,
+          returned: false,
+        },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
@@ -73,6 +89,16 @@ export function createAuth(env: AuthEnvironment) {
     databaseHooks: {
       user: {
         create: {
+          before: async (user) => {
+            if (!user.termsAccepted || !user.privacyAccepted) {
+              throw new APIError("BAD_REQUEST", {
+                code: "TERMS_ACCEPTANCE_REQUIRED",
+                message:
+                  "Terms of use and the privacy policy must be accepted.",
+              });
+            }
+            return { data: user };
+          },
           after: async (createdUser) => {
             const client = createDatabaseClient(env.DATABASE_URL);
             try {
@@ -92,8 +118,8 @@ export function createAuth(env: AuthEnvironment) {
                   name: createdUser.name,
                 },
                 {
-                  acceptPrivacy: true,
-                  acceptTerms: true,
+                  acceptPrivacy: createdUser.privacyAccepted === true,
+                  acceptTerms: createdUser.termsAccepted === true,
                 },
               );
             } finally {
@@ -133,8 +159,8 @@ export function createAuth(env: AuthEnvironment) {
                     name: createdUser.name,
                   },
                   {
-                    acceptPrivacy: true,
-                    acceptTerms: true,
+                    acceptPrivacy: createdUser.privacyAccepted === true,
+                    acceptTerms: createdUser.termsAccepted === true,
                   },
                 );
               }

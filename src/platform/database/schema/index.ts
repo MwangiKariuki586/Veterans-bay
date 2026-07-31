@@ -2,7 +2,17 @@ export { accountProfiles } from "./account-profiles";
 export { accountRestrictions } from "./account-restrictions";
 export { auditEvents } from "./audit-events";
 export {
+  disputes,
+  moderationCaseEvidence,
+  moderationCaseHistory,
+  moderationCases,
+  moderationReports,
+  platformRules,
+} from "./administration";
+export {
+  analyticsDailyCounts,
   deadLetterEvents,
+  eventProcessingAttempts,
   outboxProofEffects,
   processedEvents,
 } from "./consumer-events";

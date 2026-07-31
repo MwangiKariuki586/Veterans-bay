@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { NotificationsRepository } from "../../modules/notifications/repository";
 import { ServiceRemindersRepository } from "../../modules/service-reminders/repository";
@@ -43,7 +43,17 @@ describe("service reminder persistence", () => {
         const notificationsRepository = new NotificationsRepository(testDb);
         await expect(notificationsRepository.consume(envelope)).resolves.toEqual({ created: 1, duplicate: false });
         await expect(notificationsRepository.consume(envelope)).resolves.toEqual({ created: 0, duplicate: true });
-        expect((await testDb.select().from(notifications))[0]).toMatchObject({
+        const persistedNotifications = await testDb
+          .select()
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.sourceEventId, event.id),
+              eq(notifications.recipientAccountId, fixture.clientId),
+            ),
+          );
+        expect(persistedNotifications).toHaveLength(1);
+        expect(persistedNotifications[0]).toMatchObject({
           recipientAccountId: fixture.clientId,
           title: "Service reminder",
           actionTarget: "/client/bookings",

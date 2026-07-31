@@ -30,7 +30,7 @@ export class NotificationConsumer {
   async handleMessage(
     raw: unknown,
     attemptCount = 1,
-  ): Promise<"ack" | "retry" | "dead_letter"> {
+  ): Promise<"ack" | "duplicate" | "retry" | "dead_letter"> {
     const parsed = domainEventEnvelopeSchema.safeParse(raw);
     if (!parsed.success) return "dead_letter";
     const event = parsed.data;
@@ -44,8 +44,8 @@ export class NotificationConsumer {
       return "dead_letter";
     }
     try {
-      await this.repository.consume(event);
-      return "ack";
+      const result = await this.repository.consume(event);
+      return result.duplicate ? "duplicate" : "ack";
     } catch {
       if (attemptCount < 5) return "retry";
       await this.deadLetter(event, attemptCount, "consumer_failed");

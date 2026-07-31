@@ -135,28 +135,6 @@ export class IdentityService {
     correlationId?: string,
   ): Promise<AccountProfileRecord> {
     const { profile } = await this.requireActiveAccount(authUserId);
-    const deactivated = await this.repository.deactivateProfile(profile.id);
-
-    await this.repository.recordAuditEvent({
-      actorAccountId: deactivated.id,
-      action: "user.deactivated",
-      entityType: "account_profile",
-      entityId: deactivated.id,
-      correlationId,
-    });
-
-    await this.repository.insertDomainEvent({
-      eventType: "user.deactivated",
-      eventVersion: 1,
-      aggregateType: "account_profile",
-      aggregateId: deactivated.id,
-      actorAccountId: deactivated.id,
-      correlationId,
-      payload: {
-        authUserId: deactivated.authUserId,
-      },
-    });
-
-    return deactivated;
+    return this.repository.deactivateProfile(profile.id, correlationId);
   }
 }

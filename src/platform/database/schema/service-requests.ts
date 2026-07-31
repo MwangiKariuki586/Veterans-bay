@@ -103,6 +103,11 @@ export const serviceRequests = pgTable(
       table.expiresAt,
       table.id,
     ),
+    index("service_requests_submitted_idx").on(
+      table.submittedAt,
+      table.status,
+      table.id,
+    ),
   ],
 );
 

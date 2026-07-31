@@ -206,7 +206,10 @@ export class ProfessionalTeamRepository implements ProfessionalTeamStore {
         aggregateType: "organisation_invitation", aggregateId: invitation.id,
         organisationId: input.organisationId, actorAccountId: input.actorAccountId,
         correlationId: input.correlationId,
-        payload: { invitationId: invitation.id, email: input.email, token: input.token, expiresAt: input.expiresAt.toISOString() },
+        payload: {
+          invitationId: invitation.id,
+          expiresAt: input.expiresAt.toISOString(),
+        },
       });
       return { ...invitation, roleKey: input.roleKey, invitedBy: input.actorName };
     });

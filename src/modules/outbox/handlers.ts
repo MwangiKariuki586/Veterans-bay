@@ -1,12 +1,14 @@
 import { createDatabaseClient } from "../../platform/database/client";
 import { logError, logInfo } from "../../platform/logging/logger";
 import { domainEventEnvelopeSchema } from "../../platform/events/contracts";
+import { OUTBOX_PROOF_CONSUMER } from "../../platform/events/contracts";
 import type { ApiBindings } from "../../workers/api/types";
 import { ServiceRequestExpiryService } from "../service-requests/expiry";
 import { ServiceRequestsRepository } from "../service-requests/repository";
 import { QuotationExpiryService } from "../quotations/expiry";
 import { QuotationsRepository } from "../quotations/repository";
 import { NotificationConsumer } from "../notifications/consumer";
+import { NOTIFICATION_CONSUMER } from "../notifications/repository";
 import { JobCompletionScheduledService } from "../jobs/completion-policy";
 import { NotificationsRepository } from "../notifications/repository";
 import { OutboxProofConsumer } from "./consumer";
@@ -14,8 +16,16 @@ import { OutboxPublisher } from "./publisher";
 import { OutboxRepository } from "./repository";
 import { OutboxService } from "./service";
 import { ReputationConsumer } from "../reviews/consumer";
-import { ReviewsRepository } from "../reviews/repository";
+import {
+  REPUTATION_CONSUMER,
+  ReviewsRepository,
+} from "../reviews/repository";
 import { ServiceRemindersRepository } from "../service-reminders/repository";
+import {
+  ANALYTICS_CONSUMER,
+  AnalyticsConsumer,
+  isAnalyticsSourceEvent,
+} from "../analytics/consumer";
 
 export async function handleDomainEventsQueue(
   batch: MessageBatch<unknown>,
@@ -32,33 +42,83 @@ export async function handleDomainEventsQueue(
     );
     const reputationConsumer = new ReputationConsumer(
       new ReviewsRepository(client.db),
+      outboxRepository,
+    );
+    const analyticsConsumer = new AnalyticsConsumer(
+      client.db,
+      outboxRepository,
     );
 
     for (const message of batch.messages) {
+      const startedAt = Date.now();
       const attempts = message.attempts ?? 1;
       const parsed = domainEventEnvelopeSchema.safeParse(message.body);
-      const result =
+      const consumerName =
         parsed.success && parsed.data.eventType === "system.outbox_proof"
+          ? OUTBOX_PROOF_CONSUMER
+          : parsed.success &&
+              parsed.data.eventType === "reputation.recalculation_requested"
+            ? REPUTATION_CONSUMER
+            : NOTIFICATION_CONSUMER;
+      const result =
+        consumerName === OUTBOX_PROOF_CONSUMER
           ? await proofConsumer.handleMessage(message.body, attempts)
-          : parsed.success && parsed.data.eventType === "reputation.recalculation_requested"
+          : consumerName === REPUTATION_CONSUMER
             ? await reputationConsumer.handleMessage(message.body, attempts)
             : await notificationConsumer.handleMessage(message.body, attempts);
 
-      if (result === "ack") {
-        message.ack();
-        continue;
-      }
-
-      if (result === "dead_letter") {
-        message.ack();
-        logError({
-          event: "outbox.consumer.dead_lettered",
-          errorCategory: "dead_letter",
+      if (parsed.success) {
+        await outboxRepository.recordProcessingAttempt({
+          eventId: parsed.data.eventId,
+          consumerName,
+          eventType: parsed.data.eventType,
+          attemptNumber: attempts,
+          outcome: result,
+          durationMs: Date.now() - startedAt,
         });
+      }
+
+      let analyticsResult:
+        | "ack"
+        | "duplicate"
+        | "retry"
+        | "dead_letter"
+        | null = null;
+      if (parsed.success && isAnalyticsSourceEvent(parsed.data.eventType)) {
+        const analyticsStartedAt = Date.now();
+        analyticsResult = await analyticsConsumer.handleMessage(
+          message.body,
+          attempts,
+        );
+        await outboxRepository.recordProcessingAttempt({
+          eventId: parsed.data.eventId,
+          consumerName: ANALYTICS_CONSUMER,
+          eventType: parsed.data.eventType,
+          attemptNumber: attempts,
+          outcome: analyticsResult,
+          durationMs: Date.now() - analyticsStartedAt,
+        });
+      }
+
+      if (result === "retry" || analyticsResult === "retry") {
+        message.retry();
         continue;
       }
 
-      message.retry();
+      if (
+        result === "ack" ||
+        result === "duplicate" ||
+        result === "dead_letter"
+      ) {
+        message.ack();
+        if (result === "dead_letter" || analyticsResult === "dead_letter") {
+          logError({
+            event: "outbox.consumer.dead_lettered",
+            errorCategory: "dead_letter",
+          });
+        }
+        continue;
+      }
     }
   } finally {
     await client.close();

@@ -1,0 +1,2 @@
+ALTER TABLE "account_profiles" ADD COLUMN "deactivated_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "account_profiles" ADD COLUMN "personal_data_removed_at" timestamp with time zone;

@@ -11,11 +11,13 @@ import {
 } from "./schemas";
 import { MarketplaceService } from "./service";
 import type { MarketplaceSearchResult } from "./types";
+import { applyPublicProjectionCache } from "../../platform/http/public-cache";
 
 export function createMarketplaceRoutes() {
   const routes = new Hono<ApiAppEnvironment>();
 
   routes.get("/v1/public/marketplace", async (context) => {
+    applyPublicProjectionCache(context);
     const input = parseQuery(marketplaceSearchQuerySchema, context.req.url);
     const environment = context.get("environment");
     const client = createDatabaseClient(environment.DATABASE_URL);

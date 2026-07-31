@@ -1,0 +1,2 @@
+CREATE INDEX "jobs_completion_reporting_idx" ON "jobs" USING btree ("status","completed_at","id");--> statement-breakpoint
+CREATE INDEX "service_requests_submitted_idx" ON "service_requests" USING btree ("submitted_at","status","id");

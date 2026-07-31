@@ -20,6 +20,10 @@ export const accountProfiles = pgTable(
     status: text("status").notNull().default("active"),
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     privacyAcceptedAt: timestamp("privacy_accepted_at", { withTimezone: true }),
+    deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
+    personalDataRemovedAt: timestamp("personal_data_removed_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

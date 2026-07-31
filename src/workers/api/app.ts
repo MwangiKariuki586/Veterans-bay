@@ -6,6 +6,8 @@ import {
   type ValidationIssue,
 } from "../../platform/errors/app-error";
 import { createBookingRoutes } from "../../modules/bookings/routes";
+import { createAdministrationRoutes } from "../../modules/administration/routes";
+import { createDashboardRoutes } from "../../modules/dashboards/routes";
 import { createNotificationRoutes } from "../../modules/notifications/routes";
 import type { ApiErrorBody } from "../../platform/http/contracts";
 import { logError } from "../../platform/logging/logger";
@@ -88,6 +90,8 @@ export function createApiApp(dependencies: ApiAppDependencies = {}) {
   });
 
   api.route("/api", createSystemRoutes(dependencies.systemRepository));
+  api.route("/api", createAdministrationRoutes());
+  api.route("/api", createDashboardRoutes());
   api.route("/api", createIdentityRoutes());
   api.route("/api", createMarketplaceRoutes());
   api.route("/api", createMarketplaceModerationRoutes());

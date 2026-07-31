@@ -1,6 +1,7 @@
 import { createMiddleware } from "hono/factory";
 
 import { IdentityRepository } from "../../../modules/identity/repository";
+import { IdentityService } from "../../../modules/identity/service";
 import { WorkspaceRepository } from "../../../modules/workspace/repository";
 import { WorkspaceService } from "../../../modules/workspace/service";
 import type { WorkspaceSelection } from "../../../modules/workspace/types";
@@ -56,6 +57,17 @@ export const requireSessionMiddleware = createMiddleware<ApiAppEnvironment>(
 
     if (!session) {
       throw new UnauthorizedError();
+    }
+
+    const client = createDatabaseClient(
+      context.get("environment").DATABASE_URL,
+    );
+    try {
+      await new IdentityService(
+        new IdentityRepository(client.db),
+      ).requireActiveAccount(session.user.id);
+    } finally {
+      await client.close();
     }
 
     context.set("account", {

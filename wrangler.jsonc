@@ -1,14 +1,42 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "veterans-bay-web",
-  "main": ".open-next/worker.js",
+  "main": "web-worker.ts",
   "compatibility_date": "2026-07-16",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets"
   },
   "observability": {
     "enabled": true
+  },
+  "env": {
+    "preview": {
+      "name": "veterans-bay-web-preview",
+      "workers_dev": true,
+      "preview_urls": false,
+      "assets": {
+        "binding": "ASSETS",
+        "directory": ".open-next/assets"
+      },
+      "services": [
+        {
+          "binding": "API",
+          "service": "veterans-bay-api-preview"
+        }
+      ]
+    },
+    "production": {
+      "name": "veterans-bay-web-production",
+      "workers_dev": true,
+      "preview_urls": false,
+      "assets": {
+        "binding": "ASSETS",
+        "directory": ".open-next/assets"
+      }
+    }
   }
 }

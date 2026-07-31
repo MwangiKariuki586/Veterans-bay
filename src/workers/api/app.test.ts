@@ -413,7 +413,9 @@ describe("Veterans Bay API foundation", () => {
 
     expect(response.status).toBe(429);
     expect(body.error.code).toBe("RATE_LIMITED");
-    expect(limiter.limit).toHaveBeenCalledWith({ key: "/api/health" });
+    expect(limiter.limit).toHaveBeenCalledWith({
+      key: "api:unknown:/api/health",
+    });
   });
 
   it("applies the public submission limiter key for auth posts", async () => {

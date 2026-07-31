@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import Link from "next/link";
 import { describe, expect, it, vi } from "vitest";
 
 import { Badge } from "./badge";
@@ -56,6 +57,21 @@ describe("shared UI primitives", () => {
       "aria-busy",
       "true",
     );
+  });
+
+  it("slots a linked button with multiple child elements", () => {
+    render(
+      <Button asChild>
+        <Link href="/professional/quotations/new">
+          <span aria-hidden="true">+</span>
+          Prepare quotation
+        </Link>
+      </Button>,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Prepare quotation" }),
+    ).toHaveAttribute("href", "/professional/quotations/new");
   });
 
   it("keeps status meaning available as text", () => {

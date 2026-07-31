@@ -3,10 +3,12 @@ import { and, eq, lt, lte, or, sql } from "drizzle-orm";
 import type { Database } from "../../platform/database/client";
 import {
   deadLetterEvents,
+  eventProcessingAttempts,
   outboxProofEffects,
   processedEvents,
 } from "../../platform/database/schema/consumer-events";
 import { outboxEvents } from "../../platform/database/schema/outbox-events";
+import { auditEvents } from "../../platform/database/schema/audit-events";
 
 export type OutboxEventRecord = typeof outboxEvents.$inferSelect;
 
@@ -308,6 +310,161 @@ export class OutboxRepository {
       .from(deadLetterEvents)
       .where(eq(deadLetterEvents.resolutionState, "open"))
       .limit(limit);
+  }
+
+  async recordProcessingAttempt(input: {
+    eventId: string;
+    consumerName: string;
+    eventType: string;
+    attemptNumber: number;
+    outcome: "ack" | "duplicate" | "retry" | "dead_letter";
+    durationMs: number;
+  }) {
+    await this.db.insert(eventProcessingAttempts).values(input);
+  }
+
+  async diagnostics() {
+    const [summary, consumers, failures, deadLetters] = await Promise.all([
+      this.db.execute(sql`
+        select
+          count(*) filter (where status in ('pending','failed'))::int as backlog,
+          count(*) filter (where status = 'claimed')::int as claimed,
+          count(*) filter (where status = 'failed')::int as retrying,
+          count(*) filter (where status = 'dead_lettered')::int as publish_dead_letters,
+          coalesce(extract(epoch from (now() - min(created_at) filter (where status in ('pending','failed')))), 0)::int as oldest_backlog_seconds,
+          coalesce(avg(extract(epoch from (published_at - created_at)) * 1000) filter (where published_at is not null and created_at >= now() - interval '24 hours'), 0)::int as average_publish_duration_ms
+        from outbox_events
+      `),
+      this.db.execute(sql`
+        select consumer_name as "consumerName",
+          count(*)::int as attempts,
+          count(*) filter (where outcome = 'duplicate')::int as duplicates,
+          count(*) filter (where outcome = 'retry')::int as retries,
+          count(*) filter (where outcome = 'dead_letter')::int as dead_letters,
+          coalesce(avg(duration_ms), 0)::int as average_duration_ms
+        from event_processing_attempts
+        where created_at >= now() - interval '24 hours'
+        group by consumer_name
+        order by consumer_name
+      `),
+      this.db
+        .select()
+        .from(eventProcessingAttempts)
+        .where(
+          or(
+            eq(eventProcessingAttempts.outcome, "retry"),
+            eq(eventProcessingAttempts.outcome, "dead_letter"),
+          ),
+        )
+        .orderBy(sql`${eventProcessingAttempts.createdAt} desc`)
+        .limit(20),
+      this.db
+        .select()
+        .from(deadLetterEvents)
+        .orderBy(sql`${deadLetterEvents.createdAt} desc`)
+        .limit(50),
+    ]);
+    return {
+      summary: summary.rows[0] ?? {},
+      consumers: consumers.rows,
+      failures,
+      deadLetters,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  async retryDeadLetter(input: {
+    deadLetterId: string;
+    actorAccountId: string;
+    reason: string;
+    correlationId?: string;
+  }) {
+    return this.db.transaction(async (tx) => {
+      const [deadLetter] = await tx
+        .select()
+        .from(deadLetterEvents)
+        .where(
+          and(
+            eq(deadLetterEvents.id, input.deadLetterId),
+            eq(deadLetterEvents.resolutionState, "open"),
+          ),
+        )
+        .limit(1);
+      if (!deadLetter) return null;
+      const [event] = await tx
+        .update(outboxEvents)
+        .set({
+          status: "pending",
+          attemptCount: 0,
+          availableAt: new Date(),
+          claimedAt: null,
+          claimedBy: null,
+          lastErrorCategory: null,
+          lastErrorAt: null,
+          publishedAt: null,
+        })
+        .where(eq(outboxEvents.id, deadLetter.eventId))
+        .returning();
+      if (!event) return null;
+      await tx
+        .update(deadLetterEvents)
+        .set({ resolutionState: "retried", resolvedAt: new Date() })
+        .where(eq(deadLetterEvents.id, deadLetter.id));
+      await tx.insert(auditEvents).values({
+        actorAccountId: input.actorAccountId,
+        organisationId: event.organisationId,
+        action: "async.dead_letter_retried",
+        entityType: "outbox_event",
+        entityId: event.id,
+        correlationId: input.correlationId,
+        metadata: {
+          deadLetterId: deadLetter.id,
+          consumerName: deadLetter.consumerName,
+          reason: input.reason,
+        },
+      });
+      return event;
+    });
+  }
+
+  async discardDeadLetter(input: {
+    deadLetterId: string;
+    actorAccountId: string;
+    reason: string;
+    correlationId?: string;
+  }) {
+    return this.db.transaction(async (tx) => {
+      const [deadLetter] = await tx
+        .update(deadLetterEvents)
+        .set({ resolutionState: "discarded", resolvedAt: new Date() })
+        .where(
+          and(
+            eq(deadLetterEvents.id, input.deadLetterId),
+            eq(deadLetterEvents.resolutionState, "open"),
+          ),
+        )
+        .returning();
+      if (!deadLetter) return null;
+      const [event] = await tx
+        .select({ organisationId: outboxEvents.organisationId })
+        .from(outboxEvents)
+        .where(eq(outboxEvents.id, deadLetter.eventId))
+        .limit(1);
+      await tx.insert(auditEvents).values({
+        actorAccountId: input.actorAccountId,
+        organisationId: event?.organisationId ?? null,
+        action: "async.dead_letter_discarded",
+        entityType: "outbox_event",
+        entityId: deadLetter.eventId,
+        correlationId: input.correlationId,
+        metadata: {
+          deadLetterId: deadLetter.id,
+          consumerName: deadLetter.consumerName,
+          reason: input.reason,
+        },
+      });
+      return deadLetter;
+    });
   }
 
   async listDueEvents(limit = 5) {

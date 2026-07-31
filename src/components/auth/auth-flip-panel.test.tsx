@@ -104,6 +104,8 @@ describe("account journey signup", () => {
         email: "alex@example.com",
         name: "Alex Veteran",
         password: "password123",
+        privacyAccepted: true,
+        termsAccepted: true,
       });
       expect(mocks.push).toHaveBeenCalledWith("/client");
     });

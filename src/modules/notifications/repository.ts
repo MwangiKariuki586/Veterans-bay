@@ -94,6 +94,13 @@ export const notificationSourceEvents = [
   "review.submitted",
   "review.responded",
   "review.reported",
+  "review.moderated",
+  "content.hidden",
+  "content.restored",
+  "account.suspended",
+  "account.restored",
+  "dispute.opened",
+  "dispute.resolved",
   "attachment.added",
 ] as const;
 
@@ -341,6 +348,83 @@ async function resolveNotificationDrafts(
   tx: Tx,
   event: DomainEventEnvelope,
 ): Promise<NotificationDraft[]> {
+  if (
+    event.eventType === "account.suspended" ||
+    event.eventType === "account.restored"
+  ) {
+    const recipientAccountId =
+      typeof event.payload.subjectAccountId === "string"
+        ? event.payload.subjectAccountId
+        : null;
+    if (!recipientAccountId) return [];
+    return [
+      {
+        recipientAccountId,
+        organisationId: event.organisationId ?? null,
+        title:
+          event.eventType === "account.suspended"
+            ? "Account access suspended"
+            : "Account access restored",
+        body:
+          event.eventType === "account.suspended"
+            ? "Your account access has been suspended following a platform review. Contact support if you need help."
+            : "Your account access has been restored following a platform review.",
+        actionTarget: "/help",
+      },
+    ];
+  }
+  if (
+    event.eventType === "content.hidden" ||
+    event.eventType === "content.restored"
+  ) {
+    if (!event.organisationId) return [];
+    return professionalDrafts(tx, {
+      event,
+      organisationId: event.organisationId,
+      permission: permissionKeys.servicesManage,
+      title:
+        event.eventType === "content.hidden"
+          ? "Marketplace listing hidden"
+          : "Marketplace listing restored",
+      body:
+        event.eventType === "content.hidden"
+          ? "A listing was hidden following platform review. Open your service catalogue for its current status."
+          : "A listing was restored following platform review.",
+      actionTarget: "/professional/services",
+    });
+  }
+  if (event.eventType === "dispute.opened") {
+    if (!event.organisationId) return [];
+    const jobId =
+      typeof event.payload.jobId === "string" ? event.payload.jobId : null;
+    if (!jobId) return [];
+    return professionalDrafts(tx, {
+      event,
+      organisationId: event.organisationId,
+      permission: permissionKeys.jobsView,
+      title: "Service dispute opened",
+      body: "A client opened a dispute for a completed service. Open the job for the current status.",
+      actionTarget: `/professional/jobs/${jobId}`,
+    });
+  }
+  if (event.eventType === "dispute.resolved") {
+    const recipientAccountId =
+      typeof event.payload.clientAccountId === "string"
+        ? event.payload.clientAccountId
+        : null;
+    const jobId =
+      typeof event.payload.jobId === "string" ? event.payload.jobId : null;
+    if (!recipientAccountId || !jobId) return [];
+    const client = await activeClientDraft(tx, {
+      event,
+      clientAccountId: recipientAccountId,
+      organisationId: event.organisationId ?? null,
+      title: "Dispute decision recorded",
+      body: "A platform administrator recorded a decision. Open the job for the current status.",
+      actionTarget: `/client/jobs/${jobId}`,
+    });
+    return client ? [client] : [];
+  }
   if (event.eventType.startsWith("service_request.")) {
     return requestDrafts(tx, event, event.aggregateId);
   }
@@ -525,6 +609,25 @@ async function reviewDrafts(tx: Tx, event: DomainEventEnvelope) {
       actionTarget: `/client/jobs/${review.jobId}`,
     });
     return client ? [client] : [];
+  }
+  if (event.eventType === "review.moderated") {
+    const client = await activeClientDraft(tx, {
+      event,
+      clientAccountId: review.clientAccountId,
+      organisationId: review.organisationId,
+      title: "Review moderation decision",
+      body: "A platform administrator completed a review decision. The original review record remains preserved.",
+      actionTarget: `/client/jobs/${review.jobId}`,
+    });
+    const professional = await professionalDrafts(tx, {
+      event,
+      organisationId: review.organisationId,
+      permission: permissionKeys.jobsView,
+      title: "Review moderation decision",
+      body: "A platform administrator completed a review decision. The original record remains preserved.",
+      actionTarget: "/professional/reviews",
+    });
+    return client ? [client, ...professional] : professional;
   }
   return professionalDrafts(tx, {
     event,

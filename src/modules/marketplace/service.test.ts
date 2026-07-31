@@ -53,7 +53,7 @@ describe("marketplace service", () => {
           slug: "plumbing-inspection",
           priceMinor: null,
           imageUrl:
-            "https://res.cloudinary.com/demo-cloud/image/upload/veterans-bay/services/inspection",
+            "https://res.cloudinary.com/demo-cloud/image/upload/f_auto,q_auto,c_fill,w_1200,h_800/veterans-bay/services/inspection",
           provider: expect.objectContaining({
             businessName: "Trusted Plumbing",
             verified: true,

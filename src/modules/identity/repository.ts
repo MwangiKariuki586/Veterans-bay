@@ -22,6 +22,8 @@ export interface AccountProfileRecord {
   status: string;
   termsAcceptedAt: Date | null;
   privacyAcceptedAt: Date | null;
+  deactivatedAt: Date | null;
+  personalDataRemovedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,7 +55,10 @@ export interface IdentityStore {
       timezone?: string;
     },
   ): Promise<AccountProfileRecord>;
-  deactivateProfile(accountProfileId: string): Promise<AccountProfileRecord>;
+  deactivateProfile(
+    accountProfileId: string,
+    correlationId?: string,
+  ): Promise<AccountProfileRecord>;
   recordAuditEvent(input: {
     actorAccountId: string;
     action: string;
@@ -96,8 +101,8 @@ export class IdentityRepository implements IdentityStore {
       .onConflictDoUpdate({
         target: accountProfiles.authUserId,
         set: {
-          displayName: user.name,
-          primaryEmail: user.email.toLowerCase(),
+          displayName: sql`case when ${accountProfiles.status} = 'active' then ${user.name} else ${accountProfiles.displayName} end`,
+          primaryEmail: sql`case when ${accountProfiles.status} = 'active' then ${user.email.toLowerCase()} else ${accountProfiles.primaryEmail} end`,
           updatedAt: now,
           ...(options.acceptTerms ? { termsAcceptedAt: now } : {}),
           ...(options.acceptPrivacy ? { privacyAcceptedAt: now } : {}),
@@ -170,17 +175,60 @@ export class IdentityRepository implements IdentityStore {
     return profile;
   }
 
-  async deactivateProfile(accountProfileId: string): Promise<AccountProfileRecord> {
-    const [profile] = await this.db
-      .update(accountProfiles)
-      .set({
-        status: "deactivated",
-        updatedAt: new Date(),
-      })
-      .where(eq(accountProfiles.id, accountProfileId))
-      .returning();
-
-    return profile;
+  async deactivateProfile(
+    accountProfileId: string,
+    correlationId?: string,
+  ): Promise<AccountProfileRecord> {
+    return this.db.transaction(async (tx) => {
+      const now = new Date();
+      const [profile] = await tx
+        .update(accountProfiles)
+        .set({
+          displayName: "Deactivated account",
+          primaryEmail: `deactivated+${accountProfileId}@deleted.veteransbay.invalid`,
+          phone: null,
+          timezone: "UTC",
+          status: "deactivated",
+          deactivatedAt: now,
+          personalDataRemovedAt: now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(accountProfiles.id, accountProfileId),
+            eq(accountProfiles.status, "active"),
+          ),
+        )
+        .returning();
+      if (!profile) {
+        throw new Error("The account is not active.");
+      }
+      await tx.insert(auditEvents).values({
+        actorAccountId: profile.id,
+        action: "user.deactivated",
+        entityType: "account_profile",
+        entityId: profile.id,
+        correlationId,
+        metadata: {
+          personalDataRemoved: true,
+          transactionalHistoryRetained: true,
+        },
+      });
+      await tx.insert(outboxEvents).values({
+        eventType: "user.deactivated",
+        eventVersion: 1,
+        aggregateType: "account_profile",
+        aggregateId: profile.id,
+        actorAccountId: profile.id,
+        correlationId,
+        payload: {
+          accountProfileId: profile.id,
+          personalDataRemoved: true,
+          transactionalHistoryRetained: true,
+        },
+      });
+      return profile;
+    });
   }
 
   async recordAuditEvent(input: {

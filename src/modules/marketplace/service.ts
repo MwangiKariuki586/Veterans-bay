@@ -12,7 +12,7 @@ function publicImageUrl(
 ): string | null {
   if (!cloudName || !publicId) return null;
   const encodedPublicId = publicId.split("/").map(encodeURIComponent).join("/");
-  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/${encodedPublicId}`;
+  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/f_auto,q_auto,c_fill,w_1200,h_800/${encodedPublicId}`;
 }
 
 export class MarketplaceService {

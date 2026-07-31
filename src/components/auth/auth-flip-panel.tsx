@@ -114,7 +114,7 @@ function SignInFace({
             required
             icon={<Lock className="size-4" />}
           />
-          <p className="mt-3 text-right text-xs font-semibold text-[#5f8d11]">
+          <p className="mt-3 text-right text-xs font-semibold text-[#4d750c]">
             Forgot password?
           </p>
         </div>
@@ -209,7 +209,16 @@ function SignUpFace({
     }
 
     setSubmitting(true);
-    const result = await authClient.signUp.email({ email, name, password });
+    const result = await authClient.signUp.email({
+      email,
+      name,
+      password,
+      termsAccepted: true,
+      privacyAccepted: true,
+    } as Parameters<typeof authClient.signUp.email>[0] & {
+      termsAccepted: true;
+      privacyAccepted: true;
+    });
     setSubmitting(false);
 
     if (result.error) {
@@ -355,7 +364,7 @@ function SignUpFace({
             <span>Password must be at least 8 characters</span>
             <button
               type="button"
-              className="font-semibold text-[#5f8d11]"
+              className="font-semibold text-[#4d750c]"
               onClick={() => setShowPassword((value) => !value)}
             >
               {showPassword ? "Hide" : "Show"}

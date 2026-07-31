@@ -104,6 +104,11 @@ export const jobs = pgTable(
       table.updatedAt,
       table.id,
     ),
+    index("jobs_completion_reporting_idx").on(
+      table.status,
+      table.completedAt,
+      table.id,
+    ),
   ],
 );
 

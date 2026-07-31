@@ -23,7 +23,7 @@ describe("outbox consumer foundation", () => {
       };
 
       await expect(consumer.handleMessage(message)).resolves.toBe("ack");
-      await expect(consumer.handleMessage(message)).resolves.toBe("ack");
+      await expect(consumer.handleMessage(message)).resolves.toBe("duplicate");
 
       const effects = await db
         .select()

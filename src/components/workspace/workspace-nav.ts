@@ -13,6 +13,7 @@ import {
   Settings,
   ShieldCheck,
   Shield,
+  Scale,
   ShoppingBag,
   Star,
   Store,
@@ -100,6 +101,9 @@ const adminNav: ReadonlyArray<WorkspaceNavGroup> = [
       { href: "/admin/professionals", label: "Professional Reviews", icon: ShieldCheck },
       { href: "/admin/marketplace/listings", label: "Listing Moderation", icon: Store },
       { href: "/admin/categories", label: "Categories", icon: Blocks },
+      { href: "/admin/reports", label: "Reports", icon: FileText },
+      { href: "/admin/disputes", label: "Disputes", icon: Scale },
+      { href: "/admin/warranties/escalated", label: "Escalated Warranties", icon: Shield },
       { href: "/admin/organisations", label: "Organisations", icon: BriefcaseBusiness },
       { href: "/admin/users", label: "Users", icon: Users },
       { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -108,6 +112,9 @@ const adminNav: ReadonlyArray<WorkspaceNavGroup> = [
   {
     id: "system",
     items: [
+      { href: "/admin/audit", label: "Audit", icon: ShieldCheck },
+      { href: "/admin/rules", label: "Platform Rules", icon: Settings },
+      { href: "/admin/operations/async", label: "Async Operations", icon: Clock3 },
       { href: "/account/profile", label: "Settings", icon: Settings },
       { href: "/help", label: "Help Center", icon: BriefcaseBusiness },
     ],

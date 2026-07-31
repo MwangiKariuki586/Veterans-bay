@@ -1,11 +1,15 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { AdminDashboard } from "@/components/workspace/admin-dashboard";
+import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default function AdminAnalyticsPage() {
   return (
-    <WorkspaceUnavailablePage
+    <AuthenticatedShell
       kind="admin"
       title="Platform analytics"
-      description="Platform analytics will arrive with admin tooling."
-    />
+      description="Bounded marketplace engagement and completion reporting."
+      hideIntro
+    >
+      <AdminDashboard />
+    </AuthenticatedShell>
   );
 }
