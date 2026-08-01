@@ -85,7 +85,23 @@ export function createApiApp(dependencies: ApiAppDependencies = {}) {
   api.use("/api/*", rateLimitMiddleware);
 
   api.on(["GET", "POST"], "/api/auth/*", (context) => {
-    const auth = createAuth(context.get("environment"));
+    const environment = context.get("environment");
+    if (
+      environment.APP_ENV === "preview" &&
+      context.req.method === "POST" &&
+      context.req.path === "/api/auth/sign-up/email"
+    ) {
+      return context.json<ApiErrorBody>(
+        errorBody(
+          "PREVIEW_REGISTRATION_DISABLED",
+          "Public registration is disabled in this controlled demonstration environment.",
+          context.get("requestId"),
+        ),
+        403,
+      );
+    }
+
+    const auth = createAuth(environment);
     return auth.handler(context.req.raw);
   });
 

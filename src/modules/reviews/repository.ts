@@ -3,6 +3,7 @@ import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import type { DomainEventEnvelope } from "../../platform/events/contracts";
 import type { Database } from "../../platform/database/client";
 import { accountProfiles } from "../../platform/database/schema/account-profiles";
+import { moderationReports } from "../../platform/database/schema/administration";
 import { bookings } from "../../platform/database/schema/commercial";
 import { processedEvents } from "../../platform/database/schema/consumer-events";
 import { jobs } from "../../platform/database/schema/fulfilment";
@@ -268,9 +269,35 @@ export class ReviewsRepository {
         .update(reviews)
         .set({ status: "REPORTED", reportedAt: new Date() })
         .where(eq(reviews.id, reviewId));
+      const [moderationReport] = await tx
+        .insert(moderationReports)
+        .values({
+          submittedByAccountId: clientAccountId,
+          organisationId: review.organisationId,
+          category: "REVIEW_MANIPULATION",
+          subjectType: "REVIEW",
+          subjectId: reviewId,
+          summary: "Client reported a verified review",
+          details: moderationDetails(reason, details),
+        })
+        .returning({ id: moderationReports.id });
       await tx
         .insert(outboxEvents)
         .values([
+          {
+            eventType: "report.submitted",
+            eventVersion: 1,
+            aggregateType: "moderation_report",
+            aggregateId: moderationReport.id,
+            organisationId: review.organisationId,
+            actorAccountId: clientAccountId,
+            correlationId,
+            payload: {
+              category: "REVIEW_MANIPULATION",
+              subjectType: "REVIEW",
+              subjectId: reviewId,
+            },
+          },
           event(
             {
               id: review.jobId,
@@ -335,7 +362,33 @@ export class ReviewsRepository {
         .update(reviews)
         .set({ status: "REPORTED", reportedAt: new Date() })
         .where(eq(reviews.id, reviewId));
+      const [moderationReport] = await tx
+        .insert(moderationReports)
+        .values({
+          submittedByAccountId: reportingAccountId,
+          organisationId: review.organisationId,
+          category: "REVIEW_MANIPULATION",
+          subjectType: "REVIEW",
+          subjectId: reviewId,
+          summary: "Professional reported a verified review",
+          details: moderationDetails(reason, details),
+        })
+        .returning({ id: moderationReports.id });
       await tx.insert(outboxEvents).values([
+        {
+          eventType: "report.submitted",
+          eventVersion: 1,
+          aggregateType: "moderation_report",
+          aggregateId: moderationReport.id,
+          organisationId: review.organisationId,
+          actorAccountId: reportingAccountId,
+          correlationId,
+          payload: {
+            category: "REVIEW_MANIPULATION",
+            subjectType: "REVIEW",
+            subjectId: reviewId,
+          },
+        },
         event(
           {
             id: review.jobId,
@@ -536,6 +589,13 @@ export class ReviewsRepository {
         }
       : null;
   }
+}
+
+function moderationDetails(reason: string, details?: string) {
+  return `Review report reason: ${reason}. ${details?.trim() || "The reporter requested administrator review."}`.slice(
+    0,
+    4000,
+  );
 }
 
 function event(

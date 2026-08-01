@@ -172,7 +172,16 @@ describe("operational maturity persistence", () => {
         await expect(consumer.handleMessage(event)).resolves.toBe("ack");
         await expect(consumer.handleMessage(event)).resolves.toBe("duplicate");
         const [projection, processed, dashboard] = await Promise.all([
-          testDb.select().from(analyticsDailyCounts),
+          testDb
+            .select()
+            .from(analyticsDailyCounts)
+            .where(
+              and(
+                eq(analyticsDailyCounts.day, event.occurredAt.slice(0, 10)),
+                eq(analyticsDailyCounts.eventType, event.eventType),
+                eq(analyticsDailyCounts.scopeKey, "platform"),
+              ),
+            ),
           testDb
             .select()
             .from(processedEvents)

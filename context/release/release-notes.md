@@ -10,6 +10,10 @@ Release candidate date: 28 July 2026
 - Idempotent notification, reputation, and analytics consumers; bounded publication, backoff, dead letters, telemetry, and audited recovery.
 - Privacy-preserving deactivation, server-required consent, stricter access enforcement, public projection caching, image transformations, reporting indexes, and accessibility checks.
 
-## Verification required before production
+## Current distribution
+
+Controlled preview demonstration only. Public registration is disabled, real user/service/payment data is prohibited, and preview payment records are technically constrained to explicit simulations without evidence uploads.
+
+## Verification required before a future production launch
 
 Production credentials and bindings, operator legal details, migration rehearsal on a production-shaped branch, preview deployment, complete authenticated success journey, and post-deployment smoke tests.

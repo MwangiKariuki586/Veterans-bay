@@ -300,6 +300,40 @@ export class AdministrationRepository {
           .set({ status: "RESOLVED", resolvedAt: now })
           .where(eq(reviewReports.reviewId, review.id));
         eventType = "review.moderated";
+      } else if (
+        input.action === "DISMISS" &&
+        current.subjectType === "REVIEW"
+      ) {
+        const [review] = await tx
+          .update(reviews)
+          .set({
+            status: "PUBLISHED",
+            reportedAt: null,
+            moderationReason: input.reason,
+            moderatedAt: now,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(reviews.id, current.subjectId),
+              eq(reviews.status, "REPORTED"),
+            ),
+          )
+          .returning();
+        if (!review) throw linkedRecordConflict("review");
+        await tx.insert(reviewModerationHistory).values({
+          reviewId: review.id,
+          actorAccountId: input.actorAccountId,
+          action: "REPORT_DISMISSED",
+          fromStatus: "REPORTED",
+          toStatus: "PUBLISHED",
+          reason: input.reason,
+        });
+        await tx
+          .update(reviewReports)
+          .set({ status: "DISMISSED", resolvedAt: now })
+          .where(eq(reviewReports.reviewId, review.id));
+        eventType = "review.report_dismissed";
       } else if (input.action === "SUSPEND_ACCOUNT") {
         if (!current.subjectAccountId) throw linkedRecordConflict("account");
         await tx.insert(accountRestrictions).values({
@@ -372,7 +406,14 @@ export class AdministrationRepository {
             status: transition.status === "DISMISSED" ? "DISMISSED" : "RESOLVED",
             updatedAt: now,
           })
-          .where(eq(moderationReports.id, current.reportId));
+          .where(
+            current.subjectType === "REVIEW"
+              ? and(
+                  eq(moderationReports.subjectType, "REVIEW"),
+                  eq(moderationReports.subjectId, current.subjectId),
+                )
+              : eq(moderationReports.id, current.reportId),
+          );
       }
       return updated;
     });

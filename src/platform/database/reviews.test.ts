@@ -2,9 +2,11 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { ReviewsRepository } from "../../modules/reviews/repository";
+import { AdministrationRepository } from "../../modules/administration/repository";
 import { NotificationsRepository } from "../../modules/notifications/repository";
 import type { Database } from "./client";
 import { accountProfiles } from "./schema/account-profiles";
+import { moderationReports } from "./schema/administration";
 import { bookings } from "./schema/commercial";
 import { processedEvents } from "./schema/consumer-events";
 import { jobs } from "./schema/fulfilment";
@@ -126,6 +128,15 @@ describe("review and reputation persistence", () => {
             "Professional requested moderation review.",
           ),
         ).resolves.toBe(true);
+        await expect(
+          repository.reportProfessional(
+            reviewId!,
+            fixture.organisationId,
+            fixture.ownerId,
+            "OTHER",
+            "Duplicate professional report.",
+          ),
+        ).resolves.toBe(false);
         expect(
           await testDb
             .select()
@@ -139,6 +150,20 @@ describe("review and reputation persistence", () => {
             .where(eq(reviewReports.reviewId, reviewId!)),
         ).toHaveLength(2);
         expect(
+          await testDb
+            .select()
+            .from(moderationReports)
+            .where(eq(moderationReports.subjectId, reviewId!)),
+        ).toHaveLength(2);
+        expect(
+          (
+            await testDb
+              .select()
+              .from(outboxEvents)
+              .where(eq(outboxEvents.aggregateType, "moderation_report"))
+          ).filter((item) => item.eventType === "report.submitted"),
+        ).toHaveLength(2);
+        expect(
           (
             await testDb
               .select()
@@ -149,6 +174,60 @@ describe("review and reputation persistence", () => {
         await expect(
           repository.listPublic(fixture.organisationId),
         ).resolves.toHaveLength(0);
+
+        const [reportedReview] = await testDb
+          .select()
+          .from(moderationReports)
+          .where(eq(moderationReports.subjectId, reviewId!))
+          .limit(1);
+        const administration = new AdministrationRepository(testDb);
+        const moderationCase = await administration.openCase({
+          reportId: reportedReview!.id,
+          actorAccountId: fixture.ownerId,
+          priority: "NORMAL",
+          reason: "The reported review requires an administrator decision.",
+        });
+        await administration.transitionCase({
+          caseId: moderationCase.id,
+          actorAccountId: fixture.ownerId,
+          action: "DISMISS",
+          reason: "The review report is unsupported by the verified record.",
+          evidenceSummary:
+            "The completed job and verified review record were checked.",
+        });
+        expect(
+          (
+            await testDb
+              .select()
+              .from(reviews)
+              .where(eq(reviews.id, reviewId!))
+          )[0],
+        ).toMatchObject({ status: "PUBLISHED", reportedAt: null });
+        expect(
+          await testDb
+            .select()
+            .from(reviewReports)
+            .where(eq(reviewReports.reviewId, reviewId!)),
+        ).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ status: "DISMISSED" }),
+            expect.objectContaining({ status: "DISMISSED" }),
+          ]),
+        );
+        expect(
+          await testDb
+            .select()
+            .from(moderationReports)
+            .where(eq(moderationReports.subjectId, reviewId!)),
+        ).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ status: "DISMISSED" }),
+            expect.objectContaining({ status: "DISMISSED" }),
+          ]),
+        );
+        await expect(
+          repository.listPublic(fixture.organisationId),
+        ).resolves.toHaveLength(1);
       });
     });
   });

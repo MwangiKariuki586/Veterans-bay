@@ -1,15 +1,15 @@
 # Deployment Runbook
 
-Current status: `BLOCKED` after successful preview deployment, pending the authenticated success journey, manual browser review, production bindings and secrets, approved operator legal details, and release-owner disposition of development-only dependency advisories. Cloudflare OAuth access is verified. Preview and initial production will use separate `workers.dev` origins; a custom domain is deferred.
+Current status: `DEFERRED` after successful preview deployment and verification. The delivery owner has chosen a controlled, non-commercial demonstration rather than a public production launch. Production bindings, legal/operator approval, dependency-advisory disposition, deployment, and smoke tests remain future release gates.
 
-Environment decision: use the already-provisioned preview database, Queue, and API Worker with the existing Cloudinary product environment. Do not provision an additional database, Queue, or Cloudinary API key. Separate production infrastructure and production promotion are deferred.
+Environment decision: use only the already-provisioned preview database, Queue, API Worker, web Worker, and existing Cloudinary product environment. Public registration is disabled, payment records must be explicitly simulated, and the UI warns against real personal, service, or payment information. Do not provision an additional database, Queue, Worker, or Cloudinary API key. Deployable production environment blocks are intentionally absent from the Wrangler configuration.
 
 Configured application origins:
 
 - Preview web: `https://veterans-bay-web-preview.mwangialex268.workers.dev`
 - Preview API: `https://veterans-bay-api-preview.mwangialex268.workers.dev`
-- Production web: `https://veterans-bay-web-production.mwangialex268.workers.dev`
-- Production API: `https://veterans-bay-api-production.mwangialex268.workers.dev`
+- Reserved future production web: `https://veterans-bay-web-production.mwangialex268.workers.dev`
+- Reserved future production API: `https://veterans-bay-api-production.mwangialex268.workers.dev`
 
 ## Preconditions
 
@@ -38,6 +38,8 @@ Deployed accessibility verification: all 12 serious/critical accessibility, keyb
 7. Inspect async diagnostics and Cloudflare logs before promotion.
 
 ## Production
+
+Production is intentionally unavailable from the committed Wrangler environments. Before restoring a production environment, obtain release-owner approval for the legal/operator details and dependency advisories, provision isolated resources and secrets, restore reviewed `production` blocks to both Wrangler configurations, and rerun every precondition.
 
 1. Record the migration journal head and Neon recovery point.
 2. Apply the reviewed forward migrations once.

@@ -20,15 +20,15 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Status
 
-`BLOCKED`
+`DEFERRED`
 
 ## Current Step
 
-Submit the completed Emkay Ltd preview job for client confirmation, then verify Alex Mwangi's completion response.
+Maintain the verified deployment as a controlled, non-commercial preview with public registration disabled, simulated-only payment records, and prominent warnings against real activity or data.
 
 ## Next Step
 
-Resolve or explicitly accept the remaining release-owner items, then provision and deploy the deferred production environment when authorised.
+Resume Feature 05.07 only when the delivery owner chooses a public production launch; then resolve the retained legal, dependency, infrastructure, deployment, and smoke-test gates.
 
 ## Completed Phases
 
@@ -54,7 +54,7 @@ Resolve or explicitly accept the remaining release-owner items, then provision a
 - Platform administration, scoped live dashboards, async diagnostics/recovery, privacy deactivation, consent enforcement, public caching, image delivery, reporting indexes, and accessibility automation are verified locally
 - Cloudflare Wrangler OAuth authentication is verified with encrypted credential storage and deployment-resource permissions
 - Launch addressing is approved: preview and initial production will use separate Cloudflare `workers.dev` URLs; a custom domain is deferred
-- The Cloudflare account subdomain is confirmed and named preview/production web and API Worker configurations are defined
+- The Cloudflare account subdomain is confirmed and named preview/production web and API Worker configurations are defined; both web environments have explicit API service bindings
 - The `veterans-bay-domain-events-preview` Cloudflare Queue is provisioned and its preview API binding passes dry-run validation
 - The separate `veterans-bay-preview` Neon PostgreSQL 16 project is provisioned in AWS US East 2 (Ohio)
 - All 35 committed migrations are applied to the preview database; Drizzle validation and authoritative core-table checks pass
@@ -73,30 +73,35 @@ Resolve or explicitly accept the remaining release-owner items, then provision a
 - Success criterion 4 passes in preview: Alex Mwangi accepted eligible quotation version 1, the request converted, and a KES 5,000 `PENDING_CONFIRMATION` booking foundation was created from the accepted immutable snapshot with one `quotation.accepted` outbox event
 - Success criterion 5 passes in preview: Emkay Ltd's Monday–Friday 08:00–17:00 Africa/Nairobi working hours are persisted, Alex Mwangi requested Monday 3 August 2026 at 09:00, Emkay confirmed the booking and owner assignment, and the platform created a linked `TEAM_ASSIGNED` job for the authoritative 09:00–11:00 schedule
 - Success criterion 6 passes in preview: Emkay checked in, started work, completed all three required plumbing checklist items, and persisted a client-visible progress update on the authoritative `IN_PROGRESS` job
+- Success criterion 7 passes in preview: Emkay attached client-visible `COMPLETION` evidence, submitted the job for confirmation, and Alex Mwangi confirmed completion, producing the authoritative `COMPLETED` job state and timeline history
+- Success criterion 8 passes in preview: Emkay issued invoice `INV-2026-4462A4C3` for the immutable KES 5,000 job snapshot and recorded one clearly labelled simulated `OTHER` payment (`PREVIEW-NO-FUNDS-001`), producing a zero balance without representing provider-confirmed funds
+- Success criterion 9 passes in preview: the completed job created active 30-day workmanship warranty `404d10c9-811c-41da-83b0-8aeac1bd97e8` with the recorded scope exclusion and no claim
+- Success criterion 10 passes in preview: Alex Mwangi published one verified 5/5 review whose feedback explicitly states that it is preview workflow verification and that no real service was performed
+- Success criterion 11 passes in preview: Emkay's registered Alex Mwangi customer record shows the completed job/booking/quotation history and opens a repeat-booking form prefilled with the current published service and current team assignment without creating a duplicate booking
+- Success criterion 12 passes in preview: the async dashboard shows zero backlog, retries, and open dead letters; the notification consumer delivered the new-review notification, the reputation consumer projected the verified 5/5 review, and the repository duplicate-delivery suites remain passing
+- Success criterion 13 passes in preview: the legacy professional review report was backfilled into the administrator queue, Alex Mwangi opened moderation case `1f6974cb-e953-4f78-9f60-84d48d9c75f0`, dismissed the explicitly simulated report with a recorded reason and evidence summary, and the verified 5/5 review returned to its published projection
+- All thirteen MVP success criteria now pass end to end in the deployed preview environment
 - The quotation-eligible enquiry rendering regression is fixed, covered by a focused UI test, and deployed to preview web Worker version `967bdcfd-3d0f-4367-99dd-772c534797f9`
 
 ## Design Reference
 
 `public/design-reference/homepage.png`
 
-## Blockers
+## Deferred Items
 
-- Separate production resources are explicitly deferred, so the production deployment acceptance criteria cannot be completed under the current single-environment decision.
+- Separate production resources and deployable Wrangler production environments are explicitly deferred, so the production deployment acceptance criteria are intentionally incomplete.
 - Operator legal identity, notice address, governing law, and dispute forum require delivery-owner approval.
 - Development-only dependency advisories require release-owner acceptance or upstream resolution.
-- The full preview live-database suite timed out after ten minutes and has not produced a passing result.
-- Chrome-backed interactive review passes for the professional enquiry and quotation flow; the remaining client/admin steps require their signed-in browser sessions.
-- The thirteen-step authenticated success journey is in progress; success criteria 1–6 pass and criterion 7 awaits the professional ready-for-confirmation transition and Alex Mwangi's client completion response.
 
 ## Review Gate
 
-Confirm whether Emkay should mark the preview job ready for client confirmation and Alex Mwangi should then confirm the completed work. Delivery-owner approval and production access are required before production promotion.
+None for the controlled preview. A future public launch requires delivery-owner approval of the operator legal details and development-only advisories, followed by authorisation to provision production resources and run production smoke tests.
 
 ## Verification State
 
 The current Phase 04 completion audit passes requirement mapping, Drizzle validation, regenerated Cloudflare type validation, typecheck, lint, 82 UI tests, 139 Worker/API tests, 41 live database tests across 20 files, the 81-route Next.js production build, the API Worker dry run, and `git diff --check`. Preview Neon independently confirms all five Phase 04 migrations (`0023`–`0027`) by content hash and all 15 required Phase 04 tables.
 
-Features 05.01–05.06 are complete. Migrations through `0034_dispute-job-uniqueness` are applied and Drizzle validation passes. The repository suites pass: 82 UI tests, 139 Worker/API tests, and 41 live database tests across 20 files. Typecheck, lint, the 81-route Next.js/OpenNext production build, Cloudflare Worker dry-runs, local health/readiness checks, repeated local Cron execution, tracked-secret scan, and all 12 local desktop/mobile accessibility checks pass. Production dependency audit has no high or critical findings. Wrangler OAuth authentication is verified. Named preview and production API/web configurations pass Wrangler dry-run validation. The preview Queue exists and its API binding is verified by dry run. The preview database has 35/35 migrations, 87 public tables, and verified core tables on PostgreSQL 16.14; its full live database suite timed out at ten minutes without a test result and remains to be rerun. The deployed preview API returns 200 for health/readiness, allows only the configured web origin, and has live Queue/Cron/rate-limit bindings. Preview web Worker version `967bdcfd-3d0f-4367-99dd-772c534797f9` passes the repaired professional enquiry/quotation flow with no new Chrome errors. Focused shared-UI tests (13/13), typecheck, lint, and the 81-route OpenNext build pass after the repair. Database verification confirms accepted quotation version 1, KES 5,000 authoritative snapshot, converted request, linked booking, five active weekday availability rules, `CONFIRMED` Monday 3 August 2026 09:00–11:00 Africa/Nairobi schedule, Emkay owner assignment, linked job `49f9ebc8-b26b-44c0-90bc-eb764b283951`, authoritative `CHECK_IN` and `START` transitions, `IN_PROGRESS` status, three completed required checklist items, one client-visible progress update, and all 16 resulting fulfilment/activity outbox events published. The client job UI independently shows the same in-progress state, completed checklist, assigned professional, and progress record, while the professional job UI exposes the next ready-for-confirmation transition. All 12 deployed-preview accessibility, keyboard, and viewport-overflow checks pass on desktop and mobile Chromium. Feature 05.07 remains blocked on the remaining authenticated success journey, release-owner decisions, and deferred production promotion.
+Features 05.01–05.06 are complete. Migration `0035_review-report-moderation-bridge` adds the legacy review-report upgrade path, and Drizzle validation passes. The current repository gates pass: 84 UI tests, 145 Worker/API tests, 41 live database tests across 20 files in 720.80 seconds, typecheck, lint, the 81-route Next.js/OpenNext production build, preview API dry-run, and `git diff --check`. The time-dependent booking-origin fixture was anchored to stable UTC times after the first full rerun exposed a midnight-crossing expectation; its focused 4-test rerun and the subsequent complete 41-test database run pass. Preview API Worker version `1b5956be-0ffb-449b-a695-fd2bf9410a67` enforces controlled-preview registration and simulated-payment policy. Preview web Worker version `e2b54326-6a3e-418b-9c90-841d95440c2b` displays the global demonstration warning and removes active payment-processing claims. Deployed homepage, health, readiness, and registration-rejection smoke checks pass. All thirteen authenticated MVP success criteria pass in preview. Feature 05.07 is intentionally deferred under the controlled, non-commercial preview decision.
 
 ## Update Rule
 

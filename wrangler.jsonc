@@ -28,15 +28,6 @@
           "service": "veterans-bay-api-preview"
         }
       ]
-    },
-    "production": {
-      "name": "veterans-bay-web-production",
-      "workers_dev": true,
-      "preview_urls": false,
-      "assets": {
-        "binding": "ASSETS",
-        "directory": ".open-next/assets"
-      }
     }
   }
 }

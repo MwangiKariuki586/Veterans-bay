@@ -25,6 +25,7 @@ import {
   paymentRecordBodySchema,
 } from "./schemas";
 import { InvoicesService } from "./service";
+import { enforcePreviewPaymentPolicy } from "./preview-policy";
 import type {
   InvoiceDetail,
   InvoicePage,
@@ -250,6 +251,10 @@ export function createInvoiceRoutes() {
       const values = await parseJsonBody(
         paymentRecordBodySchema,
         context.req.raw,
+      );
+      enforcePreviewPaymentPolicy(
+        context.get("environment").APP_ENV,
+        values,
       );
       const { client, service } = createService(
         context.get("environment").DATABASE_URL,

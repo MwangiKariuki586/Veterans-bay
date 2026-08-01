@@ -72,7 +72,7 @@ const trustItems: ReadonlyArray<{
 }> = [
   { label: "Background Verified", icon: BadgeCheck },
   { label: "Rated & Reviewed", icon: Star },
-  { label: "Secure Payments", icon: ShieldCheck },
+  { label: "Auditable Records", icon: ShieldCheck },
   { label: "Satisfaction Guaranteed", icon: ShieldCheck },
 ];
 

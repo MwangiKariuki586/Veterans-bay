@@ -7,6 +7,7 @@ import { accountProfiles } from "./schema/account-profiles";
 import { bookings, paymentRequirements } from "./schema/commercial";
 import { customerRecords } from "./schema/customers";
 import { organisations } from "./schema/organisations";
+import { notifications } from "./schema/notifications";
 import { outboxEvents } from "./schema/outbox-events";
 import { professionalServices } from "./schema/professional-services";
 import { organisationMemberships, roles } from "./schema/roles";
@@ -241,7 +242,7 @@ describe("booking persistence", () => {
           timezone: "UTC",
           rules: allDayRules(),
         });
-        const initialStart = futureHalfHour(120);
+        const initialStart = futureUtcTime(5, 6);
         const sourceBookingId = await repository.createClient({
           clientAccountId: fixture.clientId,
           actorAccountId: fixture.clientId,
@@ -674,6 +675,14 @@ async function cleanupSchedulingFixture(
     .delete(organisationMemberships)
     .where(eq(organisationMemberships.id, fixture.membershipId));
   await db.execute(
+    sql`delete from ${notifications}
+        where ${notifications.recipientAccountId} in (
+          ${fixture.clientId},
+          ${fixture.otherClientId},
+          ${fixture.ownerId}
+        )`,
+  );
+  await db.execute(
     sql`delete from organisations
         where id in (${fixture.organisationId}, ${fixture.otherOrganisationId})`,
   );
@@ -697,6 +706,13 @@ function futureHalfHour(hoursAhead: number) {
   if (date.getUTCMinutes() === 0) {
     date.setUTCHours(date.getUTCHours() + 1);
   }
+  return date;
+}
+
+function futureUtcTime(daysAhead: number, hour: number) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + daysAhead);
+  date.setUTCHours(hour, 0, 0, 0);
   return date;
 }
 

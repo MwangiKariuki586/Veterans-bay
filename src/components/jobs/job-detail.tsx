@@ -295,6 +295,7 @@ export function JobDetail({
           ) : null}
 
           <EvidenceSection
+            key={`${job.status}:${job.checklist.every((item) => !item.required || item.completed)}`}
             job={job}
             audience={audience}
             busy={busy}
@@ -671,6 +672,14 @@ function EvidenceSection({
     action: () => Promise<JobDetailRecord>,
   ) => Promise<void>;
 }) {
+  type EvidenceType = Exclude<
+    JobDetailRecord["evidence"][number]["evidenceType"],
+    "VARIATION"
+  >;
+  const [evidenceType, setEvidenceType] = useState<EvidenceType>(() =>
+    defaultEvidenceType(job),
+  );
+
   async function openEvidence(assetId: string) {
     try {
       const result = await jobApi<{ url: string }>(
@@ -713,32 +722,75 @@ function EvidenceSection({
       </div>
       {audience === "professional" &&
       !["COMPLETED", "CANCELLED", "DISPUTED"].includes(job.status) ? (
-        <label className="mt-4 flex min-h-12 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-[#9caf7c] bg-[#fbfdf7] px-4 text-sm font-semibold">
-          {busy === "evidence" ? "Uploading evidence…" : "Add photo or PDF evidence"}
-          <input
-            type="file"
-            className="sr-only"
-            accept="image/jpeg,image/png,application/pdf"
-            disabled={busy === "evidence"}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file) return;
-              void run("evidence", async () => {
-                const assetId = await uploadJobEvidence(file);
-                return professionalJobAction(job.id, "evidence", {
-                  assetId,
-                  evidenceType:
-                    job.status === "IN_PROGRESS" ? "PROGRESS" : "COMPLETION",
-                  visibility: "CLIENT",
-                  caption: file.name,
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 sm:items-end">
+          <label className="grid gap-2 text-sm font-semibold">
+            Evidence stage
+            <select
+              aria-label="Evidence stage"
+              className={selectClass}
+              value={evidenceType}
+              disabled={busy === "evidence"}
+              onChange={(event) =>
+                setEvidenceType(event.target.value as EvidenceType)
+              }
+            >
+              <option value="BEFORE">Before work</option>
+              <option value="PROGRESS">Progress</option>
+              <option value="AFTER">After work</option>
+              <option value="COMPLETION">Completion</option>
+            </select>
+          </label>
+          <label className="flex min-h-12 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-[#9caf7c] bg-[#fbfdf7] px-4 text-sm font-semibold">
+            {busy === "evidence"
+              ? "Uploading evidence…"
+              : "Add photo or PDF evidence"}
+            <input
+              type="file"
+              className="sr-only"
+              accept="image/jpeg,image/png,application/pdf"
+              disabled={busy === "evidence"}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                void run("evidence", async () => {
+                  const assetId = await uploadJobEvidence(file);
+                  return professionalJobAction(job.id, "evidence", {
+                    assetId,
+                    evidenceType,
+                    visibility: "CLIENT",
+                    caption: file.name,
+                  });
                 });
-              });
-            }}
-          />
-        </label>
+              }}
+            />
+          </label>
+        </div>
       ) : null}
     </Surface>
   );
+}
+
+function defaultEvidenceType(
+  job: JobDetailRecord,
+): Exclude<
+  JobDetailRecord["evidence"][number]["evidenceType"],
+  "VARIATION"
+> {
+  if (
+    ["CREATED", "SCHEDULED", "TEAM_ASSIGNED", "EN_ROUTE"].includes(
+      job.status,
+    )
+  ) {
+    return "BEFORE";
+  }
+  if (
+    job.status === "AWAITING_CLIENT_CONFIRMATION" ||
+    (job.status === "IN_PROGRESS" &&
+      job.checklist.every((item) => !item.required || item.completed))
+  ) {
+    return "COMPLETION";
+  }
+  return "PROGRESS";
 }
 
 function VariationSection({

@@ -149,6 +149,38 @@ describe("Veterans Bay API foundation", () => {
     );
   });
 
+  it("disables public registration in the controlled preview environment", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings({ APP_ENV: "preview" });
+
+    const response = await app.request(
+      "/api/auth/sign-up/email",
+      {
+        body: JSON.stringify({
+          email: "real-user@example.com",
+          name: "Real User",
+          password: "password123",
+          privacyAccepted: true,
+          termsAccepted: true,
+        }),
+        headers: {
+          "content-type": "application/json",
+          origin: environment.WEB_ORIGIN,
+        },
+        method: "POST",
+      },
+      environment,
+    );
+    const body = await response.json<{ error: { code: string; message: string } }>();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toEqual({
+      code: "PREVIEW_REGISTRATION_DISABLED",
+      message:
+        "Public registration is disabled in this controlled demonstration environment.",
+    });
+  });
+
   it("returns bounded validation issues for invalid query and JSON input", async () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     const environment = bindings();

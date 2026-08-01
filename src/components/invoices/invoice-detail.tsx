@@ -26,7 +26,6 @@ import {
   getInvoice,
   invoiceAction,
   invoiceApi,
-  uploadPaymentEvidence,
 } from "./invoice-api";
 import { formatMoney } from "./invoice-list";
 
@@ -45,13 +44,12 @@ export function InvoiceDetail({
   const [invoice, setInvoice] = useState<InvoiceDetailRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [evidenceAssetId, setEvidenceAssetId] = useState<string | undefined>();
   const [allocations, setAllocations] = useState<Record<string, string>>({});
   const [payment, setPayment] = useState({
     amount: "",
-    method: "BANK_TRANSFER" as PaymentMethod,
-    transactionReference: "",
-    notes: "",
+    method: "OTHER" as PaymentMethod,
+    transactionReference: "PREVIEW-NO-FUNDS",
+    notes: "Simulated preview record; no funds received.",
     paidAt: localDateTime(new Date()),
   });
 
@@ -139,7 +137,6 @@ export function InvoiceDetail({
           method: payment.method,
           transactionReference: payment.transactionReference || undefined,
           notes: payment.notes || undefined,
-          evidenceAssetId,
           paidAt: new Date(payment.paidAt).toISOString(),
           allocations: allocationValues,
         }),
@@ -411,7 +408,8 @@ export function InvoiceDetail({
             <Surface className="p-5 shadow-none">
               <h2 className="font-bold">Record payment</h2>
               <p className="mt-2 text-sm leading-6 text-[#68717b]">
-                Allocate the manual record across eligible invoice items.
+                Preview policy: record simulations only. Use Other, keep a
+                PREVIEW- reference, and do not attach real payment evidence.
               </p>
               <form className="mt-5 grid gap-4" onSubmit={recordPayment}>
                 <label className="grid gap-2 text-sm font-semibold">
@@ -516,39 +514,8 @@ export function InvoiceDetail({
                     }
                   />
                 </label>
-                <label className="grid gap-2 text-sm font-semibold">
-                  Supporting evidence (optional)
-                  <Input
-                    type="file"
-                    accept="application/pdf,image/png,image/jpeg,image/webp"
-                    disabled={busy === "upload"}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (!file) return;
-                      setBusy("upload");
-                      void uploadPaymentEvidence(file)
-                        .then((assetId) => {
-                          setEvidenceAssetId(assetId);
-                          toast.success("Payment evidence uploaded.");
-                        })
-                        .catch((cause: unknown) =>
-                          setError(
-                            cause instanceof Error
-                              ? cause.message
-                              : "Evidence upload failed.",
-                          ),
-                        )
-                        .finally(() => setBusy(null));
-                    }}
-                  />
-                  <span className="font-normal text-[#68717b]">
-                    {evidenceAssetId
-                      ? "Evidence ready to attach."
-                      : "PDF, JPG, PNG or WebP up to 8 MB."}
-                  </span>
-                </label>
                 <Button type="submit" loading={busy === "payment"}>
-                  Record manual payment
+                  Record simulated payment
                 </Button>
               </form>
             </Surface>

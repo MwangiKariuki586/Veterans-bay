@@ -54,7 +54,7 @@ const steps = [
 const whyJoin = [
   "Verified customer demand in your area",
   "Background-checked professional network",
-  "Secure payments and clear invoices",
+  "Clear invoices and auditable manual records",
   "Built-in messaging and scheduling",
   "Warranty and dispute support",
 ] as const;

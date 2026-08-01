@@ -23,6 +23,7 @@ test-results/
 # Logs and local tooling
 *.log
 logs/
+.tmp/
 .DS_Store
 Thumbs.db
 *.tsbuildinfo

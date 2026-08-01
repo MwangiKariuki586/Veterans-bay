@@ -6,6 +6,7 @@ import {
   getTableColumns,
   ilike,
   inArray,
+  max,
   or,
   sql,
 } from "drizzle-orm";
@@ -79,7 +80,7 @@ export class CustomersRepository {
       ? await this.db
           .select({
             customerId: customerRecords.id,
-            lastServiceAt: sql<Date | null>`max(${jobs.completedAt})`,
+            lastServiceAt: max(jobs.completedAt),
           })
           .from(customerRecords)
           .leftJoin(

@@ -109,14 +109,14 @@ describe("invoice workspaces", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Manual financial record")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Record manual payment" }),
+      screen.queryByRole("button", { name: "Record simulated payment" }),
     ).not.toBeInTheDocument();
 
     rerender(
       <InvoiceDetailView audience="professional" invoiceId={detail.id} />,
     );
     expect(
-      await screen.findByRole("button", { name: "Record manual payment" }),
+      await screen.findByRole("button", { name: "Record simulated payment" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Item allocations")).toBeInTheDocument();
     expect(

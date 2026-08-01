@@ -140,7 +140,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                 {[
                   { label: "Quality Guaranteed", icon: ShieldCheck },
                   { label: "On-Time Service", icon: Clock3 },
-                  { label: "Secure Payments", icon: Lock },
+                  { label: "Clear Records", icon: Lock },
                 ].map(({ label, icon: Icon }) => (
                   <div
                     key={label}
@@ -315,7 +315,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
               <MessageCircle className="size-4" /> Chat with Provider
             </Link>
             <p className="mt-4 inline-flex items-center gap-2 text-xs text-[#68717b]">
-              <Lock className="size-3.5" /> Safe and secure payments
+              <Lock className="size-3.5" /> No payment processing in demo mode
             </p>
           </Surface>
 

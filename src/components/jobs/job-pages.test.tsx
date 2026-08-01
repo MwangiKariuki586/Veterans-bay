@@ -176,6 +176,110 @@ describe("job workspace", () => {
     );
   });
 
+  it("uploads completed-checklist evidence as client-visible completion evidence", async () => {
+    const readyJob: JobDetail = {
+      ...detail,
+      status: "IN_PROGRESS",
+      lockVersion: 3,
+      checklist: detail.checklist.map((item) => ({
+        ...item,
+        completed: true,
+        completedAt: "2026-07-28T08:30:00.000Z",
+      })),
+    };
+    const uploadUrl = "https://upload.example.test/job-evidence";
+    const fetchMock = vi.fn(
+      async (...args: [input: RequestInfo | URL, init?: RequestInit]) => {
+        const [input] = args;
+        const url = String(input);
+        if (url.endsWith("/api/v1/professional/team")) {
+          return jsonResponse({ data: { members: [] } });
+        }
+        if (url.endsWith("/conversation")) {
+          return jsonResponse({
+            data: {
+              conversationId: detail.conversationId,
+              contextType: "JOB",
+              contextId: ids.job,
+              unreadCount: 0,
+              items: [],
+              refreshedAt: "2026-07-28T08:30:00.000Z",
+            },
+          });
+        }
+        if (url.endsWith("/api/v1/storage/upload-intent")) {
+          return jsonResponse({
+            data: {
+              assetId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              authorization: {
+                uploadUrl,
+                apiKey: "preview-key",
+                timestamp: 1_775_000_000,
+                signature: "preview-signature",
+                folder: "preview/jobs",
+                publicId: "preview-completion",
+                type: "authenticated",
+              },
+            },
+          });
+        }
+        if (url === uploadUrl) {
+          return {
+            ok: true,
+            json: async () => ({ public_id: "preview-completion" }),
+          } as Response;
+        }
+        if (url.endsWith("/complete")) {
+          return jsonResponse({ data: {} });
+        }
+        if (url.endsWith(`/api/v1/professional/jobs/${ids.job}/evidence`)) {
+          return jsonResponse({ data: readyJob });
+        }
+        return jsonResponse({ data: readyJob });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<JobDetailView audience="professional" jobId={ids.job} />);
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Electrical safety inspection",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Evidence stage" })).toHaveValue(
+      "COMPLETION",
+    );
+
+    fireEvent.change(
+      screen.getByLabelText("Add photo or PDF evidence"),
+      {
+        target: {
+          files: [
+            new File(["preview completion"], "completion.png", {
+              type: "image/png",
+            }),
+          ],
+        },
+      },
+    );
+
+    await waitFor(() => {
+      const evidenceRequest = fetchMock.mock.calls.find(([input]) =>
+        String(input).endsWith(
+          `/api/v1/professional/jobs/${ids.job}/evidence`,
+        ),
+      );
+      expect(evidenceRequest).toBeDefined();
+      expect(
+        JSON.parse(String((evidenceRequest?.[1] as RequestInit).body)),
+      ).toMatchObject({
+        evidenceType: "COMPLETION",
+        visibility: "CLIENT",
+        caption: "completion.png",
+      });
+    });
+  });
+
   it("presents clear client completion choices without professional controls", async () => {
     const awaiting = {
       ...detail,
