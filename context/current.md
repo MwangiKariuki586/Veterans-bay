@@ -24,7 +24,7 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
-`READY FOR REVIEW` — Fast Booking now keeps the approved landscape composition at every breakpoint, including 320 px, while preserving the continuous background, phone scale, and soft horizontal image fade.
+`READY FOR REVIEW` — The hero social row and decorative carousel arrows are removed; the remaining content is vertically centred to use the full card height without a large empty lower area, while the approved image treatment and CTA behavior remain unchanged.
 
 ## Current Step
 

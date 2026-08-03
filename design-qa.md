@@ -1,66 +1,72 @@
-# Fast Booking Card Design QA
+# Landing Hero Design QA
 
 **Comparison Target**
 
-- Source visual truth: `C:/Users/ADMINI~1/AppData/Local/Temp/codex-clipboard-43a486a1-372b-4eb2-991b-f3e1746e3acf.png`
-- Supplied phone asset: `C:/Users/ADMINI~1/AppData/Local/Temp/codex-clipboard-c0549337-8ef7-4ad6-8caf-df331fa0e9b8.png`
-- Desktop implementation screenshot: `artifacts/design-qa/fast-booking-full-bleed-smaller-phone.png`
-- Mobile implementation screenshot: `artifacts/design-qa/landing-mobile-booking-landscape-all-sizes.png`
-- Side-by-side focused comparison: `artifacts/design-qa/fast-booking-mobile-landscape-comparison.png`
-- Full-view implementation evidence: `artifacts/design-qa/landing-desktop-booking-full-bleed-smaller-phone.png`
+- Source composition: `C:/Users/ADMINI~1/AppData/Local/Temp/codex-clipboard-12ed3e66-fd0e-45db-92ab-ec4a64f7f371.png`
+- Supplied professional asset: `C:/Users/ADMINI~1/AppData/Local/Temp/codex-clipboard-eb87d96e-d7f6-4465-9ebf-cdf8a7932540.png`
+- Desktop implementation screenshot: `artifacts/design-qa/landing-desktop-refined-hero.png`
+- Focused hero crop: `artifacts/design-qa/refined-hero-card.png`
+- Side-by-side comparison: `artifacts/design-qa/refined-hero-comparison.png`
+- Mobile evidence: `artifacts/design-qa/landing-mobile-refined-hero.png`
+- Narrow-width evidence: `artifacts/design-qa/landing-320-refined-hero.png`
+- CTA focused comparison: `artifacts/design-qa/hero-cta-nowrap-comparison.png`
+- Tablet CTA evidence: `artifacts/design-qa/hero-cta-tablet-wrap.png`
+- Mobile CTA evidence: `artifacts/design-qa/hero-cta-mobile-nowrap.png`
+- Simplified desktop hero: `artifacts/design-qa/landing-desktop-hero-without-social-arrows.png`
+- Simplified mobile hero: `artifacts/design-qa/landing-mobile-hero-without-social-arrows.png`
 
 **Viewport And Normalization**
 
-- Desktop browser viewport: 1440 x 1200 CSS px.
-- Rendered desktop card: 407.82 x 250.77 CSS px; captured at CSS-pixel density as 408 x 251 px.
-- Source visual: 1674 x 941 px. It was proportionally normalized to 408 x 229 px and vertically centred in the 408 x 251 comparison frame; it was not stretched.
-- Mobile browser viewport: 390 x 844 CSS px. The page content width was 375 CSS px and the card measured 302.67 x 235.33 CSS px. A 320 x 700 CSS px narrow-width regression pass measured the card at 248 x 235.33 CSS px with no horizontal overflow.
-- State: guest landing page, light theme, Fast Booking card in its default state.
+- Desktop browser viewport: 1440 x 1000 CSS px at device density 1.
+- Rendered hero: 866.82 x 594 CSS px; captured as 867 x 594 px.
+- Source composition: 1071 x 734 px, normalized to 867 x 594 px for the focused comparison.
+- Responsive checks: 390 x 844 CSS px and 320 x 700 CSS px.
+- State: guest landing page, light theme, default hero state.
 
 **Findings**
 
 - No actionable P0, P1, or P2 differences remain.
-- Fonts and typography: the existing Poppins family is retained. The eyebrow, two-line navy headline, supporting copy, rating weight, and review wrapping now reproduce the source hierarchy at the implemented scale.
-- Spacing and layout rhythm: every breakpoint now uses one continuous landscape card surface with copy on the left and the phone on the right through a broad horizontal fade; there is no separate image panel or hard separator. No horizontal overflow was detected at 390 px or 320 px.
-- Colors and visual tokens: both content regions share the same warm-neutral card background, with the approved navy, lime, muted copy, subtle border, and diffused pill shadow layered above it.
-- Image quality and asset fidelity: the supplied phone-in-hand asset is used directly through Next Image, without placeholder or code-drawn substitutions. All layouts keep the photo full-bleed inside the right-side layer, retaining the continuous card background and source-like landscape composition.
-- Copy and content: wording matches the selected source, including `Fast Booking.`, `Clear Quotes.`, and `From 2,350 reviews`.
-- P3: the supplied phone asset has a neutral studio background rather than the source visual's blurred plant backdrop. The warm blend integrates it with the card while preserving the supplied asset; this is an accepted source-asset difference.
+- Fonts and typography: Poppins, navy hierarchy, three-line headline, supporting copy, CTA labels, assurance copy, and social labels retain the approved source hierarchy. Small-screen sizes step down below 640 px to protect readability beside the image.
+- Spacing and layout rhythm: the left content column and right photo layer preserve the source landscape composition. The asset overlaps the hero surface through a broad fade rather than a sharp panel boundary, and the navigation controls remain anchored at the lower right.
+- Colors and visual tokens: the warm-neutral hero surface blends into the supplied room photography while retaining the approved navy, lime, white controls, subtle border, and restrained shadows.
+- Image quality and asset fidelity: the supplied 1024 x 1536 professional-in-room asset is used directly through Next Image. Responsive object positioning keeps the professional on the right and the content readable on the left without stretching or substituting the asset.
+- Copy and content: approved hero wording, CTAs, and assurance copy are unchanged. The social row and decorative carousel arrows are intentionally removed per the latest user direction.
+- CTA behavior: both labels use `nowrap`; desktop keeps the two controls on one row, while tablet and mobile layouts move the complete secondary button below the primary rather than wrapping either label or overlapping following content.
+- Content distribution: after removing the lower controls, the remaining hero content is vertically centred so the card no longer ends with a large unused region. Desktop and mobile captures retain balanced top and bottom spacing.
+- Responsive behavior: the full-bleed right-side image treatment remains active at desktop, 390 px, and 320 px. The hero itself has no horizontal overflow at the narrow breakpoint.
+- P3: the supplied asset intentionally introduces a real room background and embedded wall branding where the original composition used a transparent professional cutout. This is the requested asset change, not unresolved design drift.
 
 **Full-View And Focused Evidence**
 
-- Full-view review confirms the card remains aligned with the Popular Categories and Bookings Completed row and does not collide with the trust bar.
-- Focused side-by-side review was required because the typography, pill internals, image crop, and split proportions are too small to judge reliably in the full landing-page capture.
-- Mobile review confirms the landscape structure remains intact, copy stays readable, the phone is contained by the rounded card, and horizontal overflow remains zero down to 320 px.
+- Full-view desktop review confirms the hero remains aligned with the three supporting cards and the following content row.
+- The focused side-by-side comparison verifies headline scale, content placement, CTA geometry, image crop, and the continuous blend at readable size.
+- Mobile and narrow-width captures verify readable copy, visible CTAs, contained hero content, and responsive subject positioning.
 
 **Comparison History**
 
-1. Initial implementation review found an over-zoomed phone crop, undersized headline hierarchy, a narrow text column, and an undifferentiated review pill.
-2. The card was rebuilt with a warmer surface, source-like split, larger headline, structured rating/divider/review pill, and unzoomed supplied asset. Desktop focused comparison cleared the earlier P1/P2 differences.
-3. Mobile review exposed an underspecified `sizes` value that selected an unsuitable fallback while the card was stacked. Responsive image sizes were corrected, the 640 px mobile source loaded, and the final mobile capture showed no overflow or clipping.
-4. User review rejected the remaining sharp image/text boundary. The separate desktop image panel was removed, both regions were placed on one background, and the image now overlaps that surface through a broad responsive fade. A second visual pass narrowed the fade so the phone stays crisp while the boundary remains invisible.
-5. User review found the phone oversized in the live card. A contain treatment reduced its scale but exposed the asset's rectangular background, recreating the separate-panel appearance and was rejected.
-6. The desktop image returned to full-bleed cover inside a narrower right-side layer. This reduces the phone to approximately the reference scale while the broad overlap fade keeps the card visually continuous; mobile remains unchanged.
-7. User review requested the approved landscape composition at every screen size. The stacked mobile layout was replaced with the same left-copy/right-phone structure, and a second narrow-width pass reduced typography below 360 px to prevent phone/copy crowding while preserving the landscape card.
+1. The initial asset placement used the supplied room photo as a full-bleed right-side layer and removed the separate mobile image block.
+2. The first mobile pass placed the professional too far beneath the headline, reducing contrast. The small-screen crop shifted right and the fade widened while the desktop crop remained unchanged.
+3. The second pass reduced small-screen headline sizing and narrowed the image layer, preserving hierarchy while separating the subject from the copy at 390 px and 320 px.
+4. User review identified CTA labels wrapping inside their controls. Both buttons now preserve single-line labels, and the responsive row wraps whole controls at intermediate widths; focused desktop, tablet, and mobile evidence confirms there is no label or content overlap.
+5. User review removed the social links and decorative hero arrows. Their supporting icon code was deleted, and the main content changed from edge distribution to vertical centring; the resulting desktop and mobile captures show balanced spacing without dead controls or a large empty lower region.
 
 **Interaction And Runtime Checks**
 
-- The card is informational and contains no interactive control; surrounding landing-page routes and CTAs were left unchanged.
-- Final-code runtime check opened a fresh local tab with zero console errors.
+- `Find Services` and `Become a Professional` retain their existing routes.
+- Guest navigation and surrounding landing-page content remain unchanged; the non-functional hero carousel controls are intentionally absent.
+- Final-code runtime review reported zero browser console errors.
 - Focused component tests, TypeScript, file-scoped ESLint, and `git diff --check` passed.
 
 **Implementation Checklist**
 
-- [x] Match desktop hierarchy and split.
-- [x] Use the supplied phone asset at the correct crop and scale.
-- [x] Keep the complete desktop phone inside the rounded card bounds.
-- [x] Rebuild the review pill with source-like internal structure.
-- [x] Remove the hard image/text separator and use one continuous background.
-- [x] Preserve a readable stacked mobile composition.
-- [x] Verify image loading, overflow, runtime console, and focused automated gates.
+- [x] Use the supplied professional-in-room asset.
+- [x] Keep the hero landscape composition at every breakpoint.
+- [x] Blend the photo into one continuous hero surface.
+- [x] Preserve approved copy, CTAs, and assurance while removing the rejected social and arrow controls.
+- [x] Verify desktop, mobile, narrow-width, runtime console, and focused automated gates.
 
 **Follow-up Polish**
 
-- Optional P3: provide a phone asset with the warm blurred-room backdrop embedded if exact background fidelity is desired.
+- None required for the selected asset direction.
 
 final result: passed
