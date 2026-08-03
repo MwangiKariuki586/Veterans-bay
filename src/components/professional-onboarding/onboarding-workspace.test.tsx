@@ -61,6 +61,18 @@ const draft: OnboardingSummary = {
   updatedAt: "2026-07-22T12:00:00.000Z",
 };
 
+const pendingReview: OnboardingSummary = {
+  ...draft,
+  status: "pending_review",
+  submittedAt: "2026-08-02T07:28:29.559Z",
+  readiness: {
+    complete: true,
+    completedCount: 14,
+    totalCount: 14,
+    missingFields: [],
+  },
+};
+
 describe("OnboardingWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -282,5 +294,41 @@ describe("OnboardingWorkspace", () => {
     expect(within(readiness).queryByText(/enable submission/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Review actions")).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Edit application" })).toHaveLength(1);
+  });
+
+  it("clearly explains that a submitted application is awaiting administrator approval", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: pendingReview }),
+    } as Response);
+
+    render(<OnboardingWorkspace mode="review" />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Application submitted" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Application submitted — awaiting administrator approval"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/must approve your organisation before you can access/i),
+    ).toBeInTheDocument();
+
+    const readiness = screen.getByRole("complementary", {
+      name: "Review readiness",
+    });
+    expect(
+      within(readiness).getByRole("heading", { name: "Awaiting approval" }),
+    ).toBeInTheDocument();
+    expect(within(readiness).getByText("Submitted for review")).toBeInTheDocument();
+    expect(
+      within(readiness).getByText("No action is required from you"),
+    ).toBeInTheDocument();
+    expect(
+      within(readiness).queryByRole("link", { name: "Edit application" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(readiness).queryByRole("button", { name: "Submit for review" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   signUp: vi.fn(),
   signIn: vi.fn(),
   toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+  session: null as { user: { id: string } } | null,
+  sessionPending: false,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -23,17 +26,25 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/auth-client", () => ({
   authClient: {
+    useSession: () => ({
+      data: mocks.session,
+      isPending: mocks.sessionPending,
+    }),
     signIn: { email: mocks.signIn },
     signUp: { email: mocks.signUp },
   },
 }));
 
 vi.mock("sonner", () => ({
-  toast: { success: mocks.toastSuccess },
+  toast: { success: mocks.toastSuccess, error: mocks.toastError },
 }));
 
 vi.mock("@/components/public/public-shell", () => ({
   PublicShell: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+vi.mock("@/components/public/site-header", () => ({
+  SiteHeader: () => <div data-testid="site-header" />,
 }));
 
 import { AuthFlipPanel } from "./auth-flip-panel";
@@ -45,7 +56,13 @@ function completeCommonFields() {
   fireEvent.change(document.querySelector("#signup-email")!, {
     target: { value: "alex@example.com" },
   });
+  fireEvent.change(document.querySelector("#signup-phone")!, {
+    target: { value: "0712 345 678" },
+  });
   fireEvent.change(document.querySelector("#signup-password")!, {
+    target: { value: "password123" },
+  });
+  fireEvent.change(document.querySelector("#signup-confirm-password")!, {
     target: { value: "password123" },
   });
   for (const checkbox of screen.getAllByRole("checkbox")) {
@@ -57,8 +74,13 @@ describe("account journey signup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.pathname = "/register";
+    mocks.session = null;
+    mocks.sessionPending = false;
     mocks.signUp.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    vi.stubGlobal("fetch", vi.fn());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: {} }) }),
+    );
   });
 
   it("offers client and professional owner creation but never administrator creation", () => {
@@ -86,10 +108,10 @@ describe("account journey signup", () => {
       "Enter your email",
     );
     expect(document.querySelector("#signup-password")).toHaveAccessibleName(
-      "Enter your password",
+      "Create a password",
     );
 
-    const inactiveFace = document.querySelector('[aria-hidden="true"]');
+    const inactiveFace = document.querySelector('[aria-hidden="true"][inert]');
     expect(inactiveFace).toHaveAttribute("inert");
   });
 
@@ -97,7 +119,7 @@ describe("account journey signup", () => {
     render(<AuthFlipPanel />);
     completeCommonFields();
 
-    fireEvent.click(screen.getByRole("button", { name: /^sign up/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^create account/i }));
 
     await waitFor(() => {
       expect(mocks.signUp).toHaveBeenCalledWith({
@@ -109,12 +131,65 @@ describe("account journey signup", () => {
       });
       expect(mocks.push).toHaveBeenCalledWith("/client");
     });
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/account/profile",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ phone: "0712 345 678" }),
+      }),
+    );
+  });
+
+  it("shows the registration policy error returned by the API as a toast", async () => {
+    mocks.signUp.mockResolvedValue({
+      data: null,
+      error: {
+        code: "PUBLIC_REGISTRATION_DISABLED",
+        message: "Public registration is currently disabled.",
+      },
+    });
+    render(<AuthFlipPanel />);
+    completeCommonFields();
+
+    fireEvent.click(screen.getByRole("button", { name: /^create account/i }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Account registration is currently unavailable.",
+      );
+    });
+    expect(screen.queryByText("Registration failed")).not.toBeInTheDocument();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("places signup validation errors beneath their controls without a toast", () => {
+    render(<AuthFlipPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^create account/i }));
+
+    expect(screen.getByText("Enter your full name.")).toHaveAttribute(
+      "id",
+      "signup-name-error",
+    );
+    expect(document.querySelector("#signup-name")).toHaveAttribute(
+      "aria-describedby",
+      "signup-name-error",
+    );
+    expect(screen.getByText("Accept the terms and privacy policy to continue.")).toHaveAttribute(
+      "id",
+      "signup-accept-terms-error",
+    );
+    expect(mocks.signUp).not.toHaveBeenCalled();
+    expect(mocks.toastError).not.toHaveBeenCalled();
   });
 
   it("creates the organisation owner journey for a professional signup", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: {} }),
+      } as Response)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: { organisationId: "organisation-1" } }),
@@ -132,11 +207,11 @@ describe("account journey signup", () => {
       { target: { value: "ProLine Plumbing" } },
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /^sign up/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^create account/i }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenNthCalledWith(
-        1,
+        2,
         "/api/v1/professional/onboarding",
         expect.objectContaining({
           method: "POST",
@@ -144,7 +219,7 @@ describe("account journey signup", () => {
         }),
       );
       expect(fetchMock).toHaveBeenNthCalledWith(
-        2,
+        3,
         "/api/v1/workspaces/select",
         expect.objectContaining({
           body: JSON.stringify({
@@ -154,5 +229,147 @@ describe("account journey signup", () => {
       );
       expect(mocks.push).toHaveBeenCalledWith("/professional/onboarding");
     });
+  });
+});
+
+describe("authenticated auth-route guard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.pathname = "/login";
+    mocks.session = { user: { id: "user-1" } };
+    mocks.sessionPending = false;
+  });
+
+  it("hides the auth page and redirects an authenticated user to their workspace entry", async () => {
+    const { container } = render(<AuthFlipPanel />);
+
+    expect(container).toBeEmptyDOMElement();
+    await waitFor(() => {
+      expect(mocks.replace).toHaveBeenCalledWith("/workspace/select");
+    });
+  });
+});
+
+describe("account journey sign in", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.pathname = "/login";
+    mocks.session = null;
+    mocks.sessionPending = false;
+    mocks.signIn.mockResolvedValue({ data: { user: { id: "user-1" } } });
+  });
+
+  it("sends a signed-in user to the role-aware start page", async () => {
+    render(<AuthFlipPanel />);
+
+    fireEvent.change(document.querySelector("#signin-email")!, {
+      target: { value: "alex@example.com" },
+    });
+    fireEvent.change(document.querySelector("#signin-password")!, {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /remember me/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^sign in/i }));
+
+    await waitFor(() => {
+      expect(mocks.signIn).toHaveBeenCalledWith({
+        email: "alex@example.com",
+        password: "password123",
+        rememberMe: true,
+      });
+      expect(mocks.push).toHaveBeenCalledWith("/workspace/select");
+    });
+  });
+
+  it("places sign-in input errors beneath the fields without a toast", () => {
+    render(<AuthFlipPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign in/i }));
+
+    expect(screen.getByText("Enter your email address.")).toHaveAttribute(
+      "id",
+      "signin-email-error",
+    );
+    expect(document.querySelector("#signin-email")).toHaveAttribute(
+      "aria-describedby",
+      "signin-email-error",
+    );
+    expect(screen.getByText("Enter your password.")).toHaveAttribute(
+      "id",
+      "signin-password-error",
+    );
+    expect(mocks.signIn).not.toHaveBeenCalled();
+    expect(mocks.toastError).not.toHaveBeenCalled();
+  });
+
+  it("shows an authentication failure as a toast instead of an inline banner", async () => {
+    mocks.signIn.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_EMAIL_OR_PASSWORD" },
+    });
+    render(<AuthFlipPanel />);
+
+    fireEvent.change(document.querySelector("#signin-email")!, {
+      target: { value: "alex@example.com" },
+    });
+    fireEvent.change(document.querySelector("#signin-password")!, {
+      target: { value: "incorrect-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^sign in/i }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Unable to sign in with the details provided.",
+      );
+    });
+    expect(screen.queryByText("Sign-in failed")).not.toBeInTheDocument();
+  });
+
+  it("keeps only supported and non-redundant sign-in options", () => {
+    render(<AuthFlipPanel />);
+
+    expect(screen.getByRole("link", { name: "Google" })).toHaveAttribute(
+      "href",
+      "/coming-soon/google-login",
+    );
+    expect(screen.queryByRole("button", { name: "Apple" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Microsoft" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/already have an account/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/new to veterans bay/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/forgot password/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps the authentication switcher with the focused guest navigation", () => {
+    render(<AuthFlipPanel />);
+
+    const authentication = screen.getByRole("navigation", { name: "Authentication" });
+    expect(authentication).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign In" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Signup" })).not.toHaveAttribute(
+      "aria-current",
+    );
+    expect(
+      screen.getByRole("navigation", { name: "Guest navigation" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "How It Works" })).toHaveAttribute(
+      "href",
+      "/how-it-works",
+    );
+    expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
+      "href",
+      "/contact",
+    );
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Find Services" }),
+    ).not.toBeInTheDocument();
+    expect(
+      [...document.querySelectorAll("img")].some((image) =>
+        image.getAttribute("src")?.includes("veterans-bay-emblem.png"),
+      ),
+    ).toBe(true);
   });
 });

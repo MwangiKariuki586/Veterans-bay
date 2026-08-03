@@ -70,6 +70,7 @@ export class WorkspaceService {
         organisationId: null,
         membershipId: null,
         roleKey: null,
+        organisationStatus: null,
         permissions: [],
         assignedJobsOnly: false,
         financialDataAccess: false,
@@ -88,10 +89,20 @@ export class WorkspaceService {
         id: buildOrganisationWorkspaceId(membership.organisationId),
         kind: "organisation",
         label: membership.organisationName,
-        href: "/professional",
+        href:
+          membership.organisationStatus === "active"
+            ? "/professional"
+            : membership.organisationStatus === "pending_review"
+              ? "/professional/onboarding/review"
+              : "/professional/onboarding",
         organisationId: membership.organisationId,
         membershipId: membership.membershipId,
         roleKey: membership.roleKey,
+        organisationStatus: membership.organisationStatus as
+          | "draft"
+          | "pending_review"
+          | "active"
+          | "requires_changes",
         permissions: (permissionsByRole.get(membership.roleId) ?? []).filter(
           (permission) =>
             membership.financialDataAccess ||
@@ -116,6 +127,7 @@ export class WorkspaceService {
         organisationId: null,
         membershipId: null,
         roleKey: "platform_admin",
+        organisationStatus: null,
         permissions: adminAssignment
           ? (permissionsByRole.get(adminAssignment.roleId) ?? [])
           : [],

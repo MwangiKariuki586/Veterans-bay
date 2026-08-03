@@ -17,6 +17,7 @@ function bindings(overrides: Partial<ApiBindings> = {}): ApiBindings {
     BETTER_AUTH_SECRET: "test-better-auth-secret-with-32-chars!",
     BETTER_AUTH_URL: "http://localhost:3000",
     DATABASE_URL: "postgresql://neondb_owner:password@example.neon.tech/neondb?sslmode=require",
+    PUBLIC_REGISTRATION_ENABLED: "true",
     WEB_ORIGIN: "http://localhost:3000",
     ...overrides,
   };
@@ -149,9 +150,9 @@ describe("Veterans Bay API foundation", () => {
     );
   });
 
-  it("disables public registration in the controlled preview environment", async () => {
+  it("disables public registration when the environment switch is off", async () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
-    const environment = bindings({ APP_ENV: "preview" });
+    const environment = bindings({ PUBLIC_REGISTRATION_ENABLED: "false" });
 
     const response = await app.request(
       "/api/auth/sign-up/email",
@@ -175,9 +176,8 @@ describe("Veterans Bay API foundation", () => {
 
     expect(response.status).toBe(403);
     expect(body.error).toEqual({
-      code: "PREVIEW_REGISTRATION_DISABLED",
-      message:
-        "Public registration is disabled in this controlled demonstration environment.",
+      code: "PUBLIC_REGISTRATION_DISABLED",
+      message: "Public registration is currently disabled.",
     });
   });
 

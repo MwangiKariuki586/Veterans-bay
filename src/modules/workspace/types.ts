@@ -8,6 +8,12 @@ export interface WorkspaceSummary {
   organisationId: string | null;
   membershipId: string | null;
   roleKey: string | null;
+  organisationStatus:
+    | "draft"
+    | "pending_review"
+    | "active"
+    | "requires_changes"
+    | null;
   permissions: string[];
   assignedJobsOnly: boolean;
   financialDataAccess: boolean;

@@ -45,6 +45,7 @@ export const requestContextMiddleware = createMiddleware<ApiAppEnvironment>(
       ),
       DATABASE_URL: envBindings.DATABASE_URL,
       DOMAIN_EVENTS_QUEUE: envBindings.DOMAIN_EVENTS_QUEUE,
+      PUBLIC_REGISTRATION_ENABLED: envBindings.PUBLIC_REGISTRATION_ENABLED,
       PUBLIC_SUBMISSION_RATE_LIMITER: envBindings.PUBLIC_SUBMISSION_RATE_LIMITER,
       WEB_ORIGIN: envBindings.WEB_ORIGIN,
     });

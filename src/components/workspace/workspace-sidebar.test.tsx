@@ -15,8 +15,6 @@ describe("workspace sidebar", () => {
 
     expect(screen.getByRole("navigation", { name: "Workspace navigation" })).toBeInTheDocument();
     expect(screen.getByText("Alex's Plumbing")).toBeInTheDocument();
-    expect(screen.getByText("Verified Pro")).toBeInTheDocument();
-
     const dashboard = screen.getByRole("link", { name: "Dashboard" });
     expect(dashboard).toHaveAttribute("href", "/professional");
     expect(dashboard).toHaveAttribute("aria-current", "page");
@@ -25,7 +23,13 @@ describe("workspace sidebar", () => {
       "href",
       "/professional/enquiries",
     );
-    expect(screen.getByRole("link", { name: "Open help center" })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: "Invoices & Payments" }),
+    ).toHaveAttribute("href", "/professional/payments");
+    expect(
+      screen.getByRole("link", { name: "Tools & Resources" }),
+    ).toHaveAttribute("href", "/professional/services");
+    expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
       "href",
       "/help",
     );
@@ -38,7 +42,6 @@ describe("workspace sidebar", () => {
       "href",
       "/client/invoices",
     );
-    expect(screen.queryByText("Verified Pro")).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Quotations" }),
     ).toHaveAttribute("href", "/client/quotations");

@@ -30,7 +30,7 @@ test("public navigation and registration are keyboard operable", async ({
     text: element.textContent?.trim(),
   }));
   expect(firstFocus.tag).toMatch(/A|BUTTON/);
-  await page.getByRole("button", { name: "Sign up" }).click();
+  await page.getByRole("link", { name: "Sign Up" }).click();
   await expect(page).toHaveURL(/\/register$/);
   await expect(page.getByLabel("Enter your full name")).toBeVisible();
   await page.getByLabel("Enter your full name").focus();

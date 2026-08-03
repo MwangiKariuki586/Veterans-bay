@@ -46,9 +46,9 @@ const statusCopy: Record<
   { title: string; description: string; tone: "info" | "success" | "warning" | "error" }
 > = {
   pending_review: {
-    title: "Your profile is being reviewed",
+    title: "Application submitted — awaiting administrator approval",
     description:
-      "Your saved application and evidence are locked while the Veterans Bay team reviews them.",
+      "A platform administrator must approve your organisation before you can access the professional workspace or publish services. You do not need to submit again.",
     tone: "info",
   },
   active: {
@@ -239,12 +239,15 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
   }, [router, session, sessionPending]);
 
   const editable = !record || ["draft", "requires_changes", "active"].includes(record.status);
+  const pendingReview = record?.status === "pending_review";
   const progress = record
     ? Math.round((record.readiness.completedCount / record.readiness.totalCount) * 100)
     : 0;
   const pageTitle =
     mode === "review"
-      ? "Review your application"
+      ? pendingReview
+        ? "Application submitted"
+        : "Review your application"
       : mode === "settings"
         ? "Business profile"
         : "Set up your professional profile";
@@ -459,7 +462,9 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
       <div className="mt-6 h-2 overflow-hidden rounded-full bg-[#edf1f3]">
         <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
       </div>
-      <p className="mt-2 text-xs text-[#68717b]">{progress}% ready for review</p>
+      <p className="mt-2 text-xs text-[#68717b]">
+        {pendingReview ? `${progress}% complete · submitted for review` : `${progress}% ready for review`}
+      </p>
       <ol className="mt-6 space-y-4">
         {steps.map((step, index) => (
           <li key={step.label} className="flex items-center gap-3 text-sm">
@@ -475,7 +480,11 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
     <>
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5f8d11]">Trusted. Skilled. Reliable.</p>
       <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">{pageTitle}</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-[#68717b]">Save your progress at any time. Private verification evidence is visible only to authorised reviewers.</p>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-[#68717b]">
+        {pendingReview
+          ? "Your application is complete and locked while an administrator reviews it. The decision will appear on this page."
+          : "Save your progress at any time. Private verification evidence is visible only to authorised reviewers."}
+      </p>
       {error ? <InlineAlert className="mt-6" variant="error" title="Check your application details" description={error} /> : null}
       {saved ? <InlineAlert className="mt-6" variant="success" title="Draft saved" description="Your latest information is ready when you return." /> : null}
       {statusCopy[record?.status ?? ""] ? (
@@ -608,6 +617,7 @@ function ReviewPanel({ header, progressCard, record, saving, onSubmit }: { heade
     ["Verification", record.verificationType ?? "Missing"],
     ["Evidence", `${record.documents.length} secure file${record.documents.length === 1 ? "" : "s"}`],
   ];
+  const pendingReview = record.status === "pending_review";
   const canSubmit = record.readiness.complete && ["draft", "requires_changes"].includes(record.status);
   return (
     <main aria-label="Application review columns" className="mt-5 grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
@@ -618,7 +628,7 @@ function ReviewPanel({ header, progressCard, record, saving, onSubmit }: { heade
           {rows.map(([label, value]) => (
             <div key={label} className="rounded-2xl border border-black/8 bg-[#f8fafb] p-4">
               <p className="text-xs text-[#68717b]">{label}</p>
-              <p className="mt-1 font-semibold capitalize">{value}</p>
+              <p className="mt-1 font-semibold capitalize">{value.replaceAll("_", " ")}</p>
             </div>
           ))}
         </div>
@@ -640,20 +650,33 @@ function ReviewPanel({ header, progressCard, record, saving, onSubmit }: { heade
       </Surface>
       <aside aria-label="Review readiness" className="h-fit rounded-[1.75rem] bg-[#071522] p-6 text-white">
         <Clock3 className="size-6 text-primary" />
-        <h2 className="mt-4 text-xl font-bold">Review readiness</h2>
-        <p className="mt-2 text-sm leading-6 text-white/65">{record.readiness.completedCount} of {record.readiness.totalCount} requirements complete.</p>
+        <h2 className="mt-4 text-xl font-bold">{pendingReview ? "Awaiting approval" : "Review readiness"}</h2>
+        <p className="mt-2 text-sm leading-6 text-white/65">
+          {pendingReview
+            ? `All ${record.readiness.totalCount} requirements were completed and submitted.`
+            : `${record.readiness.completedCount} of ${record.readiness.totalCount} requirements complete.`}
+        </p>
         {record.readiness.missingFields.length ? (
           <ul className="mt-4 space-y-2 text-xs text-white/75">
             {record.readiness.missingFields.map((field) => <li key={field}>• {field}</li>)}
           </ul>
         ) : (
-          <p className="mt-4 flex items-center gap-2 text-sm text-primary"><Check className="size-4" /> Ready to submit</p>
+          <p className="mt-4 flex items-center gap-2 text-sm text-primary"><Check className="size-4" /> {pendingReview ? "Submitted for review" : "Ready to submit"}</p>
         )}
-        <div className="mt-6 grid gap-2">
-          <Link href="/professional/onboarding" className={cn(buttonVariants({ variant: "outline" }), "w-full border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white")}>Edit application</Link>
-          <Button className="w-full disabled:bg-white/10 disabled:text-white/45 disabled:opacity-100 disabled:shadow-none" disabled={!canSubmit} loading={saving} onClick={onSubmit}>Submit for review</Button>
-        </div>
-        {record.status === "pending_review" ? <p className="mt-3 text-center text-xs text-white/60">Submitted {record.submittedAt ? new Date(record.submittedAt).toLocaleString() : "recently"}</p> : null}
+        {pendingReview ? (
+          <div className="mt-6 rounded-2xl border border-white/15 bg-white/5 p-4">
+            <p className="text-sm font-semibold">No action is required from you</p>
+            <p className="mt-2 text-xs leading-5 text-white/65">
+              An administrator must approve the application before your professional workspace is unlocked.
+            </p>
+            <p className="mt-3 text-xs text-white/60">Submitted {record.submittedAt ? new Date(record.submittedAt).toLocaleString() : "recently"}</p>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-2">
+            <Link href="/professional/onboarding" className={cn(buttonVariants({ variant: "outline" }), "w-full border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white")}>Edit application</Link>
+            <Button className="w-full disabled:bg-white/10 disabled:text-white/45 disabled:opacity-100 disabled:shadow-none" disabled={!canSubmit} loading={saving} onClick={onSubmit}>Submit for review</Button>
+          </div>
+        )}
       </aside>
     </main>
   );

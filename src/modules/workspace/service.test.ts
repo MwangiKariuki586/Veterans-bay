@@ -79,6 +79,47 @@ describe("WorkspaceService", () => {
       buildOrganisationWorkspaceId("org-1"),
       buildPlatformWorkspaceId(),
     ]);
+    expect(
+      result.workspaces.find((item) => item.kind === "organisation"),
+    ).toMatchObject({
+      organisationStatus: "active",
+      href: "/professional",
+    });
+  });
+
+  it("routes a pending professional to application status instead of the dashboard", async () => {
+    const identityStore = {
+      findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
+      findActiveRestrictions: vi.fn().mockResolvedValue([]),
+    } as unknown as IdentityStore;
+    const workspaceRepository = {
+      listActiveOrganisationMemberships: vi.fn().mockResolvedValue([
+        {
+          membershipId: "membership-1",
+          organisationId: "org-1",
+          organisationName: "Bay Repairs",
+          organisationSlug: "bay-repairs",
+          organisationStatus: "pending_review",
+          membershipStatus: "active",
+          roleId: "role-owner",
+          roleKey: "owner",
+          assignedJobsOnly: false,
+          financialDataAccess: true,
+        },
+      ]),
+      listActivePlatformAssignments: vi.fn().mockResolvedValue([]),
+      listPermissionKeysForRoleIds: vi.fn().mockResolvedValue(new Map()),
+    } as unknown as WorkspaceRepository;
+
+    const result = await new WorkspaceService(
+      workspaceRepository,
+      identityStore,
+    ).listWorkspaces("user-1");
+
+    expect(result.workspaces[1]).toMatchObject({
+      organisationStatus: "pending_review",
+      href: "/professional/onboarding/review",
+    });
   });
 
   it("rejects cross-organisation and stale membership access", async () => {

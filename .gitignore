@@ -14,6 +14,9 @@ out/
 coverage/
 playwright-report/
 test-results/
+artifacts/
+.playwright-mcp/
+.codex-*.png
 
 # Local environment files
 .env

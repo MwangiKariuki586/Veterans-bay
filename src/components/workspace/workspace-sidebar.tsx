@@ -2,14 +2,13 @@
 
 import {
   ArrowRight,
-  CheckCircle2,
   ChevronDown,
   Headphones,
   ShieldCheck,
-  Star,
   Store,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 import {
@@ -39,6 +38,96 @@ export function WorkspaceSidebar({
   const groups = getWorkspaceNav(kind);
   const year = new Date().getFullYear();
 
+  if (kind === "professional") {
+    return (
+      <aside
+        className={cn(
+          "flex h-full min-h-0 flex-col border border-black/8 bg-white p-4",
+          className,
+        )}
+        aria-label="Workspace"
+      >
+        <Link
+          href="/workspace/select"
+          className="mb-3 flex items-center gap-3 rounded-2xl border border-black/8 bg-[#f8fafb] p-3 lg:hidden"
+        >
+          <span className="grid size-10 place-items-center rounded-xl bg-[#eef7e8] text-[#287313]">
+            <Store className="size-5" aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-bold">{workspaceLabel}</span>
+            <span className="block text-[0.7rem] text-muted-foreground">Professional</span>
+          </span>
+          <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
+        </Link>
+
+        <nav
+          className="min-h-0 flex-1 overflow-y-auto pr-1"
+          aria-label="Workspace navigation"
+        >
+          {groups.map((group, groupIndex) => (
+            <div key={group.id}>
+              {groupIndex > 0 ? (
+                <div className="my-3 border-t border-black/8" />
+              ) : null}
+              <ul className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = isNavActive(pathname, item.href);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          "group flex min-h-10 items-center gap-3 rounded-xl px-3 text-[0.78rem] font-semibold transition-all",
+                          active
+                            ? "bg-[#edf5e7] text-[#245f14]"
+                            : "text-[#27313a] hover:bg-[#f5f7f8] hover:text-foreground",
+                        )}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        <Icon
+                          className={cn(
+                            "size-[1.05rem] shrink-0",
+                            active ? "text-[#2e7d18]" : "text-[#59636c] group-hover:text-foreground",
+                          )}
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+
+        <div className="mt-4 overflow-hidden rounded-[18px] bg-[#07142d] p-4 text-white shadow-[0_14px_30px_rgba(7,20,45,0.18)]">
+          <Image
+            src="/images/veterans-bay-logo.png"
+            alt=""
+            width={1249}
+            height={389}
+            className="h-auto w-[150px] rounded-lg bg-white px-2 py-1.5 object-contain"
+            sizes="150px"
+          />
+          <h2 className="mt-3 text-sm font-bold">Need help?</h2>
+          <p className="mt-1.5 text-[0.72rem] leading-5 text-white/70">
+            Our support team is here for you.
+          </p>
+          <Link
+            href="/help"
+            className="mt-4 flex min-h-10 items-center justify-between rounded-full bg-primary px-4 text-[0.72rem] font-bold text-primary-foreground"
+          >
+            Contact support
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside
       className={cn(
@@ -67,22 +156,6 @@ export function WorkspaceSidebar({
           aria-hidden="true"
         />
       </Link>
-
-      {kind === "professional" ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 px-1">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef8c8] px-2.5 py-1 text-[0.68rem] font-semibold text-[#5f8d11]">
-            <CheckCircle2 className="size-3.5" aria-hidden="true" />
-            Verified Pro
-          </span>
-          <span className="inline-flex items-center gap-1 text-[0.72rem] font-semibold">
-            <Star
-              className="size-3.5 fill-[#ffb81c] text-[#ffb81c]"
-              aria-hidden="true"
-            />
-            4.9
-          </span>
-        </div>
-      ) : null}
 
       <nav
         className="mt-5 flex-1 space-y-4 overflow-y-auto"

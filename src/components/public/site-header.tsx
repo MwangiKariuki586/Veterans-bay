@@ -2,6 +2,7 @@
 
 import {
   Bell,
+  CalendarDays,
   ChevronDown,
   Heart,
   Menu,
@@ -72,7 +73,13 @@ function NotificationBell() {
   );
 }
 
-function HeaderSearch({ className }: { className?: string }) {
+function HeaderSearch({
+  className,
+  professional = false,
+}: {
+  className?: string;
+  professional?: boolean;
+}) {
   return (
     <form
       action="/marketplace"
@@ -85,7 +92,11 @@ function HeaderSearch({ className }: { className?: string }) {
       <input
         name="query"
         aria-label="Search services"
-        placeholder="Search services, plumbers, electricians..."
+        placeholder={
+          professional
+            ? "Search services, bookings, customers..."
+            : "Search services, plumbers, electricians..."
+        }
         className="min-w-0 flex-1 bg-transparent text-[0.78rem] outline-none placeholder:text-[#7a8188]"
       />
       <button
@@ -102,9 +113,11 @@ function HeaderSearch({ className }: { className?: string }) {
 function AccountChip({
   displayName,
   href,
+  subtitle = "Welcome,",
 }: {
   displayName: string;
   href: string;
+  subtitle?: string;
 }) {
   return (
     <Link
@@ -119,7 +132,7 @@ function AccountChip({
         className="size-10 rounded-full object-cover"
       />
       <span className="grid min-w-[70px] text-[0.76rem] leading-tight">
-        <span className="text-[0.64rem] text-muted-foreground">Welcome,</span>
+        <span className="text-[0.64rem] text-muted-foreground">{subtitle}</span>
         <span className="truncate font-semibold">{displayName}</span>
       </span>
       <ChevronDown className="size-4 shrink-0" aria-hidden="true" />
@@ -167,9 +180,13 @@ function GuestActions({ className }: { className?: string }) {
 function SignedInActions({
   displayName,
   className,
+  subtitle,
+  professional = false,
 }: {
   displayName: string;
   className?: string;
+  subtitle?: string;
+  professional?: boolean;
 }) {
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
@@ -180,16 +197,30 @@ function SignedInActions({
       >
         <MessageCircle className="size-[1.15rem]" aria-hidden="true" />
       </Link>
-      <Link
-        href="/client/saved"
-        className={cn(iconButtonClass, "hidden sm:grid")}
-        aria-label="Saved professionals"
-      >
-        <Heart className="size-[1.15rem]" aria-hidden="true" />
-      </Link>
+      {professional ? (
+        <Link
+          href="/professional/calendar"
+          className={cn(iconButtonClass, "hidden sm:grid")}
+          aria-label="Calendar"
+        >
+          <CalendarDays className="size-[1.15rem]" aria-hidden="true" />
+        </Link>
+      ) : (
+        <Link
+          href="/client/saved"
+          className={cn(iconButtonClass, "hidden sm:grid")}
+          aria-label="Saved professionals"
+        >
+          <Heart className="size-[1.15rem]" aria-hidden="true" />
+        </Link>
+      )}
       <NotificationBell />
       <div className="hidden sm:block">
-        <AccountChip displayName={displayName} href="/account/profile" />
+        <AccountChip
+          displayName={displayName}
+          href="/workspace/select"
+          subtitle={subtitle}
+        />
       </div>
     </div>
   );
@@ -199,18 +230,29 @@ function SignedInActions({
  * Homepage navbar used across public surfaces.
  * Guest: marketing CTAs. Signed-in: utility icons + Welcome chip.
  */
-export function SiteHeader() {
+export function SiteHeader({
+  workspaceContext,
+}: {
+  workspaceContext?: { kind: "professional"; label: string };
+} = {}) {
   const { data: session, isPending } = authClient.useSession();
   const signedIn = Boolean(session?.user);
   const displayName =
     session?.user?.name?.trim().split(/\s+/)[0] ||
     session?.user?.email?.split("@")[0] ||
     "there";
+  const accountLabel =
+    workspaceContext?.label && workspaceContext.label !== "Workspace"
+      ? workspaceContext.label
+      : displayName;
 
   return (
     <header className="grid min-h-14 items-center gap-5 lg:grid-cols-[280px_minmax(280px,1fr)_auto]">
       <Brand />
-      <HeaderSearch className="hidden w-full lg:flex" />
+      <HeaderSearch
+        className="hidden w-full lg:flex"
+        professional={Boolean(workspaceContext)}
+      />
 
       {isPending ? (
         <div
@@ -218,7 +260,12 @@ export function SiteHeader() {
           aria-hidden="true"
         />
       ) : signedIn ? (
-        <SignedInActions displayName={displayName} className="hidden lg:flex" />
+        <SignedInActions
+          displayName={accountLabel}
+          subtitle={workspaceContext ? "Professional" : "Welcome,"}
+          professional={Boolean(workspaceContext)}
+          className="hidden lg:flex"
+        />
       ) : (
         <GuestActions className="hidden lg:flex" />
       )}

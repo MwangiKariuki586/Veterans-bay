@@ -2,8 +2,7 @@
 
 import { Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 
 import {
   pageBackdropClass,
@@ -28,6 +27,14 @@ import { authClient } from "@/lib/auth-client";
 import type { WorkspaceSummary } from "@/modules/workspace/types";
 
 export type { AuthenticatedShellKind };
+
+const WorkspaceShellContext = createContext({
+  workspaceLabel: "Workspace",
+});
+
+export function useWorkspaceShell() {
+  return useContext(WorkspaceShellContext);
+}
 
 async function fetchWorkspaces() {
   const response = await fetch("/api/v1/workspaces", { credentials: "include" });
@@ -112,8 +119,28 @@ export function AuthenticatedShell({
 
   return (
     <div className={pageBackdropClass}>
-      <div className={pageFrameClass()}>
-        <SiteHeader />
+      <div
+        className={
+          kind === "professional"
+            ? "mx-auto min-h-screen w-full max-w-[1600px] bg-white"
+            : pageFrameClass()
+        }
+      >
+        <div
+          className={
+            kind === "professional"
+              ? "border-b border-black/8 px-4 py-4 sm:px-6 lg:px-7"
+              : undefined
+          }
+        >
+          <SiteHeader
+            workspaceContext={
+              kind === "professional"
+                ? { kind, label: workspaceLabel }
+                : undefined
+            }
+          />
+        </div>
 
         <div className="mt-4 mb-4 flex items-center justify-end gap-3 lg:hidden">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -145,21 +172,56 @@ export function AuthenticatedShell({
           </Sheet>
         </div>
 
-        <div className="grid gap-5 lg:mt-5 lg:grid-cols-[272px_minmax(0,1fr)] lg:items-start">
+        <div
+          className={
+            kind === "professional"
+              ? "grid lg:grid-cols-[238px_minmax(0,1fr)] lg:items-start"
+              : "grid gap-5 lg:mt-5 lg:grid-cols-[272px_minmax(0,1fr)] lg:items-start"
+          }
+        >
           <WorkspaceSidebar
             kind={kind}
             workspaceLabel={workspaceLabel}
-            className="sticky top-6 hidden max-h-[calc(100vh-3rem)] lg:flex"
+            className={
+              kind === "professional"
+                ? "sticky top-0 hidden h-[calc(100vh-87px)] rounded-none border-y-0 border-l-0 shadow-none lg:flex"
+                : "sticky top-6 hidden max-h-[calc(100vh-3rem)] lg:flex"
+            }
           />
 
-          <main className="min-w-0">
-            <Surface
-              className={
-                hideIntro
-                  ? "overflow-hidden p-5 sm:p-7"
-                  : "overflow-hidden p-7 sm:p-9"
-              }
-            >
+          <main
+            className={
+              kind === "professional"
+                ? "min-w-0 bg-[#f8fafb] p-4 sm:p-6 lg:p-7"
+                : "min-w-0"
+            }
+          >
+            {kind === "professional" ? (
+              <WorkspaceShellContext.Provider value={{ workspaceLabel }}>
+                {!ready ? (
+                  <StatePanel
+                    variant="loading"
+                    title="Loading workspace"
+                    description="Resolving your session and professional workspace."
+                  />
+                ) : error ? (
+                  <InlineAlert
+                    variant="error"
+                    title="Workspace unavailable"
+                    description={error}
+                  />
+                ) : (
+                  children
+                )}
+              </WorkspaceShellContext.Provider>
+            ) : (
+              <Surface
+                className={
+                  hideIntro
+                    ? "overflow-hidden p-5 sm:p-7"
+                    : "overflow-hidden p-7 sm:p-9"
+                }
+              >
               {!hideIntro ? (
                 <>
                   <p className="inline-flex items-center gap-2 rounded-full border border-black/7 bg-[#f7f9fa] px-4 py-2 text-[0.78rem] text-[#626b75]">
@@ -190,11 +252,12 @@ export function AuthenticatedShell({
                   children
                 )}
               </div>
-            </Surface>
+              </Surface>
+            )}
           </main>
         </div>
 
-        <AuthenticatedFooter kind={kind} />
+        {kind === "professional" ? null : <AuthenticatedFooter kind={kind} />}
       </div>
     </div>
   );

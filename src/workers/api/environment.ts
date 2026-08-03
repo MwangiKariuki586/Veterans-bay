@@ -42,6 +42,7 @@ export const apiEnvironmentSchema = z.object({
         typeof value.limit === "function",
     )
     .optional(),
+  PUBLIC_REGISTRATION_ENABLED: z.enum(["true", "false"]),
   WEB_ORIGIN: z.url(),
 });
 

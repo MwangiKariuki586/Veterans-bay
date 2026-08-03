@@ -17,10 +17,15 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { PublicFooter } from "@/components/public/public-footer";
-import { SiteHeader } from "@/components/public/site-header";
+import { GuestHeader } from "@/components/public/guest-header";
+import { StatePanel } from "@/components/ui/state-panel";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import type { WorkspaceSummary } from "@/modules/workspace/types";
 
 const popularServices = [
   { label: "Plumbing", icon: Droplets, className: "bg-[#2f70e8]" },
@@ -152,10 +157,58 @@ function BottomPanels() {
 }
 
 export function HomepageMockup() {
+  const router = useRouter();
+  const { data: session, isPending } = authClient.useSession();
+
+  useEffect(() => {
+    if (isPending || !session) return;
+
+    const controller = new AbortController();
+    void fetch("/api/v1/workspaces/current", {
+      credentials: "include",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const body = (await response.json().catch(() => null)) as {
+          data?: WorkspaceSummary;
+        } | null;
+
+        if (!response.ok || !body?.data?.href) {
+          router.replace("/workspace/select");
+          return;
+        }
+
+        router.replace(body.data.href);
+      })
+      .catch((cause) => {
+        if (cause instanceof DOMException && cause.name === "AbortError") return;
+        router.replace("/workspace/select");
+      });
+
+    return () => controller.abort();
+  }, [isPending, router, session]);
+
+  if (isPending || session) {
+    return (
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fff_0%,#eef3f6_66%,#e7edf0_100%)] px-4 py-8">
+        <div className="mx-auto max-w-[1340px] p-5 lg:p-[26px]">
+          <GuestHeader brandSize="large" trailing="login" />
+          <div className="mx-auto mt-16 max-w-2xl rounded-[22px] border border-black/8 bg-white p-8 shadow-[0_20px_50px_rgba(13,30,43,0.08)]">
+            <StatePanel
+              variant="loading"
+              title="Opening your workspace"
+              description="Taking you to the homepage for your selected role."
+            />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fff_0%,#eef3f6_66%,#e7edf0_100%)] px-4 py-8 lg:pt-8 lg:pb-[62px]">
       <div className="mx-auto max-w-[1340px] p-5 lg:p-[26px]">
-        <SiteHeader />
+        <GuestHeader brandSize="large" trailing="login" />
         <div className="mt-5 grid gap-[18px] lg:grid-cols-[2.15fr_1fr] lg:grid-rows-[176px_207px_161px_234px]">
           <HeroCard />
           <PopularServices />

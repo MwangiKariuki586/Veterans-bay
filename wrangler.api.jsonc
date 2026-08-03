@@ -8,6 +8,7 @@
   "preview_urls": false,
   "vars": {
     "APP_ENV": "development",
+    "PUBLIC_REGISTRATION_ENABLED": "true",
     "WEB_ORIGIN": "http://localhost:3000"
   },
   "queues": {
@@ -61,6 +62,7 @@
       "vars": {
         "APP_ENV": "preview",
         "BETTER_AUTH_URL": "https://veterans-bay-web-preview.mwangialex268.workers.dev",
+        "PUBLIC_REGISTRATION_ENABLED": "true",
         "WEB_ORIGIN": "https://veterans-bay-web-preview.mwangialex268.workers.dev"
       },
       "queues": {

@@ -5,7 +5,7 @@
 The approved homepage mockup must be placed at:
 
 ```txt
-public/design-reference/homepage.png
+context/design-reference/homepage.png
 ```
 
 It is the permanent visual reference for the platform.
@@ -32,7 +32,7 @@ When an approved feature-specific mockup exists, it controls that page's layout 
 
 ```txt
 Explicit approved design direction or feature mockup
-→ public/design-reference/homepage.png
+→ context/design-reference/homepage.png
 → existing implemented shared components
 → authoritative global tokens
 → this document

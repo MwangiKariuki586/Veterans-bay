@@ -18,6 +18,7 @@ export interface ApiBindings {
   CLOUDINARY_CLOUD_NAME?: string;
   DATABASE_URL: string;
   DOMAIN_EVENTS_QUEUE?: DomainEventsQueueBinding;
+  PUBLIC_REGISTRATION_ENABLED: "true" | "false";
   PUBLIC_SUBMISSION_RATE_LIMITER?: ApiRateLimiter;
   WEB_ORIGIN: string;
 }

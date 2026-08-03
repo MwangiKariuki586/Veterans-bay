@@ -31,22 +31,15 @@ export function AuthCard({
           }}
         />
         <div className="relative z-10 flex flex-col items-center text-center">
-          <div className="flex items-center justify-center gap-3">
+          <div className="rounded-xl bg-white/95 px-3 py-2 shadow-[0_8px_22px_rgba(0,0,0,0.14)]">
             <Image
-              src="/images/veterans-bay-mark.png"
+              src="/images/veterans-bay-logo.png"
               alt=""
-              width={44}
-              height={44}
-              className="size-11 rounded-full object-cover"
+              width={1249}
+              height={389}
+              className="h-auto w-[205px] object-contain"
+              sizes="205px"
             />
-            <div className="text-left">
-              <p className="text-sm font-bold tracking-[0.08em]">
-                VETERANS <span className="text-primary">BAY</span>
-              </p>
-              <p className="mt-1 text-[0.68rem] text-white/70">
-                Trusted. Skilled. Reliable.
-              </p>
-            </div>
           </div>
           <p className="mt-8 text-2xl" aria-hidden="true">
             👋
