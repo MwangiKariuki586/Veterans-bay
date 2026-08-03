@@ -35,7 +35,7 @@ describe("workspace sidebar", () => {
     );
   });
 
-  it("renders a lighter client navigation set", () => {
+  it("renders a lighter client navigation set with shared chrome", () => {
     render(<WorkspaceSidebar kind="client" workspaceLabel="Personal" />);
 
     expect(screen.getByRole("link", { name: "Invoices" })).toHaveAttribute(
@@ -45,5 +45,9 @@ describe("workspace sidebar", () => {
     expect(
       screen.getByRole("link", { name: "Quotations" }),
     ).toHaveAttribute("href", "/client/quotations");
+    expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
+      "href",
+      "/help",
+    );
   });
 });

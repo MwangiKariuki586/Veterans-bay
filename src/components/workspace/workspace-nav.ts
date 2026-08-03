@@ -168,6 +168,12 @@ export const shellContextLabel: Record<AuthenticatedShellKind, string> = {
   admin: "Platform workspace",
 };
 
+export const shellKindShortLabel: Record<AuthenticatedShellKind, string> = {
+  client: "Client",
+  professional: "Professional",
+  admin: "Platform",
+};
+
 export const shellHomeHref: Record<AuthenticatedShellKind, string> = {
   client: "/client",
   professional: "/professional",

@@ -32,6 +32,10 @@ import { clearAllClientResourceCaches } from "@/lib/client-resource-cache";
 import { cn } from "@/lib/utils";
 import { getUnreadNotificationCount } from "@/components/notifications/notification-api";
 import { useProfessionalDashboard } from "@/components/workspace/professional-dashboard-context";
+import {
+  shellHomeHref,
+  type AuthenticatedShellKind,
+} from "@/components/workspace/workspace-nav";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 
@@ -84,17 +88,17 @@ function NotificationBell({ authoritativeCount }: { authoritativeCount?: number 
 
 function HeaderSearch({
   className,
-  professional = false,
+  workspace = false,
 }: {
   className?: string;
-  professional?: boolean;
+  workspace?: boolean;
 }) {
   return (
     <form
       action="/marketplace"
       role="search"
       className={cn(
-        professional
+        workspace
           ? "flex h-12 min-w-0 items-center rounded-lg border border-black/10 bg-white px-4 focus-within:border-black/20"
           : "flex h-14 min-w-0 items-center rounded-full border border-black/8 bg-white py-1.5 pr-1.5 pl-5 focus-within:border-black/20",
         className,
@@ -104,7 +108,7 @@ function HeaderSearch({
         name="query"
         aria-label="Search services"
         placeholder={
-          professional
+          workspace
             ? "Search services, bookings, customers..."
             : "Search services, plumbers, electricians..."
         }
@@ -114,7 +118,7 @@ function HeaderSearch({
         type="submit"
         className={cn(
           "grid size-11 shrink-0 place-items-center text-[#071522] outline-none focus-visible:outline-none",
-          professional
+          workspace
             ? "bg-transparent"
             : "rounded-full bg-[#071522] text-white shadow-[0_8px_22px_rgba(7,21,34,0.22)]",
         )}
@@ -130,10 +134,12 @@ function AccountChip({
   displayName,
   href,
   subtitle,
+  dashboardHref = "/workspace/select",
 }: {
   displayName: string;
   href: string;
   subtitle?: string;
+  dashboardHref?: string;
 }) {
   const router = useRouter();
   async function signOut() {
@@ -163,7 +169,7 @@ function AccountChip({
       <ChevronDown className="size-4 shrink-0" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem asChild><Link href="/professional"><Building2 className="size-4" />Dashboard</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild><Link href={dashboardHref}><Building2 className="size-4" />Dashboard</Link></DropdownMenuItem>
         <DropdownMenuItem asChild><Link href={href}><Settings className="size-4" />Switch workspace</Link></DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => void signOut()}><LogOut className="size-4" />Sign out</DropdownMenuItem>
@@ -213,15 +219,21 @@ function SignedInActions({
   displayName,
   className,
   subtitle,
-  professional = false,
+  workspaceKind,
 }: {
   displayName: string;
   className?: string;
   subtitle?: string;
-  professional?: boolean;
+  workspaceKind?: AuthenticatedShellKind;
 }) {
   const dashboard = useProfessionalDashboard();
-  const utilityBadges = professional ? dashboard?.data?.utilityBadges : undefined;
+  const utilityBadges =
+    workspaceKind === "professional"
+      ? dashboard?.data?.utilityBadges
+      : undefined;
+  const dashboardHref = workspaceKind
+    ? shellHomeHref[workspaceKind]
+    : "/workspace/select";
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
       <Link
@@ -232,7 +244,7 @@ function SignedInActions({
         <MessageCircle className="size-[1.15rem]" aria-hidden="true" />
         {utilityBadges?.messages ? <span className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#2f7d18] px-1 type-caption font-bold leading-none text-white">{utilityBadges.messages > 99 ? "99+" : utilityBadges.messages}</span> : null}
       </Link>
-      {professional ? (
+      {workspaceKind === "professional" ? (
         <Link
           href="/professional/calendar"
           className={cn(iconButtonClass, "hidden sm:grid")}
@@ -240,7 +252,7 @@ function SignedInActions({
         >
           <CalendarDays className="size-[1.15rem]" aria-hidden="true" />
         </Link>
-      ) : (
+      ) : workspaceKind !== "admin" ? (
         <Link
           href="/client/saved"
           className={cn(iconButtonClass, "hidden sm:grid")}
@@ -248,13 +260,14 @@ function SignedInActions({
         >
           <Heart className="size-[1.15rem]" aria-hidden="true" />
         </Link>
-      )}
+      ) : null}
       <NotificationBell authoritativeCount={utilityBadges?.notifications} />
       <div className="hidden sm:block">
         <AccountChip
           displayName={displayName}
-          href="/account/profile"
+          href="/workspace/select"
           subtitle={subtitle}
+          dashboardHref={dashboardHref}
         />
       </div>
     </div>
@@ -268,7 +281,7 @@ function SignedInActions({
 export function SiteHeader({
   workspaceContext,
 }: {
-  workspaceContext?: { kind: "professional"; label: string };
+  workspaceContext?: { kind: AuthenticatedShellKind; label: string };
 } = {}) {
   const { data: session, isPending } = authClient.useSession();
   const signedIn = Boolean(session?.user);
@@ -286,7 +299,7 @@ export function SiteHeader({
       <Brand />
       <HeaderSearch
         className="hidden w-full lg:flex"
-        professional={Boolean(workspaceContext)}
+        workspace={Boolean(workspaceContext)}
       />
 
       {isPending ? (
@@ -298,7 +311,7 @@ export function SiteHeader({
         <SignedInActions
           displayName={accountLabel}
           subtitle={workspaceContext ? undefined : "Welcome,"}
-          professional={Boolean(workspaceContext)}
+          workspaceKind={workspaceContext?.kind}
           className="hidden lg:flex"
         />
       ) : (

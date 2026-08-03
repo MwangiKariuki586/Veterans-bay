@@ -24,7 +24,7 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
-`READY FOR REVIEW` — Post-sign-in `/login` shows a workspace skeleton while the primary dashboard resolves, then navigates straight there. Preview remains unchanged.
+`READY FOR REVIEW` — Client and admin workspaces now reuse the professional authenticated shell chrome: fixed viewport with main-only scroll, shared sidebar visual treatment, and workspace-aware header. Nav items remain kind-specific.
 
 ## Current Step
 
