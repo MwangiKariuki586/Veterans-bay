@@ -253,7 +253,7 @@ function SignedInActions({
       <div className="hidden sm:block">
         <AccountChip
           displayName={displayName}
-          href="/workspace/select"
+          href="/account/profile"
           subtitle={subtitle}
         />
       </div>
@@ -380,7 +380,7 @@ export function SiteHeader({
                       href="/workspace/select"
                       className="flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]"
                     >
-                      Workspaces
+                      Dashboard
                     </Link>
                   </SheetClose>
                 </>

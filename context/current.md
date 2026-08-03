@@ -24,7 +24,7 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
-`READY FOR REVIEW` — Professional footer waits for page content readiness (hidden during skeletons/loading panels); Availability uses DetailPageSkeleton instead of a spinner. Preview remains unchanged.
+`READY FOR REVIEW` — Post-sign-in `/login` shows a workspace skeleton while the primary dashboard resolves, then navigates straight there. Preview remains unchanged.
 
 ## Current Step
 

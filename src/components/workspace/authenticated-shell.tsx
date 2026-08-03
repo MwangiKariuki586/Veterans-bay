@@ -113,24 +113,19 @@ export function AuthenticatedShell({
           return item.kind === "platform";
         });
 
-        if (!matching && kind !== "client") {
+        if (!matching) {
           router.replace("/workspace/select");
           return;
         }
 
-        if (matching) {
-          setWorkspaceLabel(matching.label);
-          setCachedResource(WORKSPACE_CACHE_NS, kind, matching.label);
-          await fetch("/api/v1/workspaces/select", {
-            method: "POST",
-            credentials: "include",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ workspaceId: matching.id }),
-          });
-        } else if (data.workspaces[0]) {
-          setWorkspaceLabel(data.workspaces[0].label);
-          setCachedResource(WORKSPACE_CACHE_NS, kind, data.workspaces[0].label);
-        }
+        setWorkspaceLabel(matching.label);
+        setCachedResource(WORKSPACE_CACHE_NS, kind, matching.label);
+        await fetch("/api/v1/workspaces/select", {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ workspaceId: matching.id }),
+        });
 
         setError(null);
         setReady(true);

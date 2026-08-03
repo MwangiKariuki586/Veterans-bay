@@ -61,21 +61,7 @@ export class WorkspaceService {
     const permissionsByRole =
       await this.workspaceRepository.listPermissionKeysForRoleIds(roleIds);
 
-    const workspaces: WorkspaceSummary[] = [
-      {
-        id: buildClientWorkspaceId(profile.id),
-        kind: "client",
-        label: "Client workspace",
-        href: "/client",
-        organisationId: null,
-        membershipId: null,
-        roleKey: null,
-        organisationStatus: null,
-        permissions: [],
-        assignedJobsOnly: false,
-        financialDataAccess: false,
-      },
-    ];
+    const organisationWorkspaces: WorkspaceSummary[] = [];
 
     for (const membership of memberships) {
       if (
@@ -85,7 +71,7 @@ export class WorkspaceService {
         continue;
       }
 
-      workspaces.push({
+      organisationWorkspaces.push({
         id: buildOrganisationWorkspaceId(membership.organisationId),
         kind: "organisation",
         label: membership.organisationName,
@@ -115,26 +101,48 @@ export class WorkspaceService {
       });
     }
 
-    if (platformAssignments.some((item) => item.roleKey === "platform_admin")) {
-      const adminAssignment = platformAssignments.find(
-        (item) => item.roleKey === "platform_admin",
-      );
-      workspaces.push({
-        id: buildPlatformWorkspaceId(),
-        kind: "platform",
-        label: "Platform administration",
-        href: "/admin",
-        organisationId: null,
-        membershipId: null,
-        roleKey: "platform_admin",
-        organisationStatus: null,
-        permissions: adminAssignment
-          ? (permissionsByRole.get(adminAssignment.roleId) ?? [])
-          : [],
-        assignedJobsOnly: false,
-        financialDataAccess: true,
-      });
-    }
+    const adminAssignment = platformAssignments.find(
+      (item) => item.roleKey === "platform_admin",
+    );
+    const platformWorkspace: WorkspaceSummary | null = adminAssignment
+      ? {
+          id: buildPlatformWorkspaceId(),
+          kind: "platform",
+          label: "Platform administration",
+          href: "/admin",
+          organisationId: null,
+          membershipId: null,
+          roleKey: "platform_admin",
+          organisationStatus: null,
+          permissions: permissionsByRole.get(adminAssignment.roleId) ?? [],
+          assignedJobsOnly: false,
+          financialDataAccess: true,
+        }
+      : null;
+
+    // Single-role accounts: organisation members are professionals, not clients.
+    // Platform admins without an organisation also keep the client shell so an
+    // ops account used for marketplace verification can open /client directly.
+    const clientWorkspace: WorkspaceSummary = {
+      id: buildClientWorkspaceId(profile.id),
+      kind: "client",
+      label: "Client workspace",
+      href: "/client",
+      organisationId: null,
+      membershipId: null,
+      roleKey: null,
+      organisationStatus: null,
+      permissions: [],
+      assignedJobsOnly: false,
+      financialDataAccess: false,
+    };
+
+    const workspaces: WorkspaceSummary[] =
+      organisationWorkspaces.length > 0
+        ? organisationWorkspaces
+        : platformWorkspace
+          ? [platformWorkspace, clientWorkspace]
+          : [clientWorkspace];
 
     return {
       accountProfileId: profile.id,
@@ -219,12 +227,20 @@ function unavailable() {
   return new AppError({ code: "WORKSPACE_UNAVAILABLE", message: "The requested workspace is not available.", status: 403 });
 }
 
-export function defaultWorkspaceId(workspaces: WorkspaceSummary[]): string | null {
-  if (workspaces.length === 1) {
-    return workspaces[0]?.id ?? null;
-  }
+export function primaryWorkspace(
+  workspaces: WorkspaceSummary[],
+): WorkspaceSummary | null {
+  const platform = workspaces.find((item) => item.kind === "platform");
+  if (platform) return platform;
 
-  return null;
+  const organisation = workspaces.find((item) => item.kind === "organisation");
+  if (organisation) return organisation;
+
+  return workspaces.find((item) => item.kind === "client") ?? workspaces[0] ?? null;
+}
+
+export function defaultWorkspaceId(workspaces: WorkspaceSummary[]): string | null {
+  return primaryWorkspace(workspaces)?.id ?? null;
 }
 
 export function isValidWorkspaceIdFormat(workspaceId: string): boolean {

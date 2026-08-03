@@ -23,11 +23,28 @@ import { toast } from "sonner";
 
 import { GuestHeader } from "@/components/public/guest-header";
 import { Button } from "@/components/ui/button";
+import { WorkspaceMainSkeleton } from "@/components/ui/workspace-skeletons";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { enterPrimaryWorkspace } from "@/lib/workspace-entry";
 
 export type AuthMode = "signin" | "signup";
 export type SelfServiceAccountType = "client" | "professional";
+
+const WORKSPACE_ENTRY_PATH = "/workspace/select";
+
+async function resolvePostAuthPath(redirectTo: string) {
+  if (redirectTo !== WORKSPACE_ENTRY_PATH) {
+    return redirectTo;
+  }
+
+  try {
+    const workspace = await enterPrimaryWorkspace();
+    return workspace.href;
+  } catch {
+    return WORKSPACE_ENTRY_PATH;
+  }
+}
 
 const people = [
   "/images/header-avatar.png",
@@ -340,13 +357,15 @@ function SignInFace({
       password,
       rememberMe: form.get("remember") === "on",
     });
-    setSubmitting(false);
     if (result.error) {
+      setSubmitting(false);
       toast.error(mapSignInError(result.error));
       return;
     }
     toast.success("Signed in.");
-    router.push(redirectTo);
+    const destination = await resolvePostAuthPath(redirectTo);
+    setSubmitting(false);
+    router.push(destination);
     router.refresh();
   }
 
@@ -849,23 +868,44 @@ export function AuthFlipPanel() {
   const redirectTo =
     requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//")
       ? requestedRedirect
-      : "/workspace/select";
+      : WORKSPACE_ENTRY_PATH;
   const showSignup = pathname === "/register";
 
   useEffect(() => {
-    if (!sessionPending && session) {
-      router.replace(redirectTo);
+    if (sessionPending || !session) {
+      return;
     }
+
+    let cancelled = false;
+    void resolvePostAuthPath(redirectTo).then((destination) => {
+      if (!cancelled) {
+        router.replace(destination);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [redirectTo, router, session, sessionPending]);
 
   if (sessionPending || session) {
-    return null;
+    return (
+      <main
+        className="min-h-screen bg-[radial-gradient(circle_at_top,#fff_0%,#eef3f6_66%,#e7edf0_100%)] px-4 py-8"
+        aria-busy="true"
+        aria-label="Opening your workspace"
+      >
+        <div className="mx-auto max-w-6xl rounded-[22px] border border-black/8 bg-white p-6 shadow-[0_20px_50px_rgba(13,30,43,0.08)] sm:p-8">
+          <WorkspaceMainSkeleton />
+        </div>
+      </main>
+    );
   }
 
   function flipTo(next: AuthMode) {
     const destination = next === "signup" ? "/register" : "/login";
     const suffix =
-      redirectTo !== "/workspace/select"
+      redirectTo !== WORKSPACE_ENTRY_PATH
         ? `?redirect=${encodeURIComponent(redirectTo)}`
         : "";
     router.replace(`${destination}${suffix}`, { scroll: false });

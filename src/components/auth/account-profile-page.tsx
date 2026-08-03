@@ -174,7 +174,7 @@ export function AccountProfilePage() {
               "rounded-full border-black/8",
             )}
           >
-            Workspaces
+            Dashboard
           </Link>
           <Button
             variant="outline"

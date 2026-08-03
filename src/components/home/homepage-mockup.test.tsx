@@ -50,20 +50,30 @@ describe("HomepageMockup role routing", () => {
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/professional"));
   });
 
-  it("opens role selection when no current workspace can be resolved", async () => {
+  it("enters the primary workspace when no current workspace can be resolved", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        json: async () => ({ error: { code: "WORKSPACE_REQUIRED" } }),
-      }),
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          json: async () => ({ error: { code: "WORKSPACE_REQUIRED" } }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: {
+              id: "client:profile-1",
+              kind: "client",
+              href: "/client",
+            },
+          }),
+        }),
     );
 
     render(<HomepageMockup />);
 
-    await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith("/workspace/select"),
-    );
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/client"));
   });
 
   it("uses the focused guest navigation on the public landing page", () => {

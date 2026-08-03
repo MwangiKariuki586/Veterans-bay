@@ -25,6 +25,7 @@ import { GuestHeader } from "@/components/public/guest-header";
 import { StatePanel } from "@/components/ui/state-panel";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { enterPrimaryWorkspace } from "@/lib/workspace-entry";
 import type { WorkspaceSummary } from "@/modules/workspace/types";
 
 const popularServices = [
@@ -164,26 +165,31 @@ export function HomepageMockup() {
     if (isPending || !session) return;
 
     const controller = new AbortController();
-    void fetch("/api/v1/workspaces/current", {
-      credentials: "include",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const body = (await response.json().catch(() => null)) as {
+
+    async function openHome() {
+      try {
+        const current = await fetch("/api/v1/workspaces/current", {
+          credentials: "include",
+          signal: controller.signal,
+        });
+        const body = (await current.json().catch(() => null)) as {
           data?: WorkspaceSummary;
         } | null;
 
-        if (!response.ok || !body?.data?.href) {
-          router.replace("/workspace/select");
+        if (current.ok && body?.data?.href) {
+          router.replace(body.data.href);
           return;
         }
 
-        router.replace(body.data.href);
-      })
-      .catch((cause) => {
+        const workspace = await enterPrimaryWorkspace();
+        router.replace(workspace.href);
+      } catch (cause) {
         if (cause instanceof DOMException && cause.name === "AbortError") return;
         router.replace("/workspace/select");
-      });
+      }
+    }
+
+    void openHome();
 
     return () => controller.abort();
   }, [isPending, router, session]);
@@ -197,7 +203,7 @@ export function HomepageMockup() {
             <StatePanel
               variant="loading"
               title="Opening your workspace"
-              description="Taking you to the homepage for your selected role."
+              description="Taking you to your dashboard."
             />
           </div>
         </div>

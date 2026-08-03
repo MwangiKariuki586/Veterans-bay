@@ -240,12 +240,25 @@ describe("authenticated auth-route guard", () => {
     mocks.sessionPending = false;
   });
 
-  it("hides the auth page and redirects an authenticated user to their workspace entry", async () => {
-    const { container } = render(<AuthFlipPanel />);
+  it("shows a workspace skeleton and redirects an authenticated user to their dashboard", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: { id: "client:profile-1", kind: "client", href: "/client" },
+        }),
+      }),
+    );
 
-    expect(container).toBeEmptyDOMElement();
+    render(<AuthFlipPanel />);
+
+    expect(
+      screen.getByRole("main", { name: "Opening your workspace" }),
+    ).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByRole("heading", { name: "Welcome back" })).not.toBeInTheDocument();
     await waitFor(() => {
-      expect(mocks.replace).toHaveBeenCalledWith("/workspace/select");
+      expect(mocks.replace).toHaveBeenCalledWith("/client");
     });
   });
 });
@@ -259,7 +272,17 @@ describe("account journey sign in", () => {
     mocks.signIn.mockResolvedValue({ data: { user: { id: "user-1" } } });
   });
 
-  it("sends a signed-in user to the role-aware start page", async () => {
+  it("sends a signed-in user straight to their dashboard", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: { id: "client:profile-1", kind: "client", href: "/client" },
+        }),
+      }),
+    );
+
     render(<AuthFlipPanel />);
 
     fireEvent.change(document.querySelector("#signin-email")!, {
@@ -277,7 +300,11 @@ describe("account journey sign in", () => {
         password: "password123",
         rememberMe: true,
       });
-      expect(mocks.push).toHaveBeenCalledWith("/workspace/select");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "/api/v1/workspaces/enter",
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(mocks.push).toHaveBeenCalledWith("/client");
     });
   });
 

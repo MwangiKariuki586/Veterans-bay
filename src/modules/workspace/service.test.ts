@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { IdentityStore } from "../identity/repository";
 import type { WorkspaceRepository } from "./repository";
-import { WorkspaceService } from "./service";
+import { defaultWorkspaceId, WorkspaceService } from "./service";
 import {
   buildClientWorkspaceId,
   buildOrganisationWorkspaceId,
@@ -26,7 +26,7 @@ function profile() {
 }
 
 describe("WorkspaceService", () => {
-  it("lists client, organisation, and platform workspaces from live records", async () => {
+  it("lists organisation workspaces from live membership records", async () => {
     const identityStore: IdentityStore = {
       reconcileProfile: vi.fn(),
       findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
@@ -75,9 +75,7 @@ describe("WorkspaceService", () => {
     const result = await service.listWorkspaces("user-1");
 
     expect(result.workspaces.map((item) => item.id)).toEqual([
-      buildClientWorkspaceId("profile-1"),
       buildOrganisationWorkspaceId("org-1"),
-      buildPlatformWorkspaceId(),
     ]);
     expect(
       result.workspaces.find((item) => item.kind === "organisation"),
@@ -85,6 +83,70 @@ describe("WorkspaceService", () => {
       organisationStatus: "active",
       href: "/professional",
     });
+  });
+
+  it("does not expose a client workspace to organisation members", async () => {
+    const identityStore = {
+      findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
+      findActiveRestrictions: vi.fn().mockResolvedValue([]),
+    } as unknown as IdentityStore;
+    const workspaceRepository = {
+      listActiveOrganisationMemberships: vi.fn().mockResolvedValue([
+        {
+          membershipId: "membership-1",
+          organisationId: "org-1",
+          organisationName: "Bay Repairs",
+          organisationSlug: "bay-repairs",
+          organisationStatus: "active",
+          membershipStatus: "active",
+          roleId: "role-owner",
+          roleKey: "owner",
+          assignedJobsOnly: false,
+          financialDataAccess: true,
+        },
+      ]),
+      listActivePlatformAssignments: vi.fn().mockResolvedValue([]),
+      listPermissionKeysForRoleIds: vi.fn().mockResolvedValue(new Map()),
+    } as unknown as WorkspaceRepository;
+
+    const result = await new WorkspaceService(
+      workspaceRepository,
+      identityStore,
+    ).listWorkspaces("user-1");
+
+    expect(result.workspaces.every((item) => item.kind !== "client")).toBe(true);
+  });
+
+  it("opens platform administration before the client shell for admins", async () => {
+    const identityStore = {
+      findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
+      findActiveRestrictions: vi.fn().mockResolvedValue([]),
+    } as unknown as IdentityStore;
+    const workspaceRepository = {
+      listActiveOrganisationMemberships: vi.fn().mockResolvedValue([]),
+      listActivePlatformAssignments: vi.fn().mockResolvedValue([
+        {
+          assignmentId: "assignment-1",
+          roleId: "role-platform",
+          roleKey: "platform_admin",
+          status: "active",
+        },
+      ]),
+      listPermissionKeysForRoleIds: vi.fn().mockResolvedValue(
+        new Map([["role-platform", ["platform.admin"]]]),
+      ),
+    } as unknown as WorkspaceRepository;
+
+    const result = await new WorkspaceService(
+      workspaceRepository,
+      identityStore,
+    ).listWorkspaces("user-1");
+
+    expect(result.workspaces.map((item) => item.kind)).toEqual([
+      "platform",
+      "client",
+    ]);
+    expect(defaultWorkspaceId(result.workspaces)).toBe(buildPlatformWorkspaceId());
   });
 
   it("routes a pending professional to application status instead of the dashboard", async () => {
@@ -116,7 +178,7 @@ describe("WorkspaceService", () => {
       identityStore,
     ).listWorkspaces("user-1");
 
-    expect(result.workspaces[1]).toMatchObject({
+    expect(result.workspaces[0]).toMatchObject({
       organisationStatus: "pending_review",
       href: "/professional/onboarding/review",
     });

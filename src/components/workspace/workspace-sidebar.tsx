@@ -14,6 +14,7 @@ import { usePathname } from "next/navigation";
 import {
   getWorkspaceNav,
   shellContextLabel,
+  shellHomeHref,
   type AuthenticatedShellKind,
 } from "@/components/workspace/workspace-nav";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,7 @@ export function WorkspaceSidebar({
         aria-label="Workspace"
       >
         <Link
-          href="/workspace/select"
+          href={shellHomeHref.professional}
           className="mb-3 flex items-center gap-3 rounded-xl border border-black/8 bg-[#f8fafb] p-3 lg:hidden"
         >
           <span className="grid size-10 place-items-center rounded-xl bg-[#eef7e8] text-[#287313]">
@@ -64,10 +65,6 @@ export function WorkspaceSidebar({
               Professional
             </span>
           </span>
-          <ChevronDown
-            className="size-4 text-muted-foreground"
-            aria-hidden="true"
-          />
         </Link>
 
         <nav
@@ -151,7 +148,7 @@ export function WorkspaceSidebar({
       aria-label="Workspace"
     >
       <Link
-        href="/workspace/select"
+        href={shellHomeHref[kind]}
         className="mt-3 flex items-center gap-3 rounded-[18px] border border-black/8 bg-white p-3"
       >
         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#eef8c8] text-[#5f8d11]">
@@ -165,10 +162,6 @@ export function WorkspaceSidebar({
             {shellContextLabel[kind]}
           </span>
         </span>
-        <ChevronDown
-          className="size-4 shrink-0 text-[#68717b]"
-          aria-hidden="true"
-        />
       </Link>
 
       <nav
