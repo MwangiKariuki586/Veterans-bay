@@ -89,7 +89,7 @@ function HeroCard() {
           </span>
           <h1
             id="hero-title"
-            className="mt-7 text-[1.75rem] leading-[1.05] font-bold tracking-title text-[#0f1b2d] min-[360px]:text-[1.95rem] sm:mt-8 sm:text-[3.2rem]"
+            className="mt-7 text-[1.75rem] leading-[1.05] font-medium tracking-title text-[#0f1b2d] min-[360px]:text-[1.95rem] sm:mt-8 sm:text-[3.2rem]"
           >
             Find Trusted
             <br />
@@ -155,7 +155,7 @@ function PopularServices() {
       <div className="flex items-center justify-between">
         <h2
           id="popular-heading"
-          className="text-[1rem] font-semibold text-[#0f1b2d]"
+          className="text-[1rem] font-medium text-[#0f1b2d]"
         >
           Popular Services
         </h2>
@@ -207,7 +207,7 @@ function FeaturedProfessional() {
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/25 px-2.5 py-1.5 type-caption font-semibold text-[#5f8d11]">
           <Star className="size-3 fill-current" /> Featured Pro
         </span>
-        <h2 className="mt-4 text-[1.05rem] font-semibold text-[#0f1b2d]">
+        <h2 className="mt-4 text-[1.05rem] font-medium text-[#0f1b2d]">
           Amina K. Electricals
         </h2>
         <p className="mt-2 text-[0.74rem] text-muted-foreground">
@@ -267,7 +267,7 @@ function CategoryPanel() {
       <div className="flex items-center justify-between">
         <h2
           id="categories-heading"
-          className="text-[0.95rem] font-semibold text-[#0f1b2d]"
+          className="text-[0.95rem] font-medium text-[#0f1b2d]"
         >
           Popular Categories
         </h2>
@@ -349,7 +349,7 @@ function FastBooking() {
         <p className="text-[0.64rem] leading-5 text-[#233451] min-[360px]:text-[0.7rem] sm:text-[0.78rem]">
           Why Veterans Bay?
         </p>
-        <h2 className="mt-3 text-[1.05rem] font-semibold leading-[1.08] tracking-title text-[#071a3e] min-[360px]:text-[1.25rem] sm:mt-3.5 sm:text-[1.45rem] lg:text-[1.35rem]">
+        <h2 className="mt-3 text-[1.05rem] font-medium leading-[1.08] tracking-title text-[#071a3e] min-[360px]:text-[1.25rem] sm:mt-3.5 sm:text-[1.45rem] lg:text-[1.35rem]">
           Fast Booking.
           <br />
           Clear Quotes.
