@@ -36,7 +36,7 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-poppins);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
@@ -73,35 +73,35 @@
 @layer utilities {
   .type-marketing-display {
     font-size: clamp(2.5rem, 4vw, 3rem);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.0833;
     letter-spacing: var(--tracking-title);
   }
 
   .type-public-title {
     font-size: clamp(1.75rem, 3vw, 2rem);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.1875;
     letter-spacing: var(--tracking-title);
   }
 
   .type-workspace-title {
     font-size: 1.5rem;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.875rem;
     letter-spacing: var(--tracking-title);
   }
 
   .type-section-title {
     font-size: 1rem;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.5rem;
     letter-spacing: -0.015em;
   }
 
   .type-card-label {
     font-size: 0.8125rem;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.25rem;
   }
 
@@ -119,19 +119,19 @@
 
   .type-caption {
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 400;
     line-height: 1.125rem;
   }
 
   .type-control {
     font-size: 0.8125rem;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.125rem;
   }
 
   .type-metric {
     font-size: 1.5rem;
-    font-weight: 700;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
     line-height: 1.75rem;
     letter-spacing: -0.02em;
@@ -139,7 +139,7 @@
 
   .type-metric-large {
     font-size: 2rem;
-    font-weight: 700;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
     line-height: 2.25rem;
     letter-spacing: -0.025em;
@@ -168,7 +168,7 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), Arial, sans-serif;
+  font-family: var(--font-poppins), Arial, sans-serif;
   font-size: 0.875rem;
   font-synthesis: none;
   font-weight: 400;

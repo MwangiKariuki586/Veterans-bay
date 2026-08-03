@@ -41,6 +41,9 @@ export class DashboardsRepository {
     range: { from: Date; to: Date },
     financialDataAccess: boolean,
   ): Promise<ProfessionalDashboardData> {
+    const periodMs = Math.max(range.to.getTime() - range.from.getTime(), 0);
+    const previousTo = range.from;
+    const previousFrom = new Date(range.from.getTime() - periodMs);
     const databaseStartedAt = performance.now();
     const queryLabels = ["metrics", "recent", "schedule", "series", "team", "profile", "reputation", "actions"];
     const [metricsResult, recentResult, scheduleResult, seriesResult, teamResult, profileResult, reputationResult, actionResult] = await Promise.all([
@@ -57,14 +60,20 @@ export class DashboardsRepository {
           (select count(*)::int from invoices where organisation_id = ${organisationId} and status in ('ISSUED','PARTIALLY_PAID','OVERDUE')) as outstanding_payments,
           (select count(*)::int from invoices where organisation_id = ${organisationId} and status = 'OVERDUE') as overdue_invoices,
           (select coalesce(sum(total_minor), 0)::bigint from invoices where organisation_id = ${organisationId} and status in ('ISSUED','PARTIALLY_PAID','OVERDUE')) as outstanding_invoices_minor,
+          (select min(due_at) from invoices where organisation_id = ${organisationId} and status in ('ISSUED','PARTIALLY_PAID','OVERDUE') and due_at is not null) as next_invoice_due_at,
           (select count(*)::int from warranty_claims wc join warranties w on w.id = wc.warranty_id where w.organisation_id = ${organisationId} and wc.status in ('SUBMITTED','UNDER_REVIEW','ESCALATED','ACCEPTED','RETURN_VISIT_SCHEDULED')) as warranty_claims,
           (select count(*)::int from reviews where organisation_id = ${organisationId} and submitted_at >= ${range.from} and submitted_at < ${range.to}) as recent_reviews,
           (select coalesce(round(avg(overall_rating)::numeric, 2), 0) from reviews where organisation_id = ${organisationId} and status = 'PUBLISHED' and submitted_at >= ${range.from} and submitted_at < ${range.to}) as average_rating,
           (select count(*)::int from jobs where organisation_id = ${organisationId} and status = 'COMPLETED' and completed_at >= ${range.from} and completed_at < ${range.to}) as completed_jobs,
           (select count(*)::int from jobs where organisation_id = ${organisationId} and created_at >= ${range.from} and created_at < ${range.to}) as total_jobs,
           (select coalesce(sum(amount_minor), 0)::bigint from payments where organisation_id = ${organisationId} and status in ('RECORDED','PARTIALLY_ALLOCATED','ALLOCATED') and paid_at >= ${range.from} and paid_at < ${range.to}) as revenue_minor,
+          (select coalesce(sum(amount_minor), 0)::bigint from payments where organisation_id = ${organisationId} and status in ('RECORDED','PARTIALLY_ALLOCATED','ALLOCATED') and paid_at >= ${previousFrom} and paid_at < ${previousTo}) as previous_revenue_minor,
           (select coalesce(round(avg(total_minor)), 0)::bigint from jobs where organisation_id = ${organisationId} and status = 'COMPLETED' and completed_at >= ${range.from} and completed_at < ${range.to}) as average_job_value_minor,
-          (select count(*)::int from notifications where recipient_account_id = ${accountProfileId} and organisation_id = ${organisationId} and read_at is null) as unread_notifications
+          (select coalesce(round(avg(total_minor)), 0)::bigint from jobs where organisation_id = ${organisationId} and status = 'COMPLETED' and completed_at >= ${previousFrom} and completed_at < ${previousTo}) as previous_average_job_value_minor,
+          (select count(*)::int from notifications where recipient_account_id = ${accountProfileId} and organisation_id = ${organisationId} and read_at is null) as unread_notifications,
+          (select count(*)::int from bookings where organisation_id = ${organisationId} and status not in ('CANCELLED','NO_SHOW') and starts_at >= (date_trunc('day', now() at time zone 'Africa/Nairobi') + interval '1 day') at time zone 'Africa/Nairobi' and starts_at < (date_trunc('day', now() at time zone 'Africa/Nairobi') + interval '2 day') at time zone 'Africa/Nairobi') as tomorrow_jobs,
+          (select count(*)::int from bookings where organisation_id = ${organisationId} and status not in ('CANCELLED','NO_SHOW') and starts_at >= date_trunc('week', now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi' and starts_at < (date_trunc('week', now() at time zone 'Africa/Nairobi') + interval '1 week') at time zone 'Africa/Nairobi') as week_jobs,
+          (select count(*)::int from bookings where organisation_id = ${organisationId} and status not in ('CANCELLED','NO_SHOW') and assigned_membership_id is null and starts_at >= date_trunc('day', now() at time zone 'Africa/Nairobi') at time zone 'Africa/Nairobi' and starts_at < (date_trunc('day', now() at time zone 'Africa/Nairobi') + interval '1 day') at time zone 'Africa/Nairobi') as unassigned_today
       `),
       this.db.execute(sql`
         select id, service_name as title, status, updated_at as "updatedAt",
@@ -161,6 +170,14 @@ export class DashboardsRepository {
     const databaseMs = performance.now() - databaseStartedAt;
     const aggregationStartedAt = performance.now();
     const metrics = numeric(metricsResult.rows[0]);
+    const metricsRow = (metricsResult.rows[0] ?? {}) as Record<string, unknown>;
+    const nextInvoiceDueRaw = metricsRow.next_invoice_due_at;
+    const nextInvoiceDueAt =
+      nextInvoiceDueRaw instanceof Date
+        ? nextInvoiceDueRaw.toISOString()
+        : typeof nextInvoiceDueRaw === "string" && nextInvoiceDueRaw
+          ? new Date(nextInvoiceDueRaw).toISOString()
+          : null;
     const totalJobs = metrics.total_jobs ?? 0;
     const completedJobs = metrics.completed_jobs ?? 0;
     const visibleMetrics: Record<string, number | null> = {
@@ -179,7 +196,13 @@ export class DashboardsRepository {
       profile.workingHours && Object.keys(profile.workingHours as object).length > 0, profile.logoAssetId,
       Number(profile.publishedServices) > 0, Number(profile.portfolioImages) > 0, profile.verificationStatus === "verified"];
     const score = Math.round((profileChecks.filter(Boolean).length / profileChecks.length) * 100);
-    const nextAction = !profile.description ? ["Add business description", "/professional/profile"] : Number(profile.portfolioImages) === 0 ? ["Add portfolio photos", "/professional/profile"] : Number(profile.publishedServices) === 0 ? ["Publish a service", "/professional/services"] : ["Review marketplace profile", "/professional/profile"];
+    const nextAction = !profile.description
+      ? ["Add description", "/professional/profile"]
+      : Number(profile.portfolioImages) === 0
+        ? ["Add photos", "/professional/profile"]
+        : Number(profile.publishedServices) === 0
+          ? ["Publish service", "/professional/services"]
+          : ["Review profile", "/professional/profile"];
     const reputation = (reputationResult.rows[0] ?? {}) as Record<string, unknown>;
     const dimensions = (reputation.dimensions ?? {}) as Record<string, unknown>;
     const strengths = Object.entries(dimensions).sort((a, b) => Number(b[1] ?? 0) - Number(a[1] ?? 0)).slice(0, 3).map(([key]) => ({ serviceQuality: "Quality workmanship", communication: "Clear communication", timeliness: "On-time arrival", professionalism: "Professional service", value: "Good value" })[key] ?? key);
@@ -197,12 +220,36 @@ export class DashboardsRepository {
         outstandingInvoices: metrics.outstanding_payments ?? 0, overdueInvoices: metrics.overdue_invoices ?? 0,
         outstandingInvoicesMinor: outstandingMinor, revenueMinor: financialDataAccess ? metrics.revenue_minor ?? 0 : null,
         expectedPaymentsMinor: outstandingMinor, averageJobValueMinor: financialDataAccess ? metrics.average_job_value_minor ?? 0 : null,
+        previousRevenueMinor: financialDataAccess ? metrics.previous_revenue_minor ?? 0 : null,
+        previousAverageJobValueMinor: financialDataAccess ? metrics.previous_average_job_value_minor ?? 0 : null,
+        nextInvoiceDueAt,
       },
       navigationBadges: { enquiries: metrics.new_enquiries ?? 0, quotations: metrics.quotations_awaiting_response ?? 0, invoices: metrics.outstanding_payments ?? 0, reviews: metrics.recent_reviews ?? 0 },
       utilityBadges: { notifications: metrics.unread_notifications ?? 0, messages: 0 },
       profileVisibility: { score, status: score >= 85 ? "Excellent" : score >= 65 ? "Good" : "Needs attention", description: score >= 85 ? "Your profile is highly visible in the marketplace." : "Complete your profile to improve client confidence.", nextAction: nextAction[0], nextActionHref: nextAction[1] },
       actionGroups,
-      schedule: scheduleResult.rows.map((item) => ({ id: String(item.id), timeRange: formatRange(item.startsAt, item.endsAt), serviceName: String(item.serviceName), clientName: String(item.clientName), location: String(item.location), status: String(item.status), assignmentName: String(item.assignmentName), href: `/professional/bookings/${item.id}`, action: item.status === "IN_PROGRESS" ? "Check in" : item.assignmentName === "Unassigned" ? "Assign" : "View" })),
+      schedule: scheduleResult.rows.map((item) => ({
+        id: String(item.id),
+        reference: `BKG-${String(item.id).replace(/-/g, "").slice(0, 4).toUpperCase()}`,
+        timeRange: formatRange(item.startsAt, item.endsAt),
+        serviceName: String(item.serviceName),
+        clientName: String(item.clientName),
+        location: String(item.location),
+        status: String(item.status),
+        assignmentName: String(item.assignmentName),
+        href: `/professional/bookings/${item.id}`,
+        action:
+          item.status === "IN_PROGRESS"
+            ? "Check in"
+            : item.assignmentName === "Unassigned"
+              ? "Assign"
+              : "View",
+      })),
+      scheduleSummary: {
+        tomorrowJobs: metrics.tomorrow_jobs ?? 0,
+        weekJobs: metrics.week_jobs ?? 0,
+        unassignedToday: metrics.unassigned_today ?? 0,
+      },
       performance: { range: { from: range.from.toISOString(), to: range.to.toISOString() }, series: seriesResult.rows.map((item) => ({ day: String(item.day), revenue: financialDataAccess ? Number(item.revenue) : null, jobsCompleted: Number(item.jobsCompleted), enquiries: Number(item.enquiries), quoteConversion: Number(item.quoteConversion) })) },
       teamToday: { members: teamMembers, available: teamMembers.filter((member) => member.status === "available").length, onJobs: teamMembers.filter((member) => member.status === "on_job").length, unavailable: teamMembers.filter((member) => member.status === "unavailable").length, conflicts: 0 },
       marketplaceInsights: buildInsights(profile, metrics),

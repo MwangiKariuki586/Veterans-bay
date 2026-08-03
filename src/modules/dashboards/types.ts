@@ -34,6 +34,9 @@ export interface ProfessionalDashboardData {
     revenueMinor: number | null;
     expectedPaymentsMinor: number | null;
     averageJobValueMinor: number | null;
+    previousRevenueMinor: number | null;
+    previousAverageJobValueMinor: number | null;
+    nextInvoiceDueAt: string | null;
   };
   navigationBadges: {
     enquiries: number;
@@ -56,6 +59,7 @@ export interface ProfessionalDashboardData {
   }>;
   schedule: Array<{
     id: string;
+    reference: string;
     timeRange: string;
     serviceName: string;
     clientName: string;
@@ -65,6 +69,11 @@ export interface ProfessionalDashboardData {
     href: string;
     action: string;
   }>;
+  scheduleSummary: {
+    tomorrowJobs: number;
+    weekJobs: number;
+    unassignedToday: number;
+  };
   performance: {
     range: DashboardRange;
     series: Array<{

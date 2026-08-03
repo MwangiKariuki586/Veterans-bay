@@ -57,7 +57,7 @@ export function WorkspaceSidebar({
             <Store className="size-5" aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-bold">
+            <span className="block truncate text-sm font-semibold">
               {workspaceLabel}
             </span>
             <span className="block type-caption text-muted-foreground">
