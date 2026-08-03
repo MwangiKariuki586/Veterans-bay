@@ -24,7 +24,7 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
-`READY FOR REVIEW` — Client and admin workspaces now reuse the professional authenticated shell chrome: fixed viewport with main-only scroll, shared sidebar visual treatment, and workspace-aware header. Nav items remain kind-specific.
+`READY FOR REVIEW` — Fast Booking now keeps the approved landscape composition at every breakpoint, including 320 px, while preserving the continuous background, phone scale, and soft horizontal image fade.
 
 ## Current Step
 
