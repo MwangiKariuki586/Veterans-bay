@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { StatePanel } from "@/components/ui/state-panel";
+import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
 import { Surface } from "@/components/ui/surface";
 import type {
   BookingDetail as BookingDetailContract,
@@ -120,13 +121,7 @@ export function BookingDetail({
   }
 
   if (!booking && !error) {
-    return (
-      <StatePanel
-        variant="loading"
-        title="Loading booking"
-        description="Retrieving schedule, assignment, policy, and history."
-      />
-    );
+    return <DetailPageSkeleton />;
   }
 
   const backPath =

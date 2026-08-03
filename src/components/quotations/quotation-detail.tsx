@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { StatePanel } from "@/components/ui/state-panel";
+import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
 import { Surface } from "@/components/ui/surface";
 import type {
   QuotationDetail as QuotationDetailContract,
@@ -100,13 +101,7 @@ export function QuotationDetail({
   }
 
   if (!quotation && !error) {
-    return (
-      <StatePanel
-        variant="loading"
-        title="Loading quotation"
-        description="Retrieving the current commercial terms and version history."
-      />
-    );
+    return <DetailPageSkeleton />;
   }
 
   if (quotation && editorMode) {

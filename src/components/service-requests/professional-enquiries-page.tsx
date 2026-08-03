@@ -6,8 +6,12 @@ import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
-import { StatePanel } from "@/components/ui/state-panel";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Surface } from "@/components/ui/surface";
+import {
+  getCachedResource,
+  setCachedResource,
+} from "@/lib/client-resource-cache";
 import type { ClientServiceRequest } from "@/modules/service-requests/types";
 import { requestApi } from "./request-api";
 
@@ -17,15 +21,22 @@ type EnquiryPage = {
 };
 
 export function ProfessionalEnquiriesPage() {
-  const [result, setResult] = useState<EnquiryPage | null>(null);
+  const cached = getCachedResource<EnquiryPage>("enquiries-list", "all");
+  const [result, setResult] = useState<EnquiryPage | null>(cached);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void requestApi<EnquiryPage>("/api/v1/professional/enquiries?pageSize=50")
-      .then(setResult)
+      .then((data) => {
+        setCachedResource("enquiries-list", "all", data);
+        setResult(data);
+        setError(null);
+      })
       .catch((cause: unknown) =>
         setError(
-          cause instanceof Error ? cause.message : "Enquiries could not be loaded.",
+          cause instanceof Error
+            ? cause.message
+            : "Enquiries could not be loaded.",
         ),
       );
   }, []);
@@ -51,12 +62,11 @@ export function ProfessionalEnquiriesPage() {
           description={error}
         />
       ) : !result ? (
-        <StatePanel
-          className="mt-6"
-          variant="loading"
-          title="Loading enquiries"
-          description="Retrieving organisation-scoped requests."
-        />
+        <div className="mt-6 grid gap-4" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
+          ))}
+        </div>
       ) : result.items.length === 0 ? (
         <Surface className="mt-6 border-dashed p-9 text-center shadow-none">
           <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[#eef8c8]">
@@ -77,7 +87,11 @@ export function ProfessionalEnquiriesPage() {
             >
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={request.status === "SUBMITTED" ? "warning" : "neutral"}>
+                  <Badge
+                    variant={
+                      request.status === "SUBMITTED" ? "warning" : "neutral"
+                    }
+                  >
                     {request.status.replaceAll("_", " ")}
                   </Badge>
                   <span className="text-xs text-[#7a838c]">
@@ -95,7 +109,8 @@ export function ProfessionalEnquiriesPage() {
                 </p>
               </div>
               <span className="inline-flex items-center gap-2 text-sm font-semibold">
-                Review <ArrowRight className="size-4 transition group-hover:translate-x-1" />
+                Review{" "}
+                <ArrowRight className="size-4 transition group-hover:translate-x-1" />
               </span>
             </Link>
           ))}

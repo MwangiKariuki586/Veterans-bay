@@ -1,20 +1,36 @@
 "use client";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
+import {
+  getCachedResource,
+  setCachedResource,
+} from "@/lib/client-resource-cache";
 import { cn } from "@/lib/utils";
 import type { CustomerPage } from "@/modules/customers/types";
 import { listCustomers } from "./customer-api";
 
 export function CustomerList() {
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState<CustomerPage | null>(null);
+  const cacheKey = `search:${search}`;
+  const cached = getCachedResource<CustomerPage>("customers-list", cacheKey);
+  const [page, setPage] = useState<CustomerPage | null>(cached);
   const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const timeout = window.setTimeout(() => {
+      const hit = getCachedResource<CustomerPage>(
+        "customers-list",
+        `search:${search}`,
+      );
+      if (hit) setPage(hit);
+
       const query = new URLSearchParams({
         page: "1",
         pageSize: "20",
@@ -22,6 +38,7 @@ export function CustomerList() {
       });
       void listCustomers(query.toString())
         .then((data) => {
+          setCachedResource("customers-list", `search:${search}`, data);
           setPage(data);
           setError(null);
         })
@@ -31,6 +48,7 @@ export function CustomerList() {
     }, 200);
     return () => window.clearTimeout(timeout);
   }, [search]);
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -55,11 +73,11 @@ export function CustomerList() {
           description={error}
         />
       ) : !page ? (
-        <StatePanel
-          variant="loading"
-          title="Loading customers"
-          description="Retrieving organisation customer records."
-        />
+        <div className="grid gap-4 md:grid-cols-2" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
+          ))}
+        </div>
       ) : page.items.length === 0 ? (
         <StatePanel
           title={search ? "No matching customers" : "No customers yet"}

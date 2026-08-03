@@ -27,6 +27,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { StatePanel } from "@/components/ui/state-panel";
+import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
 import { Surface } from "@/components/ui/surface";
 import type { JobDetail as JobDetailRecord } from "@/modules/jobs/types";
 import {
@@ -107,13 +108,7 @@ export function JobDetail({
   }
 
   if (!job && !error) {
-    return (
-      <StatePanel
-        variant="loading"
-        title="Loading job"
-        description="Retrieving scope, assignment, field evidence, and approval history."
-      />
-    );
+    return <DetailPageSkeleton />;
   }
   if (!job) {
     return (

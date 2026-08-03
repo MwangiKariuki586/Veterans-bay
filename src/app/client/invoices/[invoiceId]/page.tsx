@@ -1,5 +1,4 @@
 import { InvoiceDetail } from "@/components/invoices/invoice-detail";
-import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default async function ClientInvoiceDetailPage({
   params,
@@ -8,13 +7,6 @@ export default async function ClientInvoiceDetailPage({
 }) {
   const { invoiceId } = await params;
   return (
-    <AuthenticatedShell
-      kind="client"
-      title="Invoice details"
-      description="Review issued items and manually recorded payments."
-      hideIntro
-    >
-      <InvoiceDetail audience="client" invoiceId={invoiceId} />
-    </AuthenticatedShell>
+    <InvoiceDetail audience="client" invoiceId={invoiceId} />
   );
 }

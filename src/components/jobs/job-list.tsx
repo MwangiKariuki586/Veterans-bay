@@ -2,12 +2,14 @@
 
 import { CalendarDays, CircleDollarSign, UsersRound } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
+import { useCachedResource } from "@/lib/use-cached-resource";
 import { cn } from "@/lib/utils";
 import {
   jobStatuses,
@@ -22,19 +24,22 @@ export function JobList({
   audience: "client" | "professional";
 }) {
   const [status, setStatus] = useState<JobStatus | "ALL">("ALL");
-  const [items, setItems] = useState<JobSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void listJobs(audience, status === "ALL" ? undefined : status)
-      .then((result) => {
-        setItems(result.items);
-        setError(null);
-      })
-      .catch((cause: unknown) =>
-        setError(cause instanceof Error ? cause.message : "Jobs unavailable."),
-      );
-  }, [audience, status]);
+  const load = useCallback(
+    (signal: AbortSignal) =>
+      listJobs(audience, status === "ALL" ? undefined : status).then(
+        (result) => {
+          if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+          return result.items;
+        },
+      ),
+    [audience, status],
+  );
+  const { data: items, error } = useCachedResource<JobSummary[]>({
+    namespace: "jobs-list",
+    key: `${audience}:${status}`,
+    load,
+    errorMessage: "Jobs unavailable.",
+  });
 
   return (
     <div>
@@ -60,10 +65,7 @@ export function JobList({
           <button
             key={item}
             type="button"
-            onClick={() => {
-              setItems(null);
-              setStatus(item);
-            }}
+            onClick={() => setStatus(item)}
             className={cn(
               "min-h-10 shrink-0 rounded-full border px-4 text-xs font-semibold",
               status === item
@@ -85,12 +87,11 @@ export function JobList({
         />
       ) : null}
       {!items && !error ? (
-        <StatePanel
-          className="mt-5"
-          variant="loading"
-          title="Loading jobs"
-          description="Retrieving the latest field and approval state."
-        />
+        <div className="mt-5 grid gap-4" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
+          ))}
+        </div>
       ) : null}
       {items?.length === 0 ? (
         <StatePanel
@@ -164,9 +165,11 @@ function statusVariant(status: JobStatus) {
   if (status === "COMPLETED") return "trust" as const;
   if (["CANCELLED", "DISPUTED"].includes(status)) return "danger" as const;
   if (
-    ["ON_HOLD", "RETURN_VISIT_REQUIRED", "AWAITING_CLIENT_CONFIRMATION"].includes(
-      status,
-    )
+    [
+      "ON_HOLD",
+      "RETURN_VISIT_REQUIRED",
+      "AWAITING_CLIENT_CONFIRMATION",
+    ].includes(status)
   ) {
     return "warning" as const;
   }

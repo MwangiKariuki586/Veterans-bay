@@ -28,6 +28,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { authClient } from "@/lib/auth-client";
+import { clearAllClientResourceCaches } from "@/lib/client-resource-cache";
 import { cn } from "@/lib/utils";
 import { getUnreadNotificationCount } from "@/components/notifications/notification-api";
 import { useProfessionalDashboard } from "@/components/workspace/professional-dashboard-context";
@@ -129,6 +130,7 @@ function AccountChip({
 }) {
   const router = useRouter();
   async function signOut() {
+    clearAllClientResourceCaches();
     await authClient.signOut();
     router.replace("/login");
     router.refresh();

@@ -2,19 +2,21 @@
 
 import { CalendarDays, Clock3, UserRound } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
+import { useCachedResource } from "@/lib/use-cached-resource";
+import { cn } from "@/lib/utils";
 import {
   bookingStatuses,
   type BookingStatus,
   type BookingSummary,
 } from "@/modules/bookings/types";
-import { cn } from "@/lib/utils";
 import { listBookings } from "./booking-api";
 
 export function BookingList({
@@ -23,21 +25,22 @@ export function BookingList({
   audience: "client" | "professional";
 }) {
   const [status, setStatus] = useState<BookingStatus | "ALL">("ALL");
-  const [items, setItems] = useState<BookingSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void listBookings(audience, status === "ALL" ? undefined : status)
-      .then((result) => {
-        setItems(result.items);
-        setError(null);
-      })
-      .catch((cause: unknown) =>
-        setError(
-          cause instanceof Error ? cause.message : "Bookings unavailable.",
-        ),
-      );
-  }, [audience, status]);
+  const load = useCallback(
+    (signal: AbortSignal) =>
+      listBookings(audience, status === "ALL" ? undefined : status).then(
+        (result) => {
+          if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+          return result.items;
+        },
+      ),
+    [audience, status],
+  );
+  const { data: items, error } = useCachedResource<BookingSummary[]>({
+    namespace: "bookings-list",
+    key: `${audience}:${status}`,
+    load,
+    errorMessage: "Bookings unavailable.",
+  });
 
   return (
     <div>
@@ -103,12 +106,11 @@ export function BookingList({
         />
       ) : null}
       {!items && !error ? (
-        <StatePanel
-          className="mt-5"
-          variant="loading"
-          title="Loading bookings"
-          description="Retrieving the latest schedule and assignment state."
-        />
+        <div className="mt-5 grid gap-4" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
+          ))}
+        </div>
       ) : null}
       {items?.length === 0 ? (
         <StatePanel

@@ -1,5 +1,4 @@
 import { ClientRequestForm } from "@/components/service-requests/client-request-form";
-import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default async function NewClientRequestPage({
   searchParams,
@@ -22,13 +21,7 @@ export default async function NewClientRequestPage({
           | "DIRECT_SERVICE_PAGE")
       : "MARKETPLACE_DISCOVERY";
   return (
-    <AuthenticatedShell
-      kind="client"
-      title="New request"
-      description="Describe the service you need."
-      hideIntro
-    >
-      <ClientRequestForm
+    <ClientRequestForm
         initial={{
           source,
           category:
@@ -41,6 +34,5 @@ export default async function NewClientRequestPage({
             typeof query.service === "string" ? query.service : undefined,
         }}
       />
-    </AuthenticatedShell>
   );
 }

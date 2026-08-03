@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/utils";
@@ -82,12 +83,11 @@ export function WarrantyList({
         />
       ) : null}
       {!items && !error ? (
-        <StatePanel
-          className="mt-5"
-          variant="loading"
-          title="Loading warranties"
-          description="Retrieving coverage and claim status."
-        />
+        <div className="mt-5 grid gap-4" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
+          ))}
+        </div>
       ) : null}
       {items?.length === 0 ? (
         <StatePanel

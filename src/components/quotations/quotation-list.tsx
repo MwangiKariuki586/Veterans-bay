@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
 import { formatQuotationMoney } from "./quotation-view";
@@ -69,12 +70,11 @@ export function QuotationList({
           description={error}
         />
       ) : !result ? (
-        <StatePanel
-          className="mt-6"
-          variant="loading"
-          title="Loading quotations"
-          description="Retrieving the latest eligible versions."
-        />
+        <div className="mt-6 grid gap-4" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
+          ))}
+        </div>
       ) : result.items.length === 0 ? (
         <StatePanel
           className="mt-6"

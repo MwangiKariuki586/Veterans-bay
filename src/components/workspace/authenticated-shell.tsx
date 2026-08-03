@@ -22,12 +22,20 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
+import { WorkspaceMainSkeleton } from "@/components/ui/workspace-skeletons";
 import { authClient } from "@/lib/auth-client";
+import {
+  clearAllClientResourceCaches,
+  getCachedResource,
+  setCachedResource,
+} from "@/lib/client-resource-cache";
 import type { WorkspaceSummary } from "@/modules/workspace/types";
 
 export type { AuthenticatedShellKind };
+
+const WORKSPACE_CACHE_NS = "workspace-shell";
+const WORKSPACE_CACHE_TTL_MS = 5 * 60_000;
 
 const WorkspaceShellContext = createContext({
   workspaceLabel: "Workspace",
@@ -51,23 +59,30 @@ async function fetchWorkspaces() {
   return body.data;
 }
 
+function cachedLabelFor(kind: AuthenticatedShellKind) {
+  return getCachedResource<string>(WORKSPACE_CACHE_NS, kind, WORKSPACE_CACHE_TTL_MS);
+}
+
 export function AuthenticatedShell({
   kind,
-  title,
-  description,
+  title = "Workspace",
+  description = "",
   children,
   hideIntro = false,
 }: {
   kind: AuthenticatedShellKind;
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   children: ReactNode;
   hideIntro?: boolean;
 }) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
-  const [workspaceLabel, setWorkspaceLabel] = useState<string>("Workspace");
-  const [ready, setReady] = useState(false);
+  const cachedLabel = cachedLabelFor(kind);
+  const [workspaceLabel, setWorkspaceLabel] = useState<string>(
+    cachedLabel ?? "Workspace",
+  );
+  const [ready, setReady] = useState(Boolean(cachedLabel));
   const [error, setError] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -77,6 +92,7 @@ export function AuthenticatedShell({
     }
 
     if (!session) {
+      clearAllClientResourceCaches();
       router.replace("/login");
       return;
     }
@@ -100,6 +116,7 @@ export function AuthenticatedShell({
 
         if (matching) {
           setWorkspaceLabel(matching.label);
+          setCachedResource(WORKSPACE_CACHE_NS, kind, matching.label);
           await fetch("/api/v1/workspaces/select", {
             method: "POST",
             credentials: "include",
@@ -108,8 +125,10 @@ export function AuthenticatedShell({
           });
         } else if (data.workspaces[0]) {
           setWorkspaceLabel(data.workspaces[0].label);
+          setCachedResource(WORKSPACE_CACHE_NS, kind, data.workspaces[0].label);
         }
 
+        setError(null);
         setReady(true);
       })
       .catch(() => {
@@ -143,11 +162,7 @@ export function AuthenticatedShell({
                 />
                 <main className="min-h-0 min-w-0 overflow-x-clip overflow-y-auto bg-[#f8fafb] p-3 sm:p-5 lg:p-6">
                   {!ready ? (
-                    <StatePanel
-                      variant="loading"
-                      title="Loading workspace"
-                      description="Resolving your session and professional workspace."
-                    />
+                    <WorkspaceMainSkeleton />
                   ) : error ? (
                     <InlineAlert
                       variant="error"
@@ -178,7 +193,7 @@ export function AuthenticatedShell({
           <main className="min-w-0">
             <Surface className={hideIntro ? "overflow-hidden p-5 sm:p-7" : "overflow-hidden p-7 sm:p-9"}>
               {!hideIntro ? <><p className="inline-flex items-center gap-2 rounded-full border border-black/7 bg-[#f7f9fa] px-4 py-2 type-caption text-[#626b75]">Authenticated workspace</p><h1 className="mt-5 type-public-title">{title}</h1><p className="mt-4 max-w-2xl text-base leading-7 text-[#68717b]">{description}</p></> : null}
-              <div className={hideIntro ? undefined : "mt-8"}>{!ready ? <StatePanel variant="loading" title="Loading workspace" description="Resolving your session and eligible workspace access." /> : error ? <InlineAlert variant="error" title="Workspace unavailable" description={error} /> : children}</div>
+              <div className={hideIntro ? undefined : "mt-8"}>{!ready ? <WorkspaceMainSkeleton /> : error ? <InlineAlert variant="error" title="Workspace unavailable" description={error} /> : children}</div>
             </Surface>
           </main>
         </div>

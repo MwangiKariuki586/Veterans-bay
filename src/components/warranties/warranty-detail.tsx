@@ -16,6 +16,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { StatePanel } from "@/components/ui/state-panel";
+import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
 import { Surface } from "@/components/ui/surface";
 import type {
   WarrantyClaim,
@@ -100,13 +101,7 @@ export function WarrantyDetail({
   }
 
   if (!warranty && !error) {
-    return (
-      <StatePanel
-        variant="loading"
-        title="Loading warranty"
-        description="Retrieving coverage, evidence, and claim history."
-      />
-    );
+    return <DetailPageSkeleton />;
   }
   if (!warranty) {
     return (

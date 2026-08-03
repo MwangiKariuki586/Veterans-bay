@@ -6,8 +6,13 @@ import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
+import {
+  getCachedResource,
+  setCachedResource,
+} from "@/lib/client-resource-cache";
 import { cn } from "@/lib/utils";
 import {
   invoiceStatuses,
@@ -22,12 +27,27 @@ export function InvoiceList({
   audience: "client" | "professional";
 }) {
   const [status, setStatus] = useState<InvoiceStatus | "ALL">("ALL");
-  const [items, setItems] = useState<InvoiceSummary[] | null>(null);
+  const cacheKey = `${audience}:${status}`;
+  const [items, setItems] = useState<InvoiceSummary[] | null>(() =>
+    getCachedResource<InvoiceSummary[]>("invoices-list", cacheKey),
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const hit = getCachedResource<InvoiceSummary[]>(
+      "invoices-list",
+      `${audience}:${status}`,
+    );
+    if (hit) setItems(hit);
+    else setItems(null);
+
     void listInvoices(audience, status === "ALL" ? undefined : status)
       .then((result) => {
+        setCachedResource(
+          "invoices-list",
+          `${audience}:${status}`,
+          result.items,
+        );
         setItems(result.items);
         setError(null);
       })
@@ -62,7 +82,6 @@ export function InvoiceList({
             key={item}
             type="button"
             onClick={() => {
-              setItems(null);
               setStatus(item);
             }}
             className={cn(
@@ -84,12 +103,11 @@ export function InvoiceList({
         />
       ) : null}
       {!items && !error ? (
-        <StatePanel
-          className="mt-5"
-          variant="loading"
-          title="Loading invoices"
-          description="Retrieving balances and the latest financial history."
-        />
+        <div className="mt-5 grid gap-4" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
+          ))}
+        </div>
       ) : null}
       {items?.length === 0 ? (
         <StatePanel

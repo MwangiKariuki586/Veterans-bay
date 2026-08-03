@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/utils";
@@ -77,12 +78,11 @@ export function ClientRequestsPage() {
           description={error}
         />
       ) : !result ? (
-        <StatePanel
-          className="mt-6"
-          variant="loading"
-          title="Loading requests"
-          description="Retrieving your latest request activity."
-        />
+        <div className="mt-6 grid gap-4" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
+          ))}
+        </div>
       ) : result.items.length === 0 ? (
         <Surface className="mt-6 border-dashed p-9 text-center shadow-none">
           <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[#eef8c8]">

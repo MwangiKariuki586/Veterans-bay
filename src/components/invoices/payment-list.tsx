@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
 import type { PaymentSummary } from "@/modules/invoices/types";
@@ -25,11 +26,11 @@ export function PaymentList() {
 
   if (!items && !error) {
     return (
-      <StatePanel
-        variant="loading"
-        title="Loading payments"
-        description="Retrieving manual records and allocation totals."
-      />
+      <div className="mt-5 grid gap-4" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
+          ))}
+        </div>
     );
   }
   return (

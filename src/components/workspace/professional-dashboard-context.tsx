@@ -2,6 +2,10 @@
 
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
+import {
+  getCachedResource,
+  setCachedResource,
+} from "@/lib/client-resource-cache";
 import type { ProfessionalDashboardData } from "@/modules/dashboards/types";
 
 type DashboardRangeKey = "month" | "30-days" | "quarter";
@@ -16,6 +20,9 @@ interface ProfessionalDashboardContextValue {
 }
 
 const ProfessionalDashboardContext = createContext<ProfessionalDashboardContextValue | null>(null);
+
+const DASHBOARD_CACHE_NS = "professional-dashboard";
+const DASHBOARD_CACHE_TTL_MS = 60_000;
 
 function datesForRange(range: DashboardRangeKey) {
   const to = new Date();
@@ -32,15 +39,32 @@ function datesForRange(range: DashboardRangeKey) {
 }
 
 export function ProfessionalDashboardProvider({ children, enabled = true }: { children: ReactNode; enabled?: boolean }) {
-  const [data, setData] = useState<ProfessionalDashboardData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<DashboardRangeKey>("month");
+  const initialCached = getCachedResource<ProfessionalDashboardData>(
+    DASHBOARD_CACHE_NS,
+    "month",
+    DASHBOARD_CACHE_TTL_MS,
+  );
+  const [data, setData] = useState<ProfessionalDashboardData | null>(initialCached);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(!initialCached);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
+    const cached = getCachedResource<ProfessionalDashboardData>(
+      DASHBOARD_CACHE_NS,
+      range,
+      DASHBOARD_CACHE_TTL_MS,
+    );
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     const dates = datesForRange(range);
     void fetch(`/api/v1/professional/dashboard?${new URLSearchParams(dates)}`, {
       cache: "no-store",
@@ -50,6 +74,7 @@ export function ProfessionalDashboardProvider({ children, enabled = true }: { ch
       .then(async (response) => {
         const body = (await response.json().catch(() => null)) as { data?: ProfessionalDashboardData; error?: { message?: string } } | null;
         if (!response.ok || !body?.data) throw new Error(body?.error?.message ?? "Dashboard data could not be loaded.");
+        setCachedResource(DASHBOARD_CACHE_NS, range, body.data);
         setData(body.data);
         setError(null);
       })
@@ -63,8 +88,20 @@ export function ProfessionalDashboardProvider({ children, enabled = true }: { ch
     return () => controller.abort();
   }, [enabled, range, refreshKey]);
 
-  const changeRange = useCallback((nextRange: DashboardRangeKey) => { setLoading(true); setRange(nextRange); }, []);
-  const refresh = useCallback(() => { setLoading(true); setRefreshKey((key) => key + 1); }, []);
+  const changeRange = useCallback((nextRange: DashboardRangeKey) => {
+    const cached = getCachedResource<ProfessionalDashboardData>(
+      DASHBOARD_CACHE_NS,
+      nextRange,
+      DASHBOARD_CACHE_TTL_MS,
+    );
+    if (cached) setData(cached);
+    setLoading(!cached);
+    setRange(nextRange);
+  }, []);
+  const refresh = useCallback(() => {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
+  }, []);
   const value = useMemo(() => ({ data, error, loading, range, setRange: changeRange, refresh }), [changeRange, data, error, loading, range, refresh]);
   return <ProfessionalDashboardContext.Provider value={value}>{children}</ProfessionalDashboardContext.Provider>;
 }

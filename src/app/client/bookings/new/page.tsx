@@ -1,5 +1,4 @@
 import { BookingStart } from "@/components/bookings/booking-start";
-import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
 
 export default async function NewClientBookingPage({
   searchParams,
@@ -8,13 +7,7 @@ export default async function NewClientBookingPage({
 }) {
   const query = await searchParams;
   return (
-    <AuthenticatedShell
-      kind="client"
-      title="Book a service"
-      description="Choose an eligible time and acknowledge the schedule policy."
-      hideIntro
-    >
-      <BookingStart
+    <BookingStart
         professionalSlug={
           typeof query.professionalSlug === "string"
             ? query.professionalSlug
@@ -41,6 +34,5 @@ export default async function NewClientBookingPage({
             : undefined
         }
       />
-    </AuthenticatedShell>
   );
 }

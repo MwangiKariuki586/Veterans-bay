@@ -36,6 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
+import { ProfessionalDashboardSkeleton } from "@/components/ui/workspace-skeletons";
 import { useWorkspaceShell } from "@/components/workspace/authenticated-shell";
 import { useProfessionalDashboard } from "@/components/workspace/professional-dashboard-context";
 import { cn } from "@/lib/utils";
@@ -70,13 +71,7 @@ export function ProfessionalDashboard() {
     useState<PerformanceKey>("revenue");
 
   if (!dashboard || (dashboard.loading && !dashboard.data))
-    return (
-      <StatePanel
-        variant="loading"
-        title="Preparing your business dashboard"
-        description="Bringing together current enquiries, work, team, profile, and reputation data."
-      />
-    );
+    return <ProfessionalDashboardSkeleton />;
   if (!dashboard.data)
     return (
       <StatePanel

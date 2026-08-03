@@ -12,7 +12,12 @@ import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
+import { DetailPageSkeleton, ListPageSkeleton } from "@/components/ui/workspace-skeletons";
 import { cn } from "@/lib/utils";
+import {
+  getCachedResource,
+  setCachedResource,
+} from "@/lib/client-resource-cache";
 import type {
   ManagedImageAsset,
   ProfessionalServiceSummary,
@@ -27,21 +32,31 @@ const fieldClass =
   "min-h-12 w-full rounded-2xl border border-black/8 bg-white px-4 py-3 text-sm outline-none focus:border-[#071522]/35";
 
 export function ServiceCatalogue() {
-  const [services, setServices] = useState<ProfessionalServiceSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedResource<ProfessionalServiceSummary[]>(
+    "professional-services",
+    "list",
+  );
+  const [services, setServices] = useState<ProfessionalServiceSummary[]>(
+    cached ?? [],
+  );
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void api<ProfessionalServiceSummary[]>("/api/v1/professional/services")
-      .then(setServices)
+      .then((items) => {
+        setCachedResource("professional-services", "list", items);
+        setServices(items);
+        setError(null);
+      })
       .catch((cause) =>
         setError(cause instanceof Error ? cause.message : "Unable to load services."),
       )
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return <StatePanel variant="loading" title="Loading services" description="Retrieving the organisation’s service catalogue." />;
+  if (loading && services.length === 0) {
+    return <ListPageSkeleton actions={1} />;
   }
   if (error) {
     return <StatePanel variant="error" title="Services unavailable" description={error} />;
@@ -253,7 +268,7 @@ export function ServiceEditor({ serviceId }: { serviceId: string }) {
     }
   }
 
-  if (loading) return <StatePanel variant="loading" title="Loading service" description="Retrieving the latest service details." />;
+  if (loading) return <DetailPageSkeleton />;
   if (!service || !form) return <StatePanel variant="error" title="Service unavailable" description={error ?? "This service could not be found."} />;
   const published = service.status === "published";
   const busy = action !== null;
