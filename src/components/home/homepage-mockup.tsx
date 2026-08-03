@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Droplets,
   PaintRoller,
-  Plus,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -193,14 +192,14 @@ function PopularServices() {
 function FeaturedProfessional() {
   return (
     <Link
-      href="/marketplace"
+      href="/professionals/amina-k-electricals"
       className="relative overflow-hidden rounded-[28px] border border-black/8 bg-[#f4f6f8] p-5 lg:col-start-2 lg:row-start-2"
     >
       <Image
-        src="/images/featured-amina.png"
+        src="/images/featured-amina-electrician.png"
         alt="Featured professional Amina K. Electricals"
         fill
-        sizes="30vw"
+        sizes="(min-width: 1024px) 15vw, (min-width: 640px) 38vw, 58vw"
         className="object-contain object-[88%_center]"
       />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,#f4f6f8_0%,rgba(244,246,248,.96)_42%,rgba(244,246,248,0)_72%)]" />
@@ -222,9 +221,6 @@ function FeaturedProfessional() {
         </p>
       </div>
       <span className="absolute right-4 bottom-4 z-10 flex gap-2">
-        <span className="grid size-10 place-items-center rounded-full bg-white shadow-[0_8px_22px_rgba(9,22,34,0.12)]">
-          <Plus className="size-4" />
-        </span>
         <span className="grid size-10 place-items-center rounded-full bg-white shadow-[0_8px_22px_rgba(9,22,34,0.12)]">
           <ArrowRight className="size-[1.05rem]" />
         </span>

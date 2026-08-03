@@ -93,5 +93,8 @@ describe("HomepageMockup role routing", () => {
     );
     expect(screen.queryByRole("link", { name: "Contact support" })).not.toBeInTheDocument();
     expect(screen.queryByRole("search")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Featured professional Amina K\. Electricals/i }),
+    ).toHaveAttribute("href", "/professionals/amina-k-electricals");
   });
 });

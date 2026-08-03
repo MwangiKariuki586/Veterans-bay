@@ -24,7 +24,7 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
-`READY FOR REVIEW` — The hero social row and decorative carousel arrows are removed; the remaining content is vertically centred to use the full card height without a large empty lower area, while the approved image treatment and CTA behavior remain unchanged.
+`VERIFICATION PENDING` — The Featured Professional card now routes directly to Amina K. Electricals' public professional profile instead of the generic marketplace, and the destination is protected by a focused component assertion. The local public API does not yet contain a published `amina-k-electricals` profile record.
 
 ## Current Step
 
