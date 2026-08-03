@@ -42,7 +42,7 @@ export function JobList({
         <p className="text-sm font-semibold text-[#5f8d11]">
           Service fulfilment
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">
+        <h1 className="mt-2 text-3xl font-bold tracking-title">
           {audience === "client" ? "My jobs" : "Active jobs"}
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">

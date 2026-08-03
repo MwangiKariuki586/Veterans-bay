@@ -44,7 +44,7 @@ export function AuthCard({
           <p className="mt-8 text-2xl" aria-hidden="true">
             👋
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em]">{title}</h1>
+          <h1 className="mt-2 text-3xl font-bold tracking-title">{title}</h1>
           <p className="mt-2 max-w-sm text-sm leading-6 text-white/75">{subtitle}</p>
         </div>
       </div>

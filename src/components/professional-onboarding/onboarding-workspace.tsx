@@ -479,7 +479,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
   const reviewHeader = (
     <>
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5f8d11]">Trusted. Skilled. Reliable.</p>
-      <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">{pageTitle}</h1>
+      <h1 className="mt-3 text-3xl font-bold tracking-title sm:text-4xl">{pageTitle}</h1>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-[#68717b]">
         {pendingReview
           ? "Your application is complete and locked while an administrator reviews it. The decision will appear on this page."
@@ -513,7 +513,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
 
           <Surface className="overflow-hidden p-6 sm:p-9">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5f8d11]">Trusted. Skilled. Reliable.</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">{pageTitle}</h1>
+            <h1 className="mt-3 text-3xl font-bold tracking-title sm:text-4xl">{pageTitle}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[#68717b]">Save your progress at any time. Private verification evidence is visible only to authorised reviewers.</p>
 
             {error ? <InlineAlert className="mt-6" variant="error" title="Check your application details" description={error} /> : null}

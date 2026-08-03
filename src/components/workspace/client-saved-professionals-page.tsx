@@ -107,7 +107,7 @@ export function ClientSavedProfessionalsPage() {
       </nav>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-[-0.045em]">
+          <h1 className="text-3xl font-bold tracking-title">
             Saved professionals
           </h1>
           <p className="mt-2 text-sm leading-6 text-[#68717b]">
@@ -198,7 +198,7 @@ export function ClientSavedProfessionalsPage() {
                         <Trash2 className="size-4" aria-hidden="true" />
                       </Button>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-[0.68rem] font-semibold">
+                    <div className="mt-3 flex flex-wrap gap-2 type-caption font-semibold">
                       {item.verified ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 text-[#5f8d11]">
                           <BadgeCheck className="size-3.5" aria-hidden="true" />

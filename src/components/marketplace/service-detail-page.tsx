@@ -110,7 +110,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                   {service.tag}
                 </span>
               </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-[-0.04em]">
+              <h1 className="mt-4 text-3xl font-bold tracking-title">
                 {service.serviceName}
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
@@ -121,7 +121,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                     ({service.reviews} reviews)
                   </span>
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 text-[0.68rem] font-semibold text-[#5f8d11]">
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 type-caption font-semibold text-[#5f8d11]">
                   <BadgeCheck className="size-3.5" /> Verified
                 </span>
               </div>
@@ -147,7 +147,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                     className="rounded-2xl border border-black/8 px-3 py-3 text-center"
                   >
                     <Icon className="mx-auto size-4 text-[#5f8d11]" />
-                    <p className="mt-2 text-[0.68rem] font-semibold">{label}</p>
+                    <p className="mt-2 type-caption font-semibold">{label}</p>
                   </div>
                 ))}
               </div>
@@ -322,7 +322,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
           <Surface className="p-5 shadow-none">
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-bold">About the Provider</h2>
-              <span className="rounded-full bg-[#eef8c8] px-2 py-0.5 text-[0.62rem] font-semibold text-[#5f8d11]">
+              <span className="rounded-full bg-[#eef8c8] px-2 py-0.5 type-caption font-semibold text-[#5f8d11]">
                 Verified Professional
               </span>
             </div>
@@ -350,19 +350,19 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
             </div>
             <dl className="mt-5 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-2xl bg-[#f7f9fa] px-2 py-3">
-                <dt className="text-[0.62rem] text-[#68717b]">Jobs</dt>
+                <dt className="type-caption text-[#68717b]">Jobs</dt>
                 <dd className="mt-1 text-sm font-bold">
                   {service.provider.jobsCompleted}
                 </dd>
               </div>
               <div className="rounded-2xl bg-[#f7f9fa] px-2 py-3">
-                <dt className="text-[0.62rem] text-[#68717b]">On-time</dt>
+                <dt className="type-caption text-[#68717b]">On-time</dt>
                 <dd className="mt-1 text-sm font-bold">
                   {service.provider.onTimeRate}
                 </dd>
               </div>
               <div className="rounded-2xl bg-[#f7f9fa] px-2 py-3">
-                <dt className="text-[0.62rem] text-[#68717b]">Rating</dt>
+                <dt className="type-caption text-[#68717b]">Rating</dt>
                 <dd className="mt-1 text-sm font-bold">
                   {service.provider.rating}
                 </dd>

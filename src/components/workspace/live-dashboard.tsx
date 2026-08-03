@@ -131,7 +131,7 @@ export function LiveDashboard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-trust">{config.eyebrow}</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">{config.title}</h1>
+          <h1 className="mt-2 text-3xl font-bold tracking-title sm:text-4xl">{config.title}</h1>
         </div>
         <Badge variant="info">
           Updated {new Date(data.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}

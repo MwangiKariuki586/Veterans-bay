@@ -52,7 +52,7 @@ export function ServiceCatalogue() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-[#5f8d11]">Service catalogue</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">Services clients can request</h1>
+          <h1 className="mt-2 text-3xl font-bold tracking-title">Services clients can request</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">Create clear service offers, keep incomplete work as drafts, and publish only when every required detail is ready.</p>
         </div>
         <Link href="/professional/services/new" className={buttonVariants({ variant: "secondary" })}>
@@ -260,7 +260,7 @@ export function ServiceEditor({ serviceId }: { serviceId: string }) {
 
   return <div className="space-y-7">
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div><p className="text-sm font-semibold text-[#5f8d11]">Service catalogue</p><h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">{service.name}</h1><p className="mt-2 text-sm text-[#68717b]">Version {service.version} &middot; <span className="capitalize">{service.status}</span></p></div>
+      <div><p className="text-sm font-semibold text-[#5f8d11]">Service catalogue</p><h1 className="mt-2 text-3xl font-bold tracking-title">{service.name}</h1><p className="mt-2 text-sm text-[#68717b]">Version {service.version} &middot; <span className="capitalize">{service.status}</span></p></div>
       <Link href="/professional/services" className={buttonVariants({ variant: "outline" })}>Back to services</Link>
     </div>
     {published ? <InlineAlert variant="success" title="This service is public" description="Unpublish it before changing public details. The current publication snapshot remains preserved." /> : null}
@@ -353,7 +353,7 @@ export function CreateServiceForm() {
     <form onSubmit={submit} className="space-y-7">
       <div>
         <p className="text-sm font-semibold text-[#5f8d11]">New service</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">Create a service draft</h1>
+        <h1 className="mt-2 text-3xl font-bold tracking-title">Create a service draft</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">Start with what you know. This remains private until it passes publication checks and you choose to publish it.</p>
       </div>
       {error ? <InlineAlert title="Check the service details" description={error} /> : null}

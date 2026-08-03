@@ -381,7 +381,7 @@ export function MarketplacePage() {
 
       <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
         <div>
-          <h1 className="text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
+          <h1 className="text-3xl font-bold tracking-title sm:text-4xl">
             Find Services
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -887,7 +887,7 @@ function MarketplaceCard({
               <Wrench className="size-9 text-[#5f8d11]" aria-hidden="true" />
             </span>
           )}
-          <span className="absolute top-3 left-3 rounded-full bg-primary px-2.5 py-1 text-[0.65rem] font-semibold">
+          <span className="absolute top-3 left-3 rounded-full bg-primary px-2.5 py-1 type-caption font-semibold">
             {service.category}
           </span>
         </Link>
@@ -928,12 +928,12 @@ function MarketplaceCard({
             </button>
           </div>
           {service.provider.verified ? (
-            <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 text-[0.65rem] font-semibold text-[#5f8d11]">
+            <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 type-caption font-semibold text-[#5f8d11]">
               <BadgeCheck className="size-3.5" aria-hidden="true" />
               Verified
             </span>
           ) : (
-            <span className="mt-3 inline-flex rounded-full bg-muted px-2.5 py-1 text-[0.65rem] font-semibold text-muted-foreground">
+            <span className="mt-3 inline-flex rounded-full bg-muted px-2.5 py-1 type-caption font-semibold text-muted-foreground">
               Not yet verified
             </span>
           )}
@@ -946,7 +946,7 @@ function MarketplaceCard({
           </p>
           <div className="mt-5 flex items-end justify-between gap-3 border-t border-black/8 pt-4">
             <div>
-              <p className="text-[0.65rem] text-[#68717b]">Price</p>
+              <p className="type-caption text-[#68717b]">Price</p>
               <p className="text-sm font-bold">{formatPrice(service)}</p>
             </div>
             <span className="grid size-10 place-items-center rounded-full bg-primary" aria-hidden="true">

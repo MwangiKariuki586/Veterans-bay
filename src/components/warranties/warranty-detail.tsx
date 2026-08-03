@@ -136,7 +136,7 @@ export function WarrantyDetail({
           >
             {warranty.status}
           </Badge>
-          <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em]">
+          <h1 className="mt-3 text-3xl font-bold tracking-title">
             {warranty.serviceName}
           </h1>
           <p className="mt-2 text-sm text-[#68717b]">

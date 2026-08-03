@@ -217,7 +217,7 @@ function TeamHeader({ view }: { view: TeamWorkspaceView }) {
         <p className="mt-5 text-xs font-bold tracking-[0.18em] text-[#5f8d11] uppercase">
           Organisation administration
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">{title}</h1>
+        <h1 className="mt-2 text-3xl font-bold tracking-title sm:text-4xl">{title}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[#68717b]">{description}</p>
       </div>
       {view === "member" ? (

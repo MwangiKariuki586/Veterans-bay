@@ -10,6 +10,8 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
+  fallback: ["Arial", "sans-serif"],
+  adjustFontFallback: true,
 });
 
 export const metadata: Metadata = {
@@ -25,7 +27,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased`}>
+      <body className={`${inter.variable} ${inter.className} antialiased`}>
         <Providers>
           {children}
         </Providers>

@@ -150,7 +150,7 @@ export function AccountProfilePage() {
           <span className="mx-2">›</span>
           <span className="text-foreground">Account Profile</span>
         </nav>
-        <h1 className="mt-4 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
+        <h1 className="mt-4 text-3xl font-bold tracking-title sm:text-4xl">
           Account Profile
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -213,10 +213,10 @@ export function AccountProfilePage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-2xl font-bold tracking-[-0.03em]">
+                      <h2 className="text-2xl font-bold tracking-title">
                         {profile.displayName}
                       </h2>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 text-[0.68rem] font-semibold text-[#5f8d11]">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 type-caption font-semibold text-[#5f8d11]">
                         <ShieldCheck className="size-3.5" aria-hidden="true" />
                         Verified
                       </span>
@@ -370,7 +370,7 @@ export function AccountProfilePage() {
                       <p className="font-semibold">Two-Factor Authentication</p>
                       <p className="mt-1 text-[#68717b]">Not configured yet</p>
                     </div>
-                    <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[0.68rem] font-semibold">
+                    <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 type-caption font-semibold">
                       Off
                     </span>
                   </div>
@@ -445,7 +445,7 @@ export function AccountProfilePage() {
                       <p className="font-semibold">Visa •••• 4242</p>
                       <p className="text-xs text-[#68717b]">Fixture card</p>
                     </div>
-                    <span className="ml-auto rounded-full bg-[#eef8c8] px-2 py-0.5 text-[0.65rem] font-semibold text-[#5f8d11]">
+                    <span className="ml-auto rounded-full bg-[#eef8c8] px-2 py-0.5 type-caption font-semibold text-[#5f8d11]">
                       Default
                     </span>
                   </div>

@@ -74,7 +74,7 @@ export function BecomeProfessionalPage() {
           <Surface className="overflow-hidden p-0 shadow-none">
             <div className="grid gap-6 p-6 sm:grid-cols-[1.1fr_0.9fr] sm:p-8">
               <div>
-                <h1 className="text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
+                <h1 className="text-3xl font-bold tracking-title sm:text-4xl">
                   Become a Professional
                 </h1>
                 <p className="mt-4 text-sm leading-6 text-[#68717b]">
@@ -137,7 +137,7 @@ export function BecomeProfessionalPage() {
               />
               <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,21,34,0.88),rgba(7,21,34,0.45))]" />
               <div className="relative z-10 max-w-xl p-7 text-white sm:p-9">
-                <h2 className="text-2xl font-bold tracking-[-0.03em]">
+                <h2 className="text-2xl font-bold tracking-title">
                   Ready to Grow Your Business?
                 </h2>
                 <p className="mt-3 text-sm text-white/80">

@@ -6,6 +6,7 @@ import { parseQuery } from "../../platform/http/validation";
 import { permissionKeys } from "../../platform/permissions/keys";
 import {
   requirePermissionMiddleware,
+  requireProfessionalDashboardMiddleware,
   requireSessionMiddleware,
   requireWorkspaceMiddleware,
 } from "../../workers/api/middleware/authorization";
@@ -35,8 +36,7 @@ export function createDashboardRoutes() {
 
   routes.get(
     "/v1/professional/dashboard",
-    requireSessionMiddleware,
-    requireWorkspaceMiddleware,
+    requireProfessionalDashboardMiddleware,
     requirePermissionMiddleware(permissionKeys.organisationView),
     async (context) => {
       const selection = context.get("workspaceSelection");
@@ -48,6 +48,7 @@ export function createDashboardRoutes() {
       return withRepository(context, (repository) =>
         repository.professional(
           organisationId,
+          selection.accountProfileId,
           range,
           selection.workspace.financialDataAccess &&
             selection.workspace.permissions.includes(
@@ -91,17 +92,29 @@ async function withRepository<T>(
   context: {
     get(key: "environment"): { DATABASE_URL: string };
     get(key: "requestId"): string;
+    get(key: "databaseClient"): ReturnType<typeof createDatabaseClient> | undefined;
+    header(name: string, value: string): void;
     json(value: unknown): Response;
   },
   action: (repository: DashboardsRepository) => Promise<T>,
 ) {
-  const client = createDatabaseClient(context.get("environment").DATABASE_URL);
+  const sharedClient = context.get("databaseClient");
+  const client = sharedClient ?? createDatabaseClient(context.get("environment").DATABASE_URL);
+  const applicationStartedAt = performance.now();
   try {
+    const data = await action(new DashboardsRepository(client.db));
+    if (data && typeof data === "object" && "serverTiming" in data) {
+      const timing = (data as { serverTiming?: { databaseMs: number; aggregationMs: number } }).serverTiming;
+      if (timing) {
+        context.header("Server-Timing", `db;dur=${timing.databaseMs.toFixed(1)}, aggregate;dur=${timing.aggregationMs.toFixed(1)}, app;dur=${(performance.now() - applicationStartedAt).toFixed(1)}`);
+        delete (data as { serverTiming?: unknown }).serverTiming;
+      }
+    }
     return context.json({
-      data: await action(new DashboardsRepository(client.db)),
+      data,
       requestId: context.get("requestId"),
     });
   } finally {
-    await client.close();
+    if (!sharedClient) await client.close();
   }
 }

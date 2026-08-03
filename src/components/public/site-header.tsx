@@ -8,6 +8,9 @@ import {
   Menu,
   MessageCircle,
   Search,
+  LogOut,
+  Settings,
+  Building2,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,11 +30,15 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { getUnreadNotificationCount } from "@/components/notifications/notification-api";
+import { useProfessionalDashboard } from "@/components/workspace/professional-dashboard-context";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
 
-function NotificationBell() {
+function NotificationBell({ authoritativeCount }: { authoritativeCount?: number }) {
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
 
   useEffect(() => {
+    if (authoritativeCount !== undefined) return;
     let active = true;
     const refresh = () =>
       void getUnreadNotificationCount()
@@ -47,7 +54,8 @@ function NotificationBell() {
       active = false;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [authoritativeCount]);
+  const count = authoritativeCount ?? unreadCount;
 
   return (
     <Link
@@ -55,18 +63,18 @@ function NotificationBell() {
       className={cn(iconButtonClass, "relative hidden sm:grid")}
       aria-label="Notifications"
       title={
-        unreadCount
-          ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
+        count
+          ? `${count} unread notification${count === 1 ? "" : "s"}`
           : "Notifications"
       }
     >
       <Bell className="size-[1.15rem]" aria-hidden="true" />
-      {unreadCount ? (
+      {count ? (
         <span
-          className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#7cb518] px-1 text-[0.6rem] font-bold leading-none text-white"
+          className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#7cb518] px-1 type-caption font-bold leading-none text-white"
           aria-hidden="true"
         >
-          {unreadCount > 99 ? "99+" : unreadCount}
+          {count > 99 ? "99+" : count}
         </span>
       ) : null}
     </Link>
@@ -85,7 +93,7 @@ function HeaderSearch({
       action="/marketplace"
       role="search"
       className={cn(
-        "flex h-14 min-w-0 items-center rounded-full border border-black/8 bg-white py-1.5 pr-1.5 pl-5",
+        professional ? "flex h-12 min-w-0 items-center rounded-lg border border-black/10 bg-white px-4" : "flex h-14 min-w-0 items-center rounded-full border border-black/8 bg-white py-1.5 pr-1.5 pl-5",
         className,
       )}
     >
@@ -97,11 +105,11 @@ function HeaderSearch({
             ? "Search services, bookings, customers..."
             : "Search services, plumbers, electricians..."
         }
-        className="min-w-0 flex-1 bg-transparent text-[0.78rem] outline-none placeholder:text-[#7a8188]"
+        className="min-w-0 flex-1 bg-transparent type-workspace-body outline-none placeholder:text-[#7a8188]"
       />
       <button
         type="submit"
-        className="grid size-11 shrink-0 place-items-center rounded-full bg-[#071522] text-white shadow-[0_8px_22px_rgba(7,21,34,0.22)]"
+        className={cn("grid size-11 shrink-0 place-items-center text-[#071522]", professional ? "bg-transparent" : "rounded-full bg-[#071522] text-white shadow-[0_8px_22px_rgba(7,21,34,0.22)]")}
         aria-label="Search"
       >
         <Search className="size-[1.15rem]" aria-hidden="true" />
@@ -119,11 +127,15 @@ function AccountChip({
   href: string;
   subtitle?: string;
 }) {
+  const router = useRouter();
+  async function signOut() {
+    await authClient.signOut();
+    router.replace("/login");
+    router.refresh();
+  }
   return (
-    <Link
-      href={href}
-      className="ml-2 flex h-14 items-center gap-3 rounded-full border border-black/8 bg-white px-2.5 pr-4"
-    >
+    <DropdownMenu>
+      <DropdownMenuTrigger className="ml-2 flex h-14 items-center gap-3 rounded-full border border-black/8 bg-white px-2.5 pr-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary">
       <Image
         src="/images/header-avatar.png"
         alt=""
@@ -131,12 +143,19 @@ function AccountChip({
         height={40}
         className="size-10 rounded-full object-cover"
       />
-      <span className="grid min-w-[70px] text-[0.76rem] leading-tight">
-        <span className="text-[0.64rem] text-muted-foreground">{subtitle}</span>
+      <span className="grid min-w-[70px] type-caption leading-tight">
+        <span className="type-caption text-muted-foreground">{subtitle}</span>
         <span className="truncate font-semibold">{displayName}</span>
       </span>
       <ChevronDown className="size-4 shrink-0" aria-hidden="true" />
-    </Link>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem asChild><Link href="/professional"><Building2 className="size-4" />Dashboard</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild><Link href={href}><Settings className="size-4" />Switch workspace</Link></DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => void signOut()}><LogOut className="size-4" />Sign out</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -188,14 +207,17 @@ function SignedInActions({
   subtitle?: string;
   professional?: boolean;
 }) {
+  const dashboard = useProfessionalDashboard();
+  const utilityBadges = professional ? dashboard?.data?.utilityBadges : undefined;
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
       <Link
         href="/messages"
-        className={cn(iconButtonClass, "hidden sm:grid")}
+        className={cn(iconButtonClass, "relative hidden sm:grid")}
         aria-label="Messages"
       >
         <MessageCircle className="size-[1.15rem]" aria-hidden="true" />
+        {utilityBadges?.messages ? <span className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#2f7d18] px-1 type-caption font-bold leading-none text-white">{utilityBadges.messages > 99 ? "99+" : utilityBadges.messages}</span> : null}
       </Link>
       {professional ? (
         <Link
@@ -214,7 +236,7 @@ function SignedInActions({
           <Heart className="size-[1.15rem]" aria-hidden="true" />
         </Link>
       )}
-      <NotificationBell />
+      <NotificationBell authoritativeCount={utilityBadges?.notifications} />
       <div className="hidden sm:block">
         <AccountChip
           displayName={displayName}
@@ -247,7 +269,7 @@ export function SiteHeader({
       : displayName;
 
   return (
-    <header className="grid min-h-14 items-center gap-5 lg:grid-cols-[280px_minmax(280px,1fr)_auto]">
+    <header className={cn("grid min-h-14 items-center gap-4", workspaceContext ? "grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[360px_minmax(320px,536px)_auto]" : "lg:grid-cols-[280px_minmax(280px,1fr)_auto]")}>
       <Brand />
       <HeaderSearch
         className="hidden w-full lg:flex"
@@ -295,7 +317,7 @@ export function SiteHeader({
             </Button>
           </SheetTrigger>
           <SheetContent aria-describedby="site-menu-description">
-            <SheetTitle className="pr-10 text-xl font-bold tracking-[-0.03em]">
+            <SheetTitle className="pr-10 text-xl font-bold tracking-title">
               Veterans Bay
             </SheetTitle>
             <SheetDescription

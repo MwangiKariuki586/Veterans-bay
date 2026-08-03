@@ -233,7 +233,7 @@ export function ProfessionalReviewDetail({
           <p className="text-sm font-semibold text-[#5f8d11]">
             Professional application
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">
+          <h1 className="mt-2 text-3xl font-bold tracking-title">
             {profile.name}
           </h1>
           <div className="mt-3 flex flex-wrap gap-2">

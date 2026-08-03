@@ -181,7 +181,7 @@ export function QuotationEditor({
         <p className="text-sm font-semibold text-[#5f8d11]">
           {mode === "revision" ? "New immutable version" : "Commercial terms"}
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">
+        <h1 className="mt-2 text-3xl font-bold tracking-title">
           {mode === "create"
             ? "Prepare quotation"
             : mode === "revision"

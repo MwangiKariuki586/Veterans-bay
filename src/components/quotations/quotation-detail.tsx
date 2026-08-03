@@ -191,7 +191,7 @@ export function QuotationDetail({
                   {quotation.status.replaceAll("_", " ")}
                 </Badge>
               </div>
-              <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">
+              <h1 className="mt-2 text-3xl font-bold tracking-title">
                 {quotation.requestCategory}
               </h1>
               <p className="mt-2 text-sm text-[#68717b]">

@@ -149,8 +149,8 @@ export function StatePanel({
           ))}
       </span>
       <div className="grid max-w-sm gap-1">
-        <Heading className="font-bold">{title}</Heading>
-        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+        <Heading className="type-section-title">{title}</Heading>
+        <p className="type-body text-muted-foreground">{description}</p>
       </div>
       {children}
       {actionLabel ? (

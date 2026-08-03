@@ -334,7 +334,7 @@ export function ClientRequestForm({
             </p>
             {request ? <Badge variant="neutral">{request.status.replaceAll("_", " ")}</Badge> : null}
           </div>
-          <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">
+          <h1 className="mt-2 text-3xl font-bold tracking-title">
             {isDraft ? "Tell us what you need" : request?.category}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">

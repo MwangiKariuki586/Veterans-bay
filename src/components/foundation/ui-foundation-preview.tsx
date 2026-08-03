@@ -93,7 +93,7 @@ export function UiFoundationPreview() {
           <ShieldCheck className="size-4" aria-hidden="true" />
           Shared visual language
         </Badge>
-        <h1 className="max-w-3xl text-4xl font-extrabold tracking-[-0.04em] sm:text-5xl">
+        <h1 className="max-w-3xl text-4xl font-extrabold tracking-title sm:text-5xl">
           Calm, trustworthy controls for the complete service journey.
         </h1>
         <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">

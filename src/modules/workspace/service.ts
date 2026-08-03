@@ -1,5 +1,5 @@
 import { AppError } from "../../platform/errors/app-error";
-import type { IdentityStore } from "../identity/repository";
+import type { AccountProfileRecord, IdentityStore } from "../identity/repository";
 import type { WorkspaceRepository } from "./repository";
 import {
   buildClientWorkspaceId,
@@ -179,6 +179,44 @@ export class WorkspaceService {
     };
   }
 
+  async resolveWorkspaceForActiveProfile(
+    profile: AccountProfileRecord,
+    authUserId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceSelection> {
+    const parsed = parseWorkspaceId(workspaceId);
+    if (!parsed) throw unavailable();
+
+    if (parsed.kind === "client") {
+      if (parsed.referenceId !== profile.id) throw unavailable();
+      return { accountProfileId: profile.id, authUserId, workspace: { id: workspaceId, kind: "client", label: "Client workspace", href: "/client", organisationId: null, membershipId: null, roleKey: null, organisationStatus: null, permissions: [], assignedJobsOnly: false, financialDataAccess: false } };
+    }
+
+    if (parsed.kind === "organisation") {
+      const membership = await this.workspaceRepository.findActiveMembership(profile.id, parsed.referenceId);
+      if (!membership || membership.organisationStatus === "suspended" || membership.organisationStatus === "deactivated") throw unavailable();
+      const permissions = (await this.workspaceRepository.listPermissionKeysForRoleIds([membership.roleId])).get(membership.roleId) ?? [];
+      return { accountProfileId: profile.id, authUserId, workspace: {
+        id: workspaceId, kind: "organisation", label: membership.organisationName,
+        href: membership.organisationStatus === "active" ? "/professional" : membership.organisationStatus === "pending_review" ? "/professional/onboarding/review" : "/professional/onboarding",
+        organisationId: membership.organisationId, membershipId: membership.membershipId, roleKey: membership.roleKey,
+        organisationStatus: membership.organisationStatus as "draft" | "pending_review" | "active" | "requires_changes",
+        permissions: permissions.filter((permission) => membership.financialDataAccess || !["payments.view", "payments.manage", "reports.financial.view"].includes(permission)),
+        assignedJobsOnly: membership.assignedJobsOnly, financialDataAccess: membership.financialDataAccess,
+      } };
+    }
+
+    const assignments = await this.workspaceRepository.listActivePlatformAssignments(profile.id);
+    const admin = assignments.find((item) => item.roleKey === "platform_admin");
+    if (!admin) throw unavailable();
+    const permissions = (await this.workspaceRepository.listPermissionKeysForRoleIds([admin.roleId])).get(admin.roleId) ?? [];
+    return { accountProfileId: profile.id, authUserId, workspace: { id: workspaceId, kind: "platform", label: "Platform administration", href: "/admin", organisationId: null, membershipId: null, roleKey: "platform_admin", organisationStatus: null, permissions, assignedJobsOnly: false, financialDataAccess: true } };
+  }
+
+}
+
+function unavailable() {
+  return new AppError({ code: "WORKSPACE_UNAVAILABLE", message: "The requested workspace is not available.", status: 403 });
 }
 
 export function defaultWorkspaceId(workspaces: WorkspaceSummary[]): string | null {

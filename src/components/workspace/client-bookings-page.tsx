@@ -64,7 +64,7 @@ export function ClientBookingsPage() {
         <span className="mx-2">›</span>
         <span className="text-foreground">Bookings</span>
       </nav>
-      <h1 className="mt-4 text-3xl font-bold tracking-[-0.045em]">My Bookings</h1>
+      <h1 className="mt-4 text-3xl font-bold tracking-title">My Bookings</h1>
       <p className="mt-2 text-sm text-[#68717b]">
         Track and manage all your booking requests in one place.
       </p>
@@ -154,7 +154,7 @@ export function ClientBookingsPage() {
                       <td className="px-3 py-3">
                         <span
                           className={cn(
-                            "rounded-full px-2.5 py-1 text-[0.68rem] font-semibold",
+                            "rounded-full px-2.5 py-1 type-caption font-semibold",
                             statusClass[booking.status],
                           )}
                         >

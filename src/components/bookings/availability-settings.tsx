@@ -167,7 +167,7 @@ export function AvailabilitySettings() {
         <p className="text-sm font-semibold text-[#5f8d11]">
           Scheduling rules
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">
+        <h1 className="mt-2 text-3xl font-bold tracking-title">
           Professional availability
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">

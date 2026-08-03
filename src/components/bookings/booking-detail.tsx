@@ -170,7 +170,7 @@ export function BookingDetail({
                   {booking.status.replaceAll("_", " ")}
                 </Badge>
               </div>
-              <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">
+              <h1 className="mt-2 text-3xl font-bold tracking-title">
                 {booking.serviceName}
               </h1>
               <p className="mt-2 text-sm text-[#68717b]">

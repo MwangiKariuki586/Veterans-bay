@@ -17,6 +17,7 @@ import {
   type AuthenticatedShellKind,
 } from "@/components/workspace/workspace-nav";
 import { cn } from "@/lib/utils";
+import { useProfessionalDashboard } from "@/components/workspace/professional-dashboard-context";
 
 function isNavActive(pathname: string, href: string) {
   if (href === "/professional" || href === "/client" || href === "/admin") {
@@ -36,29 +37,37 @@ export function WorkspaceSidebar({
 }) {
   const pathname = usePathname();
   const groups = getWorkspaceNav(kind);
+  const dashboard = useProfessionalDashboard();
   const year = new Date().getFullYear();
 
   if (kind === "professional") {
     return (
       <aside
         className={cn(
-          "flex h-full min-h-0 flex-col border border-black/8 bg-white p-4",
+          "flex h-full min-h-0 flex-col border border-black/8 bg-white px-3 py-4",
           className,
         )}
         aria-label="Workspace"
       >
         <Link
           href="/workspace/select"
-          className="mb-3 flex items-center gap-3 rounded-2xl border border-black/8 bg-[#f8fafb] p-3 lg:hidden"
+          className="mb-3 flex items-center gap-3 rounded-xl border border-black/8 bg-[#f8fafb] p-3 lg:hidden"
         >
           <span className="grid size-10 place-items-center rounded-xl bg-[#eef7e8] text-[#287313]">
             <Store className="size-5" aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-bold">{workspaceLabel}</span>
-            <span className="block text-[0.7rem] text-muted-foreground">Professional</span>
+            <span className="block truncate text-sm font-bold">
+              {workspaceLabel}
+            </span>
+            <span className="block type-caption text-muted-foreground">
+              Professional
+            </span>
           </span>
-          <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
+          <ChevronDown
+            className="size-4 text-muted-foreground"
+            aria-hidden="true"
+          />
         </Link>
 
         <nav
@@ -74,12 +83,16 @@ export function WorkspaceSidebar({
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const active = isNavActive(pathname, item.href);
+                  const badge = badgeForHref(
+                    item.href,
+                    dashboard?.data?.navigationBadges,
+                  );
                   return (
                     <li key={item.href}>
                       <Link
                         href={item.href}
                         className={cn(
-                          "group flex min-h-10 items-center gap-3 rounded-xl px-3 text-[0.78rem] font-semibold transition-all",
+                          "group flex min-h-10 items-center gap-3 rounded-lg px-3 type-control transition-colors",
                           active
                             ? "bg-[#edf5e7] text-[#245f14]"
                             : "text-[#27313a] hover:bg-[#f5f7f8] hover:text-foreground",
@@ -89,11 +102,26 @@ export function WorkspaceSidebar({
                         <Icon
                           className={cn(
                             "size-[1.05rem] shrink-0",
-                            active ? "text-[#2e7d18]" : "text-[#59636c] group-hover:text-foreground",
+                            active
+                              ? "text-[#2e7d18]"
+                              : "text-[#59636c] group-hover:text-foreground",
                           )}
                           aria-hidden="true"
                         />
-                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        <span className="min-w-0 flex-1 truncate">
+                          {item.label}
+                        </span>
+                        {badge > 0 ? (
+                          <span className="grid min-h-5 min-w-5 place-items-center rounded-full bg-[#2f7d18] px-1 type-caption font-semibold leading-none text-white">
+                            {badge > 99 ? "99+" : badge}
+                          </span>
+                        ) : null}
+                        {item.label === "Tools & Resources" ? (
+                          <ChevronDown
+                            className="size-3.5 -rotate-90 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                        ) : null}
                       </Link>
                     </li>
                   );
@@ -103,27 +131,13 @@ export function WorkspaceSidebar({
           ))}
         </nav>
 
-        <div className="mt-4 overflow-hidden rounded-[18px] bg-[#07142d] p-4 text-white shadow-[0_14px_30px_rgba(7,20,45,0.18)]">
-          <Image
-            src="/images/veterans-bay-logo.png"
-            alt=""
-            width={1249}
-            height={389}
-            className="h-auto w-[150px] rounded-lg bg-white px-2 py-1.5 object-contain"
-            sizes="150px"
-          />
-          <h2 className="mt-3 text-sm font-bold">Need help?</h2>
-          <p className="mt-1.5 text-[0.72rem] leading-5 text-white/70">
-            Our support team is here for you.
-          </p>
-          <Link
-            href="/help"
-            className="mt-4 flex min-h-10 items-center justify-between rounded-full bg-primary px-4 text-[0.72rem] font-bold text-primary-foreground"
-          >
-            Contact support
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
+        <Link
+          href="/help"
+          className="mt-4 flex min-h-10 items-center justify-between rounded-full bg-primary px-4 type-control text-primary-foreground"
+        >
+          Contact support
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
       </aside>
     );
   }
@@ -212,7 +226,7 @@ export function WorkspaceSidebar({
         </div>
       </div>
 
-      <div className="mt-4 space-y-1.5 px-1 text-[0.68rem] text-[#68717b]">
+      <div className="mt-4 space-y-1.5 px-1 type-caption text-[#68717b]">
         <p className="inline-flex items-center gap-1.5 font-medium text-[#3d4a2a]">
           <ShieldCheck className="size-3.5 text-[#5f8d11]" aria-hidden="true" />
           You&apos;re covered with Veterans Bay
@@ -221,4 +235,21 @@ export function WorkspaceSidebar({
       </div>
     </aside>
   );
+}
+
+function badgeForHref(
+  href: string,
+  badges?: {
+    enquiries: number;
+    quotations: number;
+    invoices: number;
+    reviews: number;
+  },
+) {
+  if (!badges) return 0;
+  if (href.includes("/enquiries")) return badges.enquiries;
+  if (href.includes("/quotations")) return badges.quotations;
+  if (href.includes("/invoices")) return badges.invoices;
+  if (href.includes("/reviews")) return badges.reviews;
+  return 0;
 }

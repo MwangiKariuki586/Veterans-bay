@@ -53,7 +53,7 @@ export function ClientRequestsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-[#5f8d11]">Client requests</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">
+          <h1 className="mt-2 text-3xl font-bold tracking-title">
             Your service requests
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">

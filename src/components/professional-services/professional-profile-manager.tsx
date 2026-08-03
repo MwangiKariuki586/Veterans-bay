@@ -228,7 +228,7 @@ export function ProfessionalProfileManager() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-[#5f8d11]">Public presence</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em]">
+          <h1 className="mt-2 text-3xl font-bold tracking-title">
             Business profile
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -374,7 +374,7 @@ export function ProfessionalProfileManager() {
       <section>
         <div>
           <p className="text-sm font-semibold text-[#5f8d11]">Portfolio</p>
-          <h2 className="mt-2 text-2xl font-bold tracking-[-0.035em]">
+          <h2 className="mt-2 text-2xl font-bold tracking-title">
             Show recent work
           </h2>
           <p className="mt-2 text-sm text-[#68717b]">

@@ -126,7 +126,7 @@ function TrustPanel({ signup }: { signup: boolean }) {
       <div className="relative z-10 flex h-full flex-col">
         <BrandLockup />
         <div className={signup ? "mt-1" : "mt-6"}>
-          <h2 className="max-w-[280px] text-[1.85rem] leading-[1.16] font-bold tracking-[-0.045em]">
+          <h2 className="max-w-[280px] text-[1.85rem] leading-[1.16] font-bold tracking-title">
             Trusted services.
             <br />
             One{" "}
@@ -174,7 +174,7 @@ function TrustPanel({ signup }: { signup: boolean }) {
                 )}
               />
             ))}
-            <span className="-ml-2 grid size-9 place-items-center rounded-full border-2 border-[#031839] bg-[#243a5c] text-[0.65rem] font-semibold">
+            <span className="-ml-2 grid size-9 place-items-center rounded-full border-2 border-[#031839] bg-[#243a5c] type-caption font-semibold">
               25K+
             </span>
           </div>
@@ -235,7 +235,7 @@ function FormField({
       {error ? (
         <span
           id={errorId}
-          className="mt-1.5 block text-[0.68rem] leading-4 text-[#c53030]"
+          className="mt-1.5 block type-caption leading-4 text-[#c53030]"
         >
           {error}
         </span>
@@ -358,7 +358,7 @@ function SignInFace({
       />
       <div className="mt-8">
         <div className="flex items-center gap-2">
-          <h1 className="text-[1.65rem] font-bold tracking-[-0.04em]">
+          <h1 className="text-[1.65rem] font-bold tracking-title">
             Welcome back
           </h1>
           <Hand className="size-6 rotate-[-18deg] text-[#f4b000]" />
@@ -577,7 +577,7 @@ function SignUpFace({ onFlipToSignIn }: { onFlipToSignIn: () => void }) {
       />
       <div className="mt-5">
         <div className="flex items-center gap-2">
-          <h1 className="text-[1.5rem] font-bold tracking-[-0.04em]">
+          <h1 className="text-[1.5rem] font-bold tracking-title">
             Create your account
           </h1>
           <Hand className="size-5 rotate-[-18deg] text-[#f4b000]" />
@@ -649,7 +649,7 @@ function SignUpFace({ onFlipToSignIn }: { onFlipToSignIn: () => void }) {
                     {option.label}
                   </span>
                 </span>
-                <span className="mt-0.5 block max-w-[150px] text-[0.64rem] leading-4 text-[#65738d]">
+                <span className="mt-0.5 block max-w-[150px] type-caption leading-4 text-[#65738d]">
                   {option.copy}
                 </span>
               </label>
@@ -789,7 +789,7 @@ function SignUpFace({ onFlipToSignIn }: { onFlipToSignIn: () => void }) {
             </button>
           }
         />
-        <label className="mt-3 flex items-start gap-2 text-[0.68rem] text-[#53647f]">
+        <label className="mt-3 flex items-start gap-2 type-caption text-[#53647f]">
           <input
             className="mt-0.5 size-4 accent-[#a9d400]"
             name="acceptTerms"
@@ -820,7 +820,7 @@ function SignUpFace({ onFlipToSignIn }: { onFlipToSignIn: () => void }) {
         {fieldErrors.acceptTerms ? (
           <p
             id="signup-accept-terms-error"
-            className="mt-1.5 text-[0.68rem] leading-4 text-[#c53030]"
+            className="mt-1.5 type-caption leading-4 text-[#c53030]"
           >
             {fieldErrors.acceptTerms}
           </p>
@@ -906,7 +906,7 @@ export function AuthFlipPanel() {
           </section>
         </div>
       </main>
-      <footer className="flex min-h-11 flex-wrap items-center justify-center gap-1.5 px-5 text-center text-[0.68rem] text-[#53647f]">
+      <footer className="flex min-h-11 flex-wrap items-center justify-center gap-1.5 px-5 text-center type-caption text-[#53647f]">
         <LockKeyhole className="size-3.5" />
         By continuing, you agree to our{" "}
         <Link href="/terms" className="text-[#0068e8]">
