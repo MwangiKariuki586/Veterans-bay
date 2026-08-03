@@ -24,7 +24,7 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
-`READY FOR REVIEW` — Professional dashboard grid balanced: Schedule narrower, Marketplace insights usable width, Business performance stays wide via 4-column span. Preview remains unchanged.
+`READY FOR REVIEW` — Professional shell locks header + sidebar in the viewport; main content and sidebar nav scroll independently. Preview remains unchanged.
 
 ## Current Step
 

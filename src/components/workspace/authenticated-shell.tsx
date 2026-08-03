@@ -120,20 +120,43 @@ export function AuthenticatedShell({
 
   if (kind === "professional") {
     return (
-      <div className={pageBackdropClass}>
-        <div className="mx-auto min-h-screen w-full max-w-[1600px] bg-white">
+      <div className={`${pageBackdropClass} h-dvh max-h-dvh overflow-hidden`}>
+        <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col overflow-hidden bg-white">
           <ProfessionalDashboardProvider enabled={ready}>
             <WorkspaceShellContext.Provider value={{ workspaceLabel }}>
-              <div className="border-b border-black/8 px-4 py-3 sm:px-6 lg:h-[92px] lg:px-6 lg:py-[18px]">
+              <div className="shrink-0 border-b border-black/8 px-4 py-3 sm:px-6 lg:h-[92px] lg:px-6 lg:py-[18px]">
                 <SiteHeader workspaceContext={{ kind, label: workspaceLabel }} />
               </div>
-              <div className="flex items-center justify-end border-b border-black/8 bg-white px-4 py-2 lg:hidden">
-                <WorkspaceMenu kind={kind} workspaceLabel={workspaceLabel} open={mobileOpen} onOpenChange={setMobileOpen} />
+              <div className="flex shrink-0 items-center justify-end border-b border-black/8 bg-white px-4 py-2 lg:hidden">
+                <WorkspaceMenu
+                  kind={kind}
+                  workspaceLabel={workspaceLabel}
+                  open={mobileOpen}
+                  onOpenChange={setMobileOpen}
+                />
               </div>
-              <div className="grid lg:grid-cols-[228px_minmax(0,1fr)] lg:items-start">
-                <WorkspaceSidebar kind={kind} workspaceLabel={workspaceLabel} className="sticky top-0 hidden h-[calc(100vh-92px)] rounded-none border-y-0 border-l-0 shadow-none lg:flex" />
-                <main className="min-w-0 overflow-x-clip bg-[#f8fafb] p-3 sm:p-5 lg:p-6">
-                  {!ready ? <StatePanel variant="loading" title="Loading workspace" description="Resolving your session and professional workspace." /> : error ? <InlineAlert variant="error" title="Workspace unavailable" description={error} /> : children}
+              <div className="grid min-h-0 flex-1 lg:grid-cols-[228px_minmax(0,1fr)]">
+                <WorkspaceSidebar
+                  kind={kind}
+                  workspaceLabel={workspaceLabel}
+                  className="hidden min-h-0 overflow-hidden rounded-none border-y-0 border-l-0 shadow-none lg:flex"
+                />
+                <main className="min-h-0 min-w-0 overflow-x-clip overflow-y-auto bg-[#f8fafb] p-3 sm:p-5 lg:p-6">
+                  {!ready ? (
+                    <StatePanel
+                      variant="loading"
+                      title="Loading workspace"
+                      description="Resolving your session and professional workspace."
+                    />
+                  ) : error ? (
+                    <InlineAlert
+                      variant="error"
+                      title="Workspace unavailable"
+                      description={error}
+                    />
+                  ) : (
+                    children
+                  )}
                 </main>
               </div>
             </WorkspaceShellContext.Provider>
