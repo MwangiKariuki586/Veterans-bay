@@ -149,12 +149,13 @@ export function ProfessionalDashboard() {
             Here’s what needs your attention today.
           </p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-3">
-          <QuickAction href="/professional/quotations/new" icon={Plus}>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <QuickAction
+            href="/professional/quotations/new"
+            icon={Plus}
+            variant="primary"
+          >
             Create quote
-          </QuickAction>
-          <QuickAction href="/professional/availability" icon={CalendarDays}>
-            Set availability
           </QuickAction>
           <QuickAction href="/professional/services/new" icon={Wrench}>
             Add service
@@ -262,15 +263,22 @@ function QuickAction({
   href,
   icon: Icon,
   children,
+  variant = "secondary",
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   children: React.ReactNode;
+  variant?: "primary" | "secondary";
 }) {
   return (
     <Link
       href={href}
-      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-black/8 bg-white px-4 type-control shadow-[0_4px_12px_rgba(14,30,42,0.035)] hover:bg-[#f5f7f8]"
+      className={cn(
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 type-control",
+        variant === "primary"
+          ? "bg-primary text-primary-foreground shadow-[0_8px_22px_rgba(170,212,26,0.28)] hover:bg-primary-hover"
+          : "border border-black/8 bg-white shadow-[0_4px_12px_rgba(14,30,42,0.035)] hover:bg-[#f5f7f8]",
+      )}
     >
       <Icon className="size-4" aria-hidden="true" />
       {children}
@@ -689,11 +697,7 @@ function PerformanceCard({
               connectNulls
               dot={(props) => {
                 const { cx, cy, index } = props;
-                if (
-                  cx == null ||
-                  cy == null ||
-                  index !== series.length - 1
-                ) {
+                if (cx == null || cy == null || index !== series.length - 1) {
                   return <g key={`dot-${index}`} />;
                 }
                 return (
@@ -794,7 +798,11 @@ function TeamCard({ team }: { team: ProfessionalDashboardData["teamToday"] }) {
         {team.conflicts > 0 ? (
           <StatLine
             value={team.conflicts}
-            label={team.conflicts === 1 ? "Assignment conflict" : "Assignment conflicts"}
+            label={
+              team.conflicts === 1
+                ? "Assignment conflict"
+                : "Assignment conflicts"
+            }
             tone="orange"
           />
         ) : null}
@@ -1019,7 +1027,12 @@ function PerformanceMetric({
       <p className="mt-1 break-words type-card-label font-semibold numeric-tabular leading-snug text-foreground">
         {value}
       </p>
-      <p className={cn("mt-1 min-h-4 type-caption leading-snug", tones[detailTone])}>
+      <p
+        className={cn(
+          "mt-1 min-h-4 type-caption leading-snug",
+          tones[detailTone],
+        )}
+      >
         {detail ?? "\u00a0"}
       </p>
     </div>
@@ -1035,12 +1048,18 @@ function trendDetail(
     return { detail: "Financial access restricted", tone: "muted" };
   }
   if (previous === 0) {
-    if (current === 0) return { detail: `No change vs ${priorLabel}`, tone: "muted" };
+    if (current === 0)
+      return { detail: `No change vs ${priorLabel}`, tone: "muted" };
     return { detail: `↑ New vs ${priorLabel}`, tone: "success" };
   }
   const change = Math.round(((current - previous) / previous) * 100);
-  if (change > 0) return { detail: `↑ ${change}% vs ${priorLabel}`, tone: "success" };
-  if (change < 0) return { detail: `↓ ${Math.abs(change)}% vs ${priorLabel}`, tone: "danger" };
+  if (change > 0)
+    return { detail: `↑ ${change}% vs ${priorLabel}`, tone: "success" };
+  if (change < 0)
+    return {
+      detail: `↓ ${Math.abs(change)}% vs ${priorLabel}`,
+      tone: "danger",
+    };
   return { detail: `No change vs ${priorLabel}`, tone: "muted" };
 }
 
@@ -1203,7 +1222,9 @@ function ScheduleSummaryChip({
     <div
       className={cn(
         "flex min-h-10 items-center gap-2 rounded-xl px-3 type-caption",
-        tone === "warning" ? "bg-[#fff7e8] text-[#7a4b00]" : "bg-[#f5f7f8] text-[#39434c]",
+        tone === "warning"
+          ? "bg-[#fff7e8] text-[#7a4b00]"
+          : "bg-[#f5f7f8] text-[#39434c]",
       )}
     >
       <Icon
