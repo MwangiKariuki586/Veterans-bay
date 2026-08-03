@@ -94,7 +94,9 @@ function HeaderSearch({
       action="/marketplace"
       role="search"
       className={cn(
-        professional ? "flex h-12 min-w-0 items-center rounded-lg border border-black/10 bg-white px-4" : "flex h-14 min-w-0 items-center rounded-full border border-black/8 bg-white py-1.5 pr-1.5 pl-5",
+        professional
+          ? "flex h-12 min-w-0 items-center rounded-lg border border-black/10 bg-white px-4 focus-within:border-black/20"
+          : "flex h-14 min-w-0 items-center rounded-full border border-black/8 bg-white py-1.5 pr-1.5 pl-5 focus-within:border-black/20",
         className,
       )}
     >
@@ -106,11 +108,16 @@ function HeaderSearch({
             ? "Search services, bookings, customers..."
             : "Search services, plumbers, electricians..."
         }
-        className="min-w-0 flex-1 bg-transparent type-workspace-body outline-none placeholder:text-[#7a8188]"
+        className="min-w-0 flex-1 bg-transparent type-workspace-body placeholder:text-[#7a8188] outline-none focus:outline-none focus-visible:outline-none"
       />
       <button
         type="submit"
-        className={cn("grid size-11 shrink-0 place-items-center text-[#071522]", professional ? "bg-transparent" : "rounded-full bg-[#071522] text-white shadow-[0_8px_22px_rgba(7,21,34,0.22)]")}
+        className={cn(
+          "grid size-11 shrink-0 place-items-center text-[#071522] outline-none focus-visible:outline-none",
+          professional
+            ? "bg-transparent"
+            : "rounded-full bg-[#071522] text-white shadow-[0_8px_22px_rgba(7,21,34,0.22)]",
+        )}
         aria-label="Search"
       >
         <Search className="size-[1.15rem]" aria-hidden="true" />
@@ -122,7 +129,7 @@ function HeaderSearch({
 function AccountChip({
   displayName,
   href,
-  subtitle = "Welcome,",
+  subtitle,
 }: {
   displayName: string;
   href: string;
@@ -137,17 +144,21 @@ function AccountChip({
   }
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="ml-2 flex h-14 items-center gap-3 rounded-full border border-black/8 bg-white px-2.5 pr-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <DropdownMenuTrigger className="ml-2 flex h-14 max-w-[220px] items-center gap-3 rounded-full border border-black/8 bg-white px-2.5 pr-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary">
       <Image
         src="/images/header-avatar.png"
         alt=""
         width={40}
         height={40}
-        className="size-10 rounded-full object-cover"
+        className="size-10 shrink-0 rounded-full object-cover"
       />
-      <span className="grid min-w-[70px] type-caption leading-tight">
-        <span className="type-caption text-muted-foreground">{subtitle}</span>
-        <span className="truncate font-semibold">{displayName}</span>
+      <span className="min-w-0 flex-1 leading-tight">
+        {subtitle ? (
+          <span className="block type-caption text-muted-foreground">
+            {subtitle}
+          </span>
+        ) : null}
+        <span className="block truncate font-semibold">{displayName}</span>
       </span>
       <ChevronDown className="size-4 shrink-0" aria-hidden="true" />
       </DropdownMenuTrigger>
@@ -286,7 +297,7 @@ export function SiteHeader({
       ) : signedIn ? (
         <SignedInActions
           displayName={accountLabel}
-          subtitle={workspaceContext ? "Professional" : "Welcome,"}
+          subtitle={workspaceContext ? undefined : "Welcome,"}
           professional={Boolean(workspaceContext)}
           className="hidden lg:flex"
         />

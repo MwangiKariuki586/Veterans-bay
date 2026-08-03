@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
+import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
 import type { AvailabilityConfiguration } from "@/modules/bookings/types";
 import {
   addAvailabilityBlock,
@@ -147,13 +148,7 @@ export function AvailabilitySettings() {
   }
 
   if (!configuration && !error) {
-    return (
-      <StatePanel
-        variant="loading"
-        title="Loading availability"
-        description="Retrieving team working hours and unavailable periods."
-      />
-    );
+    return <DetailPageSkeleton />;
   }
 
   const memberBlocks =

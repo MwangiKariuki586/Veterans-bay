@@ -24,7 +24,7 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
-`READY FOR REVIEW` — Shared workspace layouts keep the shell mounted across navigations; layout-matched loading skeletons replace the generic StatePanel spinner on key pages; session-scoped client caches avoid blank reloads on revisit. Preview remains unchanged.
+`READY FOR REVIEW` — Professional footer waits for page content readiness (hidden during skeletons/loading panels); Availability uses DetailPageSkeleton instead of a spinner. Preview remains unchanged.
 
 ## Current Step
 

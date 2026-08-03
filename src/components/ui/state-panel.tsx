@@ -1,3 +1,5 @@
+"use client";
+
 import {
   AlertCircle,
   Ban,
@@ -9,8 +11,9 @@ import {
   RefreshCw,
   ShieldAlert,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
+import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome";
 import { cn } from "@/lib/utils";
 
 import { Button } from "./button";
@@ -125,6 +128,14 @@ export function StatePanel({
   const Icon = config.Icon;
   const Heading = headingLevel === 1 ? "h1" : headingLevel === 2 ? "h2" : "h3";
   const showSpinner = resolvedVariant === "loading" || resolvedVariant === "processing";
+  const { setContentReady } = useWorkspaceChrome();
+  useEffect(() => {
+    if (!showSpinner) {
+      return;
+    }
+    setContentReady(false);
+    return () => setContentReady(true);
+  }, [setContentReady, showSpinner]);
 
   return (
     <section

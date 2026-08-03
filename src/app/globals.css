@@ -188,9 +188,11 @@ select {
   color: var(--primary-foreground);
 }
 
-:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--ring) 42%, transparent);
-  outline-offset: 2px;
+@layer base {
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--ring) 42%, transparent);
+    outline-offset: 2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

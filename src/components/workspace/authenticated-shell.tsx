@@ -10,6 +10,10 @@ import {
 } from "@/components/public/design";
 import { SiteHeader } from "@/components/public/site-header";
 import { AuthenticatedFooter } from "@/components/workspace/authenticated-footer";
+import {
+  WorkspaceChromeProvider,
+  useWorkspaceChrome,
+} from "@/components/workspace/workspace-chrome";
 import type { AuthenticatedShellKind } from "@/components/workspace/workspace-nav";
 import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
 import { ProfessionalDashboardProvider } from "@/components/workspace/professional-dashboard-context";
@@ -170,7 +174,10 @@ export function AuthenticatedShell({
                       description={error}
                     />
                   ) : (
-                    children
+                    <WorkspaceChromeProvider>
+                      {children}
+                      <WorkspaceFooter kind={kind} />
+                    </WorkspaceChromeProvider>
                   )}
                 </main>
               </div>
@@ -201,6 +208,14 @@ export function AuthenticatedShell({
       </div>
     </div>
   );
+}
+
+function WorkspaceFooter({ kind }: { kind: AuthenticatedShellKind }) {
+  const { contentReady } = useWorkspaceChrome();
+  if (!contentReady) {
+    return null;
+  }
+  return <AuthenticatedFooter kind={kind} />;
 }
 
 function WorkspaceMenu({ kind, workspaceLabel, open, onOpenChange }: { kind: AuthenticatedShellKind; workspaceLabel: string; open: boolean; onOpenChange: (open: boolean) => void }) {

@@ -1,6 +1,9 @@
+"use client";
+
 import type { ReactNode } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { useWorkspaceContentReady } from "@/components/workspace/workspace-chrome";
 import { cn } from "@/lib/utils";
 
 function SkeletonBlock({
@@ -8,6 +11,21 @@ function SkeletonBlock({
   ...props
 }: React.ComponentProps<typeof Skeleton>) {
   return <Skeleton className={cn("rounded-2xl", className)} {...props} />;
+}
+
+function BusyFrame({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  useWorkspaceContentReady(false);
+  return (
+    <div aria-busy="true" className={className}>
+      {children}
+    </div>
+  );
 }
 
 export function PageHeaderSkeleton({
@@ -63,7 +81,7 @@ export function ListPageSkeleton({
   className?: string;
 }) {
   return (
-    <div aria-busy="true" className={cn(className)}>
+    <BusyFrame className={cn(className)}>
       <PageHeaderSkeleton actions={actions} />
       <FilterChipSkeleton />
       <div className="mt-5 grid gap-4">
@@ -71,13 +89,13 @@ export function ListPageSkeleton({
           <SkeletonBlock key={index} className="h-28 w-full rounded-[22px]" />
         ))}
       </div>
-    </div>
+    </BusyFrame>
   );
 }
 
 export function DetailPageSkeleton({ className }: { className?: string }) {
   return (
-    <div aria-busy="true" className={cn("grid gap-4", className)}>
+    <BusyFrame className={cn("grid gap-4", className)}>
       <div className="grid gap-2">
         <SkeletonBlock className="h-3 w-24 rounded-full" />
         <SkeletonBlock className="h-9 w-72 max-w-full" />
@@ -93,13 +111,13 @@ export function DetailPageSkeleton({ className }: { className?: string }) {
           <SkeletonBlock className="h-32 w-full rounded-[22px]" />
         </div>
       </div>
-    </div>
+    </BusyFrame>
   );
 }
 
 export function ProfessionalDashboardSkeleton() {
   return (
-    <div aria-busy="true" className="space-y-3">
+    <BusyFrame className="space-y-3">
       <section className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="grid gap-2">
           <SkeletonBlock className="h-8 w-72 max-w-full" />
@@ -131,7 +149,7 @@ export function ProfessionalDashboardSkeleton() {
         <SkeletonBlock className="h-56 w-full rounded-[22px] xl:col-span-2" />
         <SkeletonBlock className="h-56 w-full rounded-[22px]" />
       </div>
-    </div>
+    </BusyFrame>
   );
 }
 
@@ -141,7 +159,7 @@ export function WorkspaceMainSkeleton({
   children?: ReactNode;
 }) {
   return (
-    <div aria-busy="true" className="grid gap-4">
+    <BusyFrame className="grid gap-4">
       {children ?? (
         <>
           <SkeletonBlock className="h-8 w-48" />
@@ -149,6 +167,6 @@ export function WorkspaceMainSkeleton({
           <SkeletonBlock className="mt-2 h-64 w-full rounded-[22px]" />
         </>
       )}
-    </div>
+    </BusyFrame>
   );
 }
