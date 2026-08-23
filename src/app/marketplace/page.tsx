@@ -6,7 +6,7 @@ import { StatePanel } from "@/components/ui/state-panel";
 
 export default function MarketplaceRoute() {
   return (
-    <PublicShell>
+    <PublicShell marketplace>
       <main>
         <Suspense
           fallback={

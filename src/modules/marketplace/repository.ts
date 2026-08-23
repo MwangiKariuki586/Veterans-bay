@@ -18,12 +18,14 @@ import {
   professionalServices,
 } from "../../platform/database/schema/professional-services";
 import { outboxEvents } from "../../platform/database/schema/outbox-events";
+import { professionalReputation } from "../../platform/database/schema/reviews";
 import type {
   MarketplaceAnalyticsEvent,
   MarketplaceSearchQuery,
 } from "./types";
 
 export interface MarketplaceSearchRecord {
+  organisationId: string;
   slug: string;
   name: string;
   category: string;
@@ -34,10 +36,16 @@ export interface MarketplaceSearchRecord {
   currency: string;
   serviceAreas: string[];
   imagePublicId: string | null;
+  estimatedDurationMinutes: number | null;
+  directBookingEnabled: boolean;
   providerSlug: string;
   providerName: string;
   providerLocation: string | null;
   providerVerified: boolean;
+  providerExperienceStartedYear: number | null;
+  providerAverageRatingHundredths: number | null;
+  providerReviewCount: number | null;
+  providerVerifiedJobs: number | null;
 }
 
 export interface MarketplaceStore {
@@ -119,6 +127,18 @@ export class MarketplaceRepository implements MarketplaceStore {
           : sql`${professionalProfiles.verificationStatus} <> 'verified'`,
       );
     }
+    if (input.topRated === "true") {
+      conditions.push(
+        sql`${professionalReputation.averageRatingHundredths} >= 470`,
+        sql`${professionalReputation.reviewCount} > 0`,
+      );
+    }
+    if (input.instantBooking === "true") {
+      conditions.push(
+        eq(professionalServices.directBookingEnabled, true),
+        isNotNull(professionalServices.estimatedDurationMinutes),
+      );
+    }
 
     const where = and(...conditions);
     const imagePublicId = sql<string | null>`(
@@ -139,6 +159,7 @@ export class MarketplaceRepository implements MarketplaceStore {
 
     const base = this.db
       .select({
+        organisationId: organisations.id,
         slug: professionalServices.slug,
         name: professionalServices.name,
         category: professionalServices.category,
@@ -149,10 +170,18 @@ export class MarketplaceRepository implements MarketplaceStore {
         currency: professionalServices.currency,
         serviceAreas: professionalServices.serviceAreas,
         imagePublicId,
+        estimatedDurationMinutes: professionalServices.estimatedDurationMinutes,
+        directBookingEnabled: professionalServices.directBookingEnabled,
         providerSlug: organisations.slug,
         providerName: organisations.name,
         providerLocation: professionalProfiles.operatingLocation,
         providerVerified: sql<boolean>`${professionalProfiles.verificationStatus} = 'verified'`,
+        providerExperienceStartedYear:
+          professionalProfiles.experienceStartedYear,
+        providerAverageRatingHundredths:
+          professionalReputation.averageRatingHundredths,
+        providerReviewCount: professionalReputation.reviewCount,
+        providerVerifiedJobs: professionalReputation.verifiedJobs,
       })
       .from(professionalServices)
       .innerJoin(
@@ -162,6 +191,10 @@ export class MarketplaceRepository implements MarketplaceStore {
       .innerJoin(
         professionalProfiles,
         eq(professionalProfiles.organisationId, organisations.id),
+      )
+      .leftJoin(
+        professionalReputation,
+        eq(professionalReputation.organisationId, organisations.id),
       )
       .where(where);
 
@@ -184,6 +217,10 @@ export class MarketplaceRepository implements MarketplaceStore {
         .innerJoin(
           professionalProfiles,
           eq(professionalProfiles.organisationId, organisations.id),
+        )
+        .leftJoin(
+          professionalReputation,
+          eq(professionalReputation.organisationId, organisations.id),
         )
         .where(where),
     ]);

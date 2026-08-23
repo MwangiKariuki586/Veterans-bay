@@ -377,6 +377,93 @@ export class BookingsRepository {
     return { rules, blocks, reservations };
   }
 
+  async slotInputsByOrganisation(input: {
+    organisationIds: string[];
+    from: Date;
+    to: Date;
+  }): Promise<Map<string, BookingSlotInputs>> {
+    const organisationIds = [...new Set(input.organisationIds)];
+    if (organisationIds.length === 0) return new Map();
+
+    const [rules, blocks, reservations] = await Promise.all([
+      this.db
+        .select({
+          organisationId: availabilityRules.organisationId,
+          membershipId: availabilityRules.membershipId,
+          memberName: accountProfiles.displayName,
+          weekday: availabilityRules.weekday,
+          startMinute: availabilityRules.startMinute,
+          endMinute: availabilityRules.endMinute,
+          timezone: availabilityRules.timezone,
+        })
+        .from(availabilityRules)
+        .innerJoin(
+          organisationMemberships,
+          eq(organisationMemberships.id, availabilityRules.membershipId),
+        )
+        .innerJoin(
+          accountProfiles,
+          eq(accountProfiles.id, organisationMemberships.accountProfileId),
+        )
+        .where(
+          and(
+            inArray(availabilityRules.organisationId, organisationIds),
+            eq(availabilityRules.active, true),
+            eq(organisationMemberships.status, "active"),
+            eq(accountProfiles.status, "active"),
+          ),
+        ),
+      this.db
+        .select({
+          organisationId: availabilityBlocks.organisationId,
+          membershipId: availabilityBlocks.membershipId,
+          startsAt: availabilityBlocks.startsAt,
+          endsAt: availabilityBlocks.endsAt,
+        })
+        .from(availabilityBlocks)
+        .where(
+          and(
+            inArray(availabilityBlocks.organisationId, organisationIds),
+            lt(availabilityBlocks.startsAt, input.to),
+            sql`${availabilityBlocks.endsAt} > ${input.from}`,
+          ),
+        ),
+      this.db
+        .select({
+          organisationId: bookingReservations.organisationId,
+          membershipId: bookingReservations.membershipId,
+          startsAt: bookingReservations.startsAt,
+          endsAt: bookingReservations.endsAt,
+        })
+        .from(bookingReservations)
+        .where(
+          and(
+            inArray(bookingReservations.organisationId, organisationIds),
+            eq(bookingReservations.status, "ACTIVE"),
+            lt(bookingReservations.startsAt, input.to),
+            sql`${bookingReservations.endsAt} > ${input.from}`,
+          ),
+        ),
+    ]);
+
+    const result = new Map(
+      organisationIds.map((organisationId) => [
+        organisationId,
+        { rules: [], blocks: [], reservations: [] } as BookingSlotInputs,
+      ]),
+    );
+    for (const { organisationId, ...rule } of rules) {
+      result.get(organisationId)?.rules.push(rule);
+    }
+    for (const { organisationId, ...block } of blocks) {
+      result.get(organisationId)?.blocks.push(block);
+    }
+    for (const { organisationId, ...reservation } of reservations) {
+      result.get(organisationId)?.reservations.push(reservation);
+    }
+    return result;
+  }
+
   async directServiceSlotContext(
     professionalSlug: string,
     serviceSlug: string,

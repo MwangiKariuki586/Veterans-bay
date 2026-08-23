@@ -4,6 +4,7 @@ import {
   check,
   index,
   jsonb,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -36,6 +37,7 @@ export const professionalProfiles = pgTable(
     phone: text("phone"),
     email: text("email"),
     operatingLocation: text("operating_location"),
+    experienceStartedYear: integer("experience_started_year"),
     serviceAreas: jsonb("service_areas").$type<string[]>().notNull().default([]),
     workingHours: jsonb("working_hours").$type<WorkingHours>().notNull().default({}),
     logoAssetId: uuid("logo_asset_id").references(() => fileAssets.id, {
@@ -66,6 +68,10 @@ export const professionalProfiles = pgTable(
     check(
       "professional_profiles_verification_status_check",
       sql`${table.verificationStatus} in ('not_started', 'pending', 'verified', 'rejected')`,
+    ),
+    check(
+      "professional_profiles_experience_started_year_check",
+      sql`${table.experienceStartedYear} is null or ${table.experienceStartedYear} between 1900 and 2100`,
     ),
     index("professional_profiles_verification_status_idx").on(
       table.verificationStatus,

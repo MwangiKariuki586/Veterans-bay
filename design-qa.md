@@ -1,62 +1,60 @@
-# Premium Public Footer Design QA
+# Marketplace Revamp Design QA
 
 **Comparison Target**
 
-- Source composition: `C:/Users/ADMINI~1/AppData/Local/Temp/codex-clipboard-0b8beef0-799c-439d-81c9-c8b467074473.png`
-- Final desktop evidence: `artifacts/design-qa/footer-premium-desktop-final.png`
-- Final mobile evidence: `artifacts/design-qa/footer-premium-mobile.png`
-- Normalized side-by-side comparison: `artifacts/design-qa/footer-premium-comparison.png`
-- Support-panel tone comparison: `artifacts/design-qa/footer-support-tone-comparison.png`
+- Source visual truth: three marketplace mockups attached to the user request (desktop, tablet, and mobile); the chat attachments do not expose readable local file paths.
+- Implementation: `/marketplace` in the local Veterans Bay Next.js application.
+- Implementation screenshot path: unavailable because no in-app browser is connected to this session.
 
 **Viewport And Normalization**
 
-- Desktop browser viewport: 1440 x 900 CSS px at device density 1.
-- Rendered desktop footer: 1288 x 456.67 CSS px.
-- Source footer: approximately 1944 x 676 px, normalized to the implementation width for comparison.
-- Mobile browser viewport: 390 x 844 CSS px; rendered footer width: 342.67 CSS px.
-- State: shared public-shell footer, light theme, reviewed on `/about` where the footer content is session-independent.
+- Intended desktop comparison: 1920 px source composition against a 1440 CSS px application frame at density 1.
+- Intended tablet comparison: 1080 CSS px viewport at density 1.
+- Intended mobile comparison: 390 CSS px viewport at density 1, normalized from the supplied 720 px raster reference.
+- State: public marketplace, light theme, default catalogue query.
+- Pixel dimensions and final crop normalization could not be recorded without source files and browser-rendered captures.
 
 **Findings**
 
-- No actionable P0, P1, or P2 visual differences remain.
-- Structure: the implementation matches the reference's brand introduction, three navigation columns, premium support panel, four-part trust strip, and legal row.
-- Hierarchy: the enlarged logo, navy copy, lime section rules, white circular social controls, and dark circular CTA affordance reproduce the reference's premium emphasis.
-- Surfaces: the outer footer is a rounded elevated white card, the support panel uses a soft white-to-lime radial treatment, and the trust strip uses a warmer inset surface with desktop dividers.
-- Support-panel tones: the final layered gradient uses a restrained warm-white highlight over a cream-to-pale-lime base, removing the cooler, stronger green cast visible in the previous implementation.
-- Spacing: desktop proportions were tightened after the first pass so the footer remains close to the normalized source height while preserving comfortable link and support-card spacing.
-- Responsiveness: at 390 px the footer becomes a clean single-column stack; navigation remains a readable two-column grid before the Company section continues below, and no horizontal overflow is present.
-- Accessibility: all real navigation and legal destinations are links, headings preserve section semantics, icons are hidden from assistive technology where decorative, and interactive links have keyboard focus treatment.
+- [P1] Visual comparison evidence is unavailable.
+  Location: complete marketplace route.
+  Evidence: the implementation compiles and its responsive structure is present in source, but the in-app browser discovery returned no available browser and the prompt attachments have no local paths.
+  Impact: typography, exact spacing, image crops, fold position, and cross-viewport proportions cannot be honestly approved as pixel-faithful.
+  Fix: capture `/marketplace` at desktop, tablet, and mobile widths with an approved browser runner, combine each capture with its matching source mockup, and iterate on any visible differences.
+
+**Required Fidelity Surfaces**
+
+- Fonts and typography: Poppins and the existing product weights are preserved; rendered optical comparison remains blocked.
+- Spacing and layout rhythm: the three-column desktop/tablet frame and horizontal mobile cards are implemented; rendered geometry remains blocked.
+- Colors and visual tokens: existing navy, white, lime, border, radius, and shadow tokens are preserved; sampled comparison remains blocked.
+- Image quality and asset fidelity: approved local service imagery and the supplied Veterans Bay logo are used; final crop comparison remains blocked.
+- Copy and content: mockup headings, filters, assistance content, and location treatment are represented while authoritative service/provider data remains live; rendered wrapping comparison remains blocked.
 
 **Full-View And Focused Evidence**
 
-- The desktop capture confirms the complete footer is visible in one 1440 x 900 viewport and remains visually separated from the preceding page content.
-- The combined comparison places the supplied reference and implementation together at a normalized scale, confirming alignment of all five primary regions.
-- The mobile capture confirms brand scale, social-control wrapping, navigation readability, and edge padding at 390 px.
+- Full-view evidence: unavailable.
+- Focused evidence: unavailable for header controls, filter panel, service cards, support panel, and mobile footer.
 
 **Comparison History**
 
-1. The original footer used the correct content groups but was compact, flat, and visually underweighted relative to the supplied reference.
-2. The first premium pass enlarged the brand and navigation areas, introduced the support gradient and elevated outer surface, and strengthened the trust strip.
-3. The final pass reduced excess desktop vertical space, tightened the support card, aligned the link-column rhythm, and verified the finished result side by side with the source.
-4. A focused tone pass softened the panel's green endpoint, warmed its cream base, and repositioned the highlight toward the reference's upper-left glow; the focused comparison now shows matching background character without altering layout.
-
-**Interaction And Runtime Checks**
-
-- All footer routes use existing public destinations; no dead routes were introduced.
-- The Contact Support CTA resolves to `/contact` and remains fully clickable across its pill surface.
-- Browser review found no horizontal overflow at desktop or mobile widths.
-- Focused component tests, TypeScript, file-scoped ESLint, and whitespace validation passed.
+1. Source review identified the required desktop, tablet, and mobile compositions.
+2. The existing generic catalogue layout was replaced with the mockup-led responsive structure while preserving live behavior.
+3. TypeScript, focused tests, file-scoped lint, production build, and whitespace validation passed.
+4. Browser setup was attempted; no in-app browser surface was available, so no visual iteration could be completed.
+5. Card-detail correction keeps the favorite action at the card-level upper-right anchor and uses authoritative Available Today or Top Rated states. Rating, published review count, verification, derived years of experience, location, exact next-bookable-slot information, and pricing labels now come from the public marketplace projection; existing typography edits were preserved.
+6. The header and filter-panel location controls now open a searchable list of supported Nairobi-area choices and apply the selected value through the marketplace URL state.
 
 **Implementation Checklist**
 
-- [x] Match the premium desktop composition.
-- [x] Preserve the established Veterans Bay brand and route set.
-- [x] Add the support panel, trust strip, and refined legal row.
-- [x] Verify desktop and mobile layout behavior.
-- [x] Compare the source and implementation in one normalized visual.
+- [x] Preserve authoritative marketplace API, URL filters, pagination, and saved-professional behavior.
+- [x] Implement responsive desktop/tablet/mobile composition.
+- [x] Use approved brand and service imagery.
+- [x] Verify focused tests, types, lint, production build, and whitespace.
+- [ ] Capture and compare matching responsive views.
+- [ ] Fix any P0/P1/P2 visual mismatches found in capture review.
 
 **Follow-up Polish**
 
-- None required for the supplied direction.
+- Defer P3 polish until the blocking visual comparison is available.
 
-final result: passed
+final result: blocked

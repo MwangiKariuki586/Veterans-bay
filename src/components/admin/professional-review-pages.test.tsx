@@ -50,6 +50,7 @@ const detail: OnboardingSummary = {
   phone: "+254700000000",
   email: "hello@trusted.example",
   operatingLocation: "Nairobi",
+  experienceStartedYear: 2018,
   serviceAreas: ["Westlands"],
   workingHours: {},
   logoAssetId: "logo-1",

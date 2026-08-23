@@ -105,7 +105,7 @@ function HeaderSearch({
       )}
     >
       <input
-        name="query"
+        name="q"
         aria-label="Search services"
         placeholder={
           workspace
@@ -280,8 +280,10 @@ function SignedInActions({
  */
 export function SiteHeader({
   workspaceContext,
+  marketplace = false,
 }: {
   workspaceContext?: { kind: AuthenticatedShellKind; label: string };
+  marketplace?: boolean;
 } = {}) {
   const { data: session, isPending } = authClient.useSession();
   const signedIn = Boolean(session?.user);
@@ -295,7 +297,7 @@ export function SiteHeader({
       : displayName;
 
   return (
-    <header className={cn("grid min-h-14 items-center gap-4", workspaceContext ? "grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[360px_minmax(320px,536px)_auto]" : "lg:grid-cols-[280px_minmax(280px,1fr)_auto]")}>
+    <header className={cn("grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-4", workspaceContext ? "lg:grid-cols-[360px_minmax(320px,536px)_auto]" : "lg:grid-cols-[280px_minmax(280px,1fr)_auto]")}>
       <Brand />
       <HeaderSearch
         className="hidden w-full lg:flex"
@@ -319,7 +321,7 @@ export function SiteHeader({
       )}
 
       <div className="flex items-center justify-end gap-2 lg:hidden">
-        {!isPending && !signedIn ? (
+        {!isPending && !signedIn && !marketplace ? (
           <Link
             href="/marketplace"
             className={cn(
@@ -439,6 +441,9 @@ export function SiteHeader({
           </SheetContent>
         </Sheet>
       </div>
+      {marketplace ? (
+        <HeaderSearch className="col-span-2 mt-1 flex w-full lg:hidden" />
+      ) : null}
     </header>
   );
 }

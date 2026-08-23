@@ -95,7 +95,7 @@ describe("site header", () => {
     expect(search).toHaveAttribute("action", "/marketplace");
     expect(screen.getAllByLabelText("Search services")[0]).toHaveAttribute(
       "name",
-      "query",
+      "q",
     );
   });
 });

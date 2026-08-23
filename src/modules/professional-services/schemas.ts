@@ -65,6 +65,12 @@ export const updateProfessionalProfileBodySchema = z.object({
   description: z.string().trim().min(40).max(2_000),
   primaryCategory: z.string().trim().min(2).max(100),
   operatingLocation: z.string().trim().min(2).max(160),
+  experienceStartedYear: z
+    .number()
+    .int()
+    .min(1900)
+    .max(new Date().getFullYear())
+    .nullable(),
   serviceAreas: z.array(z.string().trim().min(1).max(120)).max(30),
 });
 

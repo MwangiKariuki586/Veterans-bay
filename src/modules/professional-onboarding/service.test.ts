@@ -51,6 +51,7 @@ function onboarding(overrides: Partial<OnboardingRecord> = {}): OnboardingRecord
     phone: "+254700000000",
     email: "hello@proline.example",
     operatingLocation: "Nairobi, Kenya",
+    experienceStartedYear: 2018,
     serviceAreas: ["Westlands"],
     workingHours: {
       monday: { enabled: true, opensAt: "08:00", closesAt: "17:00" },

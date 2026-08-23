@@ -97,6 +97,7 @@ export class ProfessionalServicesService {
       description: profile.description,
       primaryCategory: profile.primaryCategory,
       operatingLocation: profile.operatingLocation,
+      experienceStartedYear: profile.experienceStartedYear,
       serviceAreas: profile.serviceAreas,
       availabilitySummary: availabilitySummary(profile.workingHours),
       verificationStatus: profile.verificationStatus,
@@ -120,6 +121,7 @@ export class ProfessionalServicesService {
       description: string;
       primaryCategory: string;
       operatingLocation: string;
+      experienceStartedYear: number | null;
       serviceAreas: string[];
     };
   }): Promise<ManagedProfessionalProfile> {

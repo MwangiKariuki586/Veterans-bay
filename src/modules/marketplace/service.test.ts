@@ -21,6 +21,7 @@ describe("marketplace service", () => {
         totalItems: 1,
         items: [
           {
+            organisationId: "organisation-1",
             slug: "plumbing-inspection",
             name: "Plumbing inspection",
             category: "Plumbing",
@@ -31,16 +32,50 @@ describe("marketplace service", () => {
             currency: "KES",
             serviceAreas: ["Nairobi"],
             imagePublicId: "veterans-bay/services/inspection",
+            estimatedDurationMinutes: 60,
+            directBookingEnabled: true,
             providerSlug: "trusted-plumbing",
             providerName: "Trusted Plumbing",
             providerLocation: "Nairobi",
             providerVerified: true,
+            providerExperienceStartedYear: 2018,
+            providerAverageRatingHundredths: 480,
+            providerReviewCount: 12,
+            providerVerifiedJobs: 9,
           },
         ],
       }),
     };
 
-    const result = await new MarketplaceService(store, "demo-cloud").search(query);
+    const availabilityStore = {
+      slotInputsByOrganisation: vi.fn().mockResolvedValue(
+        new Map([
+          [
+            "organisation-1",
+            {
+              rules: [
+                {
+                  membershipId: "membership-1",
+                  memberName: "Jane Technician",
+                  weekday: 0,
+                  startMinute: 8 * 60,
+                  endMinute: 17 * 60,
+                  timezone: "Africa/Nairobi",
+                },
+              ],
+              blocks: [],
+              reservations: [],
+            },
+          ],
+        ]),
+      ),
+    };
+    const result = await new MarketplaceService(
+      store,
+      "demo-cloud",
+      availabilityStore,
+      () => new Date("2026-08-23T05:00:00.000Z"),
+    ).search(query);
 
     expect(store.search).toHaveBeenCalledWith(query);
     expect(result).toEqual({
@@ -57,6 +92,15 @@ describe("marketplace service", () => {
           provider: expect.objectContaining({
             businessName: "Trusted Plumbing",
             verified: true,
+            availableToday: true,
+            experienceYears: 8,
+            nextAvailableSlot: {
+              startsAt: "2026-08-23T05:30:00.000Z",
+              timezone: "Africa/Nairobi",
+            },
+            rating: 4.8,
+            reviewCount: 12,
+            verifiedJobs: 9,
           }),
         }),
       ],

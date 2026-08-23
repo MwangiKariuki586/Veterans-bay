@@ -42,6 +42,7 @@ const draft: OnboardingSummary = {
   phone: null,
   email: null,
   operatingLocation: null,
+  experienceStartedYear: null,
   serviceAreas: [],
   workingHours: {},
   logoAssetId: null,

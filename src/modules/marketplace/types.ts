@@ -8,6 +8,8 @@ export interface MarketplaceSearchQuery {
   pricingModel?: PricingModel;
   availability?: "today";
   verified?: "true" | "false";
+  topRated?: "true";
+  instantBooking?: "true";
   sort: "relevance" | "newest";
   page: number;
   pageSize: number;
@@ -29,6 +31,15 @@ export interface MarketplaceListing {
     businessName: string;
     operatingLocation: string | null;
     verified: boolean;
+    availableToday: boolean;
+    experienceYears: number | null;
+    nextAvailableSlot: {
+      startsAt: string;
+      timezone: string;
+    } | null;
+    rating: number | null;
+    reviewCount: number;
+    verifiedJobs: number;
   };
 }
 
@@ -51,6 +62,8 @@ export type MarketplaceAnalyticsEvent =
         | "pricingModel"
         | "availability"
         | "verified"
+        | "topRated"
+        | "instantBooking"
       >;
       page: number;
       resultCount: number;

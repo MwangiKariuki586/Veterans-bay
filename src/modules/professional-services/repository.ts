@@ -25,6 +25,7 @@ export type ManagedProfileRecord = {
   description: string | null;
   primaryCategory: string | null;
   operatingLocation: string | null;
+  experienceStartedYear: number | null;
   serviceAreas: string[];
   workingHours: Record<string, { enabled: boolean; opensAt: string; closesAt: string }>;
   verificationStatus: string;
@@ -72,6 +73,7 @@ export interface ProfessionalServicesStore {
       description: string;
       primaryCategory: string;
       operatingLocation: string;
+      experienceStartedYear: number | null;
       serviceAreas: string[];
     };
   }): Promise<ManagedProfileRecord | null>;
@@ -352,6 +354,7 @@ export class ProfessionalServicesRepository implements ProfessionalServicesStore
         description: professionalProfiles.description,
         primaryCategory: professionalProfiles.primaryCategory,
         operatingLocation: professionalProfiles.operatingLocation,
+        experienceStartedYear: professionalProfiles.experienceStartedYear,
         serviceAreas: professionalProfiles.serviceAreas,
         workingHours: professionalProfiles.workingHours,
         verificationStatus: professionalProfiles.verificationStatus,
@@ -391,6 +394,7 @@ export class ProfessionalServicesRepository implements ProfessionalServicesStore
       description: string;
       primaryCategory: string;
       operatingLocation: string;
+      experienceStartedYear: number | null;
       serviceAreas: string[];
     };
   }): Promise<ManagedProfileRecord | null> {
@@ -405,6 +409,7 @@ export class ProfessionalServicesRepository implements ProfessionalServicesStore
           description: input.values.description,
           primaryCategory: input.values.primaryCategory,
           operatingLocation: input.values.operatingLocation,
+          experienceStartedYear: input.values.experienceStartedYear,
           serviceAreas: input.values.serviceAreas,
           updatedAt: new Date(),
         })

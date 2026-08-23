@@ -22,6 +22,7 @@ const profile = {
     "Licensed plumbing professionals delivering careful residential repairs and maintenance.",
   primaryCategory: "Plumbing",
   operatingLocation: "Nairobi",
+  experienceStartedYear: 2018,
   serviceAreas: ["Westlands", "Kilimani"],
   availabilitySummary: "Available 6 days a week",
   verificationStatus: "verified",
@@ -47,6 +48,7 @@ describe("professional profile manager", () => {
 
     expect(await screen.findByRole("heading", { name: "Business profile" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("Veterans Plumbing")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("2018")).toBeInTheDocument();
     expect(screen.getByText("No portfolio work yet")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /View public profile/ })).toHaveAttribute(
       "href",
@@ -71,6 +73,9 @@ describe("professional profile manager", () => {
     fireEvent.change(await screen.findByLabelText("Business name"), {
       target: { value: "Veterans Bay Plumbing" },
     });
+    fireEvent.change(screen.getByDisplayValue("2018"), {
+      target: { value: "2017" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Save public profile" }));
 
     await waitFor(() =>
@@ -82,6 +87,10 @@ describe("professional profile manager", () => {
         }),
       ),
     );
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls.at(-1)?.[1]?.body))).toMatchObject({
+      businessName: "Veterans Bay Plumbing",
+      experienceStartedYear: 2017,
+    });
     expect(mocks.toastSuccess).toHaveBeenCalledWith("Public profile saved");
   });
 

@@ -28,6 +28,7 @@ type ProfileForm = {
   description: string;
   primaryCategory: string;
   operatingLocation: string;
+  experienceStartedYear: string;
   serviceAreas: string;
 };
 
@@ -37,6 +38,7 @@ function toForm(profile: ManagedProfessionalProfile): ProfileForm {
     description: profile.description ?? "",
     primaryCategory: profile.primaryCategory ?? "",
     operatingLocation: profile.operatingLocation ?? "",
+    experienceStartedYear: profile.experienceStartedYear?.toString() ?? "",
     serviceAreas: profile.serviceAreas.join(", "),
   };
 }
@@ -86,6 +88,9 @@ export function ProfessionalProfileManager() {
             description: form.description,
             primaryCategory: form.primaryCategory,
             operatingLocation: form.operatingLocation,
+            experienceStartedYear: form.experienceStartedYear
+              ? Number(form.experienceStartedYear)
+              : null,
             serviceAreas: form.serviceAreas
               .split(",")
               .map((area) => area.trim())
@@ -348,6 +353,22 @@ export function ProfessionalProfileManager() {
               disabled={suspended}
               onChange={(event) => update("operatingLocation", event.target.value)}
             />
+          </Field>
+          <Field label="Working professionally since">
+            <Input
+              type="number"
+              value={form.experienceStartedYear}
+              min={1900}
+              max={new Date().getFullYear()}
+              disabled={suspended}
+              placeholder="e.g. 2018"
+              onChange={(event) =>
+                update("experienceStartedYear", event.target.value)
+              }
+            />
+            <p className="mt-1 text-xs text-[#68717b]">
+              Used to keep your years of experience accurate automatically.
+            </p>
           </Field>
           <Field label="Service areas">
             <Input

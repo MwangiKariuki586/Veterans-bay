@@ -41,6 +41,13 @@ export const updateOnboardingBodySchema = z
       .optional(),
     email: z.email().max(254).nullable().optional(),
     operatingLocation: z.string().trim().min(2).max(240).nullable().optional(),
+    experienceStartedYear: z
+      .number()
+      .int()
+      .min(1900)
+      .max(new Date().getFullYear())
+      .nullable()
+      .optional(),
     serviceAreas: z
       .array(z.string().trim().min(2).max(120))
       .max(30)

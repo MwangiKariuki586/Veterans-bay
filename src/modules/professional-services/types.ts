@@ -46,6 +46,7 @@ export interface ManagedProfessionalProfile {
   description: string | null;
   primaryCategory: string | null;
   operatingLocation: string | null;
+  experienceStartedYear: number | null;
   serviceAreas: string[];
   availabilitySummary: string | null;
   verificationStatus: string;

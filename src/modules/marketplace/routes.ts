@@ -12,6 +12,7 @@ import {
 import { MarketplaceService } from "./service";
 import type { MarketplaceSearchResult } from "./types";
 import { applyPublicProjectionCache } from "../../platform/http/public-cache";
+import { BookingsRepository } from "../bookings/repository";
 
 export function createMarketplaceRoutes() {
   const routes = new Hono<ApiAppEnvironment>();
@@ -25,6 +26,7 @@ export function createMarketplaceRoutes() {
       const data = await new MarketplaceService(
         new MarketplaceRepository(client.db),
         environment.CLOUDINARY_CLOUD_NAME,
+        new BookingsRepository(client.db),
       ).search(input);
       return context.json<ApiSuccessBody<MarketplaceSearchResult>>({
         data,

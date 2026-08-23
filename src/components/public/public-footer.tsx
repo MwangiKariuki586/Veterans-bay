@@ -78,19 +78,19 @@ const trustItems: ReadonlyArray<{
   { label: "Satisfaction Guaranteed", icon: ShieldCheck },
 ];
 
-export function PublicFooter() {
+export function PublicFooter({ marketplace = false }: { marketplace?: boolean } = {}) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-16 overflow-hidden rounded-[28px] border border-white/80 bg-white/95 shadow-[0_22px_55px_rgba(20,42,57,0.12)]">
-      <div className="grid gap-10 px-6 pt-10 pb-8 sm:px-8 lg:grid-cols-[1.3fr_1.75fr_0.95fr] lg:gap-12 lg:px-12 lg:pt-10 lg:pb-4">
+    <footer className={cn("overflow-hidden border border-white/80 bg-white/95", marketplace ? "mt-6 rounded-2xl shadow-none sm:mt-10" : "mt-16 rounded-[28px] shadow-[0_22px_55px_rgba(20,42,57,0.12)]")}>
+      <div className={cn("grid gap-10 px-6 pt-10 pb-8 sm:px-8 lg:grid-cols-[1.3fr_1.75fr_0.95fr] lg:gap-12 lg:px-12 lg:pt-10 lg:pb-4", marketplace && "grid-cols-[1fr_auto] items-center gap-4 py-5 sm:grid-cols-1 sm:items-start sm:gap-8 sm:py-8 lg:grid-cols-[1.3fr_1.75fr_0.95fr]")}>
         <div className="max-w-sm">
-          <Brand size="large" />
-          <p className="mt-6 max-w-[360px] text-sm leading-6 text-[#263b57] sm:text-[0.95rem] sm:leading-7">
+          <Brand size="large" compact={marketplace} />
+          <p className={cn("mt-6 max-w-[360px] text-sm leading-6 text-[#263b57] sm:text-[0.95rem] sm:leading-7", marketplace && "hidden sm:block")}>
             Connecting you with verified home service professionals you can
             trust, from start to finish.
           </p>
-          <div className="mt-7 flex flex-wrap gap-3">
+          <div className={cn("mt-7 flex flex-wrap gap-3", marketplace && "hidden sm:flex")}>
             {socialLinks.map(({ label, icon: Icon }) => (
               <span
                 key={label}
@@ -104,7 +104,17 @@ export function PublicFooter() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:gap-x-10">
+        {marketplace ? (
+          <div className="flex items-center justify-end gap-2 sm:hidden" aria-label="Social channels">
+            {socialLinks.slice(0, 4).map(({ label, icon: Icon }) => (
+              <span key={label} className="grid size-9 place-items-center rounded-full border border-black/8 bg-white text-[#0f2947]" aria-label={label} role="img">
+                <Icon className="size-3.5" aria-hidden="true" />
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <div className={cn("grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:gap-x-10", marketplace && "hidden sm:grid")}>
           {publicFooterColumns.map((column) => (
             <div key={column.title}>
               <h2 className="w-fit border-b-[3px] border-[#9ccc36] pb-2 text-[0.95rem] font-medium text-[#0b2545]">
@@ -128,7 +138,7 @@ export function PublicFooter() {
           ))}
         </div>
 
-        <aside className="self-start rounded-[24px] border border-[#e8e9c8] bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.68)_0%,rgba(255,255,255,0.28)_38%,rgba(255,255,255,0)_68%),linear-gradient(145deg,#faf9ef_0%,#f5f7dc_56%,#f0f4d2_100%)] p-6 shadow-[0_15px_35px_rgba(91,115,28,0.08)]">
+        <aside className={cn("self-start rounded-[24px] border border-[#e8e9c8] bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.68)_0%,rgba(255,255,255,0.28)_38%,rgba(255,255,255,0)_68%),linear-gradient(145deg,#faf9ef_0%,#f5f7dc_56%,#f0f4d2_100%)] p-6 shadow-[0_15px_35px_rgba(91,115,28,0.08)]", marketplace && "hidden sm:block")}>
           <span className="grid size-11 place-items-center rounded-full bg-white text-[#5f8d11] shadow-[0_8px_22px_rgba(60,87,27,0.08)]">
             <Headphones className="size-5" aria-hidden="true" />
           </span>
@@ -151,7 +161,7 @@ export function PublicFooter() {
         </aside>
       </div>
 
-      <div className="mx-6 grid gap-4 rounded-[18px] bg-[#fbfaf6] px-5 py-5 sm:mx-8 sm:grid-cols-2 lg:mx-10 lg:grid-cols-4 lg:px-7 lg:py-6">
+      <div className={cn("mx-6 grid gap-4 rounded-[18px] bg-[#fbfaf6] px-5 py-5 sm:mx-8 sm:grid-cols-2 lg:mx-10 lg:grid-cols-4 lg:px-7 lg:py-6", marketplace && "hidden sm:grid")}>
         {trustItems.map(({ label, icon: Icon }) => (
           <p
             key={label}

@@ -223,6 +223,7 @@ describe("ProfessionalServicesService", () => {
       description: "Trusted residential plumbing repairs and maintenance.",
       primaryCategory: "Plumbing",
       operatingLocation: "Nairobi",
+      experienceStartedYear: 2018,
       serviceAreas: ["Westlands"],
       workingHours: {
         monday: { enabled: true, opensAt: "08:00", closesAt: "17:00" },

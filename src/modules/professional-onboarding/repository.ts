@@ -42,6 +42,7 @@ export interface OnboardingRecord {
   phone: string | null;
   email: string | null;
   operatingLocation: string | null;
+  experienceStartedYear: number | null;
   serviceAreas: string[];
   workingHours: WorkingHours;
   logoAssetId: string | null;
@@ -172,6 +173,7 @@ function selectOwned(db: Database, accountProfileId: string) {
       phone: professionalProfiles.phone,
       email: professionalProfiles.email,
       operatingLocation: professionalProfiles.operatingLocation,
+      experienceStartedYear: professionalProfiles.experienceStartedYear,
       serviceAreas: professionalProfiles.serviceAreas,
       workingHours: professionalProfiles.workingHours,
       logoAssetId: professionalProfiles.logoAssetId,
@@ -229,6 +231,7 @@ export class ProfessionalOnboardingRepository
         phone: professionalProfiles.phone,
         email: professionalProfiles.email,
         operatingLocation: professionalProfiles.operatingLocation,
+        experienceStartedYear: professionalProfiles.experienceStartedYear,
         serviceAreas: professionalProfiles.serviceAreas,
         workingHours: professionalProfiles.workingHours,
         logoAssetId: professionalProfiles.logoAssetId,

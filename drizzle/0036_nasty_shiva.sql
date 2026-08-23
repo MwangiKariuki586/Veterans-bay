@@ -1,0 +1,2 @@
+ALTER TABLE "professional_profiles" ADD COLUMN "experience_started_year" integer;--> statement-breakpoint
+ALTER TABLE "professional_profiles" ADD CONSTRAINT "professional_profiles_experience_started_year_check" CHECK ("professional_profiles"."experience_started_year" is null or "professional_profiles"."experience_started_year" between 1900 and 2100);

@@ -24,7 +24,7 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
-`VERIFICATION PENDING` — The shared professional, client, and administrator workspace shell now pins its footer to the bottom of short viewports while retaining natural long-page scrolling. Focused layout tests and typecheck pass; live browser geometry verification remains unavailable because no browser is connected to this session.
+`VERIFICATION PENDING` — Marketplace cards now include authoritative experience, rating and review detail, verification, location, exact next-bookable-slot information, pricing labels, correctly anchored favourite actions, availability or top-rated badges, and full-height list-view images while preserving the user's font changes. Header and filter location controls share a searchable Nairobi-area list that updates URL filters, desktop filter inputs are constrained to the sidebar width, wide-screen result grids use three cards per row, mobile uses its default list presentation without an unnecessary view switcher, mobile quick-filter chips keep natural single-line widths in their horizontal scroller, Top Rated plus Instant Booking chips apply authoritative URL-backed API filters, and active-filter chips use meaningful labels instead of raw boolean values. Migration `0036` is applied to the configured development database and the previously failing marketplace request returns 200. Schema, focused tests, types, lint, build, and whitespace checks pass; screenshot comparison remains unavailable because no in-app browser is connected.
 
 ## Current Step
 

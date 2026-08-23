@@ -96,6 +96,7 @@ const onboardingFieldLabels = {
   phone: "phone number",
   email: "business email",
   operatingLocation: "operating location",
+  experienceStartedYear: "professional start year",
   serviceAreas: "service areas",
   workingHours: "working hours",
   verificationType: "verification type",
@@ -201,6 +202,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [operatingLocation, setOperatingLocation] = useState("");
+  const [experienceStartedYear, setExperienceStartedYear] = useState("");
   const [serviceAreas, setServiceAreas] = useState("");
   const [verificationType, setVerificationType] = useState("");
   const [verificationReference, setVerificationReference] = useState("");
@@ -224,6 +226,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
         setPhone(data.phone ?? "");
         setEmail(data.email ?? "");
         setOperatingLocation(data.operatingLocation ?? "");
+        setExperienceStartedYear(data.experienceStartedYear?.toString() ?? "");
         setServiceAreas(data.serviceAreas.join(", "));
         setVerificationType(data.verificationType ?? "");
         setVerificationReference(data.verificationReference ?? "");
@@ -315,6 +318,9 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
           phone: phone || null,
           email: email || null,
           operatingLocation: operatingLocation || null,
+          experienceStartedYear: experienceStartedYear
+            ? Number(experienceStartedYear)
+            : null,
           serviceAreas: serviceAreas
             .split(",")
             .map((area) => area.trim())
@@ -541,6 +547,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
                   <Field label="Primary category" error={fieldErrors.primaryCategory}><Input value={primaryCategory} onChange={(event) => { setPrimaryCategory(event.target.value); clearFieldError("primaryCategory"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.primaryCategory)} placeholder="Plumbing, electrical, cleaning…" /></Field>
                   <Field label="Business email" error={fieldErrors.email}><Input type="email" value={email} onChange={(event) => { setEmail(event.target.value); clearFieldError("email"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.email)} /></Field>
                   <Field label="Phone" error={fieldErrors.phone}><Input type="tel" value={phone} onChange={(event) => { setPhone(event.target.value); clearFieldError("phone"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.phone)} /></Field>
+                  <Field label="Working professionally since" error={fieldErrors.experienceStartedYear}><Input type="number" min={1900} max={new Date().getFullYear()} value={experienceStartedYear} onChange={(event) => { setExperienceStartedYear(event.target.value); clearFieldError("experienceStartedYear"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.experienceStartedYear)} placeholder="e.g. 2018" /><p className="mt-1 text-xs text-[#68717b]">We use this year to keep your experience current.</p></Field>
                   <Field label="Description" full error={fieldErrors.description}><textarea className={cn(fieldClass, "min-h-32 resize-y")} value={description} onChange={(event) => { setDescription(event.target.value); clearFieldError("description"); }} disabled={!editable} aria-invalid={Boolean(fieldErrors.description)} placeholder="Describe your experience, specialities, and the customers you serve." /><p className="mt-1 text-xs text-[#68717b]">{description.length}/80 minimum characters for submission</p></Field>
                 </FormSection>
 
@@ -613,6 +620,7 @@ function ReviewPanel({ header, progressCard, record, saving, onSubmit }: { heade
     ["Business type", record.businessType ?? "Missing"],
     ["Category", record.primaryCategory ?? "Missing"],
     ["Location", record.operatingLocation ?? "Missing"],
+    ["Working professionally since", record.experienceStartedYear?.toString() ?? "Not provided"],
     ["Service areas", record.serviceAreas.join(", ") || "Missing"],
     ["Verification", record.verificationType ?? "Missing"],
     ["Evidence", `${record.documents.length} secure file${record.documents.length === 1 ? "" : "s"}`],

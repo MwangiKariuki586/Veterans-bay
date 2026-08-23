@@ -38,6 +38,7 @@ export interface OnboardingSummary {
   phone: string | null;
   email: string | null;
   operatingLocation: string | null;
+  experienceStartedYear: number | null;
   serviceAreas: string[];
   workingHours: WorkingHours;
   logoAssetId: string | null;
