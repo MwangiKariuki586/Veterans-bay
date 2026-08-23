@@ -96,5 +96,16 @@ describe("HomepageMockup role routing", () => {
     expect(
       screen.getByRole("link", { name: /Featured professional Amina K\. Electricals/i }),
     ).toHaveAttribute("href", "/professionals/amina-k-electricals");
+    expect(screen.getByRole("heading", { name: "Popular Services" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Run every job from one place." }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Grow your business" })).toHaveAttribute(
+      "href",
+      "/become-a-professional",
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Popular Categories" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BadgeCheck,
   Bolt,
+  BriefcaseBusiness,
   Check,
   ClipboardList,
   Droplets,
@@ -33,14 +34,6 @@ const popularServices = [
   { label: "Cleaning", icon: Sparkles, className: "bg-[#27aaa8]" },
   { label: "Painting", icon: PaintRoller, className: "bg-[#7969e8]" },
   { label: "Appliance Repair", icon: Wrench, className: "bg-[#f36b54]" },
-] as const;
-
-const categoryCards = [
-  { label: "Plumbing", image: "/images/cat-plumbing.png" },
-  { label: "Electrical", image: "/images/cat-electrical.png" },
-  { label: "Cleaning", image: "/images/cat-cleaning.png" },
-  { label: "Painting", image: "/images/cat-painting.png" },
-  { label: "Appliance Repair", image: "/images/cat-appliance.png" },
 ] as const;
 
 const statsAvatars = [
@@ -102,7 +95,7 @@ function HeroCard() {
           </h1>
           <p className="mt-5 max-w-[22rem] text-[0.75rem] leading-5 text-[#68717b] sm:text-[0.88rem] sm:leading-6">
             Book skilled experts for repairs, maintenance, cleaning, and
-            installations—backed by reviews and our satisfaction guarantee.
+            installations backed by reviews and our satisfaction guarantee.
           </p>
           <div className="mt-6 flex w-full flex-col gap-3 sm:mt-7 sm:w-auto sm:flex-row sm:flex-wrap sm:gap-4 lg:flex-nowrap">
             <Link
@@ -113,12 +106,6 @@ function HeroCard() {
               <span className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary text-white sm:size-11">
                 <ArrowRight className="size-[1.15rem]" />
               </span>
-            </Link>
-            <Link
-              href="/become-a-professional"
-              className="inline-flex min-h-12 shrink-0 items-center whitespace-nowrap rounded-full border border-[#0f1b2d]/15 bg-white px-5 py-2 text-[0.75rem] font-semibold text-[#0f1b2d] sm:h-14 sm:px-7 sm:py-0 sm:text-[0.83rem]"
-            >
-              Become a Professional
             </Link>
           </div>
           <p className="mt-6 flex items-start gap-2 text-[0.7rem] leading-5 text-[#68717b] sm:mt-7 sm:items-center sm:gap-2.5 sm:text-[0.78rem]">
@@ -258,45 +245,57 @@ function TrustedHomesCard() {
   );
 }
 
-function CategoryPanel() {
+function ProfessionalGrowthCard() {
   return (
     <section
-      className="rounded-[28px] border border-black/8 bg-white p-4.5"
-      aria-labelledby="categories-heading"
+      className="relative min-h-[234px] overflow-hidden rounded-[32px] border border-[#dbe4eb] bg-[linear-gradient(135deg,#f8fbfc_0%,#edf4f6_58%,#e7f1e8_100%)]"
+      aria-labelledby="professional-growth-heading"
     >
-      <div className="flex items-center justify-between">
+      <div
+        className="absolute -top-24 -right-16 size-64 rounded-full border-[44px] border-white/55"
+        aria-hidden="true"
+      />
+      <div className="relative z-10 flex min-h-[234px] w-[70%] flex-col justify-center px-5 py-6 min-[420px]:w-[64%] sm:px-6">
+        <p className="inline-flex w-fit items-center gap-2 rounded-full border border-[#b7c995]/55 bg-white/80 px-3 py-1.5 text-[0.66rem] font-semibold text-[#527315] shadow-[0_6px_18px_rgba(54,78,38,0.06)] sm:text-[0.72rem]">
+          <BriefcaseBusiness className="size-3.5" aria-hidden="true" />
+          For Professionals
+        </p>
         <h2
-          id="categories-heading"
-          className="text-[0.95rem] font-medium text-[#0f1b2d]"
+          id="professional-growth-heading"
+          className="mt-3.5 max-w-[17rem] text-[1.3rem] leading-[1.08] font-medium tracking-title text-[#071a3e] sm:text-[1.55rem]"
         >
-          Popular Categories
+          Run every job from one place.
         </h2>
+        <p className="mt-2.5 max-w-[19rem] text-[0.68rem] leading-[1.55] text-[#627080] sm:text-[0.76rem]">
+          Manage enquiries, quotes, bookings, jobs, and customers in one
+          connected workspace.
+        </p>
         <Link
-          href="/marketplace"
-          className="type-caption text-muted-foreground"
+          href="/become-a-professional"
+          className="mt-4 inline-flex h-11 w-fit items-center gap-3 rounded-full bg-[#0b1c33] py-1 pr-1 pl-4 text-[0.7rem] font-semibold text-white shadow-[0_10px_24px_rgba(11,28,51,0.14)] transition-transform hover:-translate-y-0.5 sm:text-[0.76rem]"
         >
-          View all
+          Grow your business
+          <span className="grid size-9 place-items-center rounded-full bg-primary text-[#0b1c33]">
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </span>
         </Link>
       </div>
-      <div className="mt-5 grid grid-cols-5 gap-2.5">
-        {categoryCards.map((category) => (
-          <Link
-            key={category.label}
-            href={`/marketplace?category=${encodeURIComponent(category.label)}`}
-            className="type-caption font-medium"
-          >
-            <Image
-              src={category.image}
-              alt=""
-              width={140}
-              height={180}
-              className="aspect-[0.72] w-full rounded-[16px] object-cover"
-            />
-            <span className="mt-2.5 block text-center leading-tight">
-              {category.label}
-            </span>
-          </Link>
-        ))}
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-[45%] min-[420px]:w-[43%]">
+        <div
+          className="absolute right-4 bottom-2 size-32 rounded-full bg-primary/35 blur-2xl sm:size-40"
+          aria-hidden="true"
+        />
+        <Image
+          src="/images/homepage-hero-pro.png"
+          alt="Veterans Bay home service professional"
+          fill
+          sizes="(min-width: 1024px) 20vw, (min-width: 640px) 38vw, 45vw"
+          className="object-cover object-[52%_16%] drop-shadow-[0_18px_20px_rgba(15,27,45,0.13)]"
+        />
+        <div
+          className="absolute inset-y-0 left-0 w-[32%] bg-[linear-gradient(90deg,#eff5f5_0%,rgba(239,245,245,0.72)_42%,rgba(239,245,245,0)_100%)]"
+          aria-hidden="true"
+        />
       </div>
     </section>
   );
@@ -399,7 +398,7 @@ function FastBooking() {
 function BottomPanels() {
   return (
     <div className="grid gap-[18px] lg:col-span-2 lg:row-start-4 lg:grid-cols-[1.35fr_0.72fr_1fr]">
-      <CategoryPanel />
+      <ProfessionalGrowthCard />
       <BookingStats />
       <FastBooking />
     </div>
