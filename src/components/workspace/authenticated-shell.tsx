@@ -168,21 +168,25 @@ export function AuthenticatedShell({
             />
           ) : (
             <WorkspaceChromeProvider>
-              {!hideIntro ? (
-                <div className="mb-6">
-                  <p className="inline-flex items-center gap-2 rounded-full border border-black/7 bg-white px-4 py-2 type-caption text-[#626b75]">
-                    Authenticated workspace
-                  </p>
-                  <h1 className="mt-5 type-public-title">{title}</h1>
-                  {description ? (
-                    <p className="mt-4 max-w-2xl text-base leading-7 text-[#68717b]">
-                      {description}
-                    </p>
+              <div className="flex min-h-full flex-col gap-6">
+                <div>
+                  {!hideIntro ? (
+                    <div className="mb-6">
+                      <p className="inline-flex items-center gap-2 rounded-full border border-black/7 bg-white px-4 py-2 type-caption text-[#626b75]">
+                        Authenticated workspace
+                      </p>
+                      <h1 className="mt-5 type-public-title">{title}</h1>
+                      {description ? (
+                        <p className="mt-4 max-w-2xl text-base leading-7 text-[#68717b]">
+                          {description}
+                        </p>
+                      ) : null}
+                    </div>
                   ) : null}
+                  {children}
                 </div>
-              ) : null}
-              {children}
-              <WorkspaceFooter kind={kind} />
+                <WorkspaceFooter kind={kind} />
+              </div>
             </WorkspaceChromeProvider>
           )}
         </main>
@@ -210,7 +214,7 @@ function WorkspaceFooter({ kind }: { kind: AuthenticatedShellKind }) {
   if (!contentReady) {
     return null;
   }
-  return <AuthenticatedFooter kind={kind} />;
+  return <AuthenticatedFooter kind={kind} className="mt-auto" />;
 }
 
 function WorkspaceMenu({

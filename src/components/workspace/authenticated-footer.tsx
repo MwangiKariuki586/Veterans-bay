@@ -5,14 +5,20 @@ import type { AuthenticatedShellKind } from "@/components/workspace/workspace-na
 import { cn } from "@/lib/utils";
 
 export function AuthenticatedFooter({
-  kind: _kind,
+  className,
 }: {
   kind: AuthenticatedShellKind;
+  className?: string;
 }) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-6 overflow-hidden rounded-[22px] border border-black/8 bg-white">
+    <footer
+      className={cn(
+        "overflow-hidden rounded-[22px] border border-black/8 bg-white",
+        className,
+      )}
+    >
       <div
         className={cn(
           "flex flex-col gap-3 px-5 py-4 text-xs text-[#68717b]",
