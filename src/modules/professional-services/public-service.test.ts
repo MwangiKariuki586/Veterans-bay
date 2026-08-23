@@ -139,6 +139,126 @@ describe("PublicCatalogueService", () => {
     expect(result).not.toHaveProperty("verificationReference");
   });
 
+  it("keeps review totals consistent when the reputation projection is missing", async () => {
+    const repository: PublicCatalogueStore = {
+      ...store(),
+      getReputation: vi.fn().mockResolvedValue(null),
+      listReviews: vi.fn().mockResolvedValue([
+        {
+          id: "review-1",
+          clientName: "Amina",
+          overallRating: 5,
+          feedback: "Excellent work.",
+          submittedAt: new Date("2026-08-20T08:00:00.000Z"),
+          responseBody: null,
+          responseCreatedAt: null,
+        },
+        {
+          id: "review-2",
+          clientName: "John",
+          overallRating: 4,
+          feedback: "Good service.",
+          submittedAt: new Date("2026-08-19T08:00:00.000Z"),
+          responseBody: null,
+          responseCreatedAt: null,
+        },
+      ]),
+    };
+
+    await expect(
+      new PublicCatalogueService(repository).getProfessional("digital-qatalyst"),
+    ).resolves.toMatchObject({
+      rating: 4.5,
+      reviewCount: 2,
+      reviews: [{ overallRating: 5 }, { overallRating: 4 }],
+    });
+  });
+
+  it("projects the earliest real slot across eligible direct-booking services", async () => {
+    const repository = store();
+    vi.mocked(repository.listServices).mockResolvedValue([
+      service({ id: "short", estimatedDurationMinutes: 60 }),
+      service({ id: "long", estimatedDurationMinutes: 120 }),
+      service({
+        id: "quote-only",
+        directBookingEnabled: false,
+        estimatedDurationMinutes: 30,
+      }),
+    ]);
+    const availabilityStore = {
+      slotInputsByOrganisation: vi.fn().mockResolvedValue(
+        new Map([
+          [
+            professional.organisationId,
+            {
+              rules: [
+                {
+                  membershipId: "member-1",
+                  memberName: "Alex Plumber",
+                  weekday: 1,
+                  startMinute: 9 * 60,
+                  endMinute: 17 * 60,
+                  timezone: "Africa/Nairobi",
+                },
+              ],
+              blocks: [],
+              reservations: [],
+            },
+          ],
+        ]),
+      ),
+    };
+
+    const result = await new PublicCatalogueService(
+      repository,
+      undefined,
+      availabilityStore,
+      () => new Date("2026-08-24T06:00:00.000Z"),
+    ).getProfessional("digital-qatalyst");
+
+    expect(result.nextAvailableSlot).toEqual({
+      startsAt: "2026-08-24T06:30:00.000Z",
+      timezone: "Africa/Nairobi",
+    });
+    expect(availabilityStore.slotInputsByOrganisation).toHaveBeenCalledWith({
+      organisationIds: [professional.organisationId],
+      from: new Date("2026-08-24T06:00:00.000Z"),
+      to: new Date("2026-09-07T06:00:00.000Z"),
+    });
+  });
+
+  it("projects one dated opening time when booking rules have not been configured", async () => {
+    const repository = store();
+    vi.mocked(repository.listServices).mockResolvedValue([
+      service({
+        directBookingEnabled: false,
+        estimatedDurationMinutes: null,
+      }),
+    ]);
+    const availabilityStore = {
+      slotInputsByOrganisation: vi.fn().mockResolvedValue(
+        new Map([
+          [
+            professional.organisationId,
+            { rules: [], blocks: [], reservations: [] },
+          ],
+        ]),
+      ),
+    };
+
+    const result = await new PublicCatalogueService(
+      repository,
+      undefined,
+      availabilityStore,
+      () => new Date("2026-08-23T12:00:00.000Z"),
+    ).getProfessional("digital-qatalyst");
+
+    expect(result.nextAvailableSlot).toEqual({
+      startsAt: "2026-08-24T05:00:00.000Z",
+      timezone: "Africa/Nairobi",
+    });
+  });
+
   it("orders availability consistently from Monday through Sunday", async () => {
     const repository = store();
     vi.mocked(repository.findProfessionalBySlug).mockResolvedValue({

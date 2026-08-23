@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -7,6 +7,10 @@ import type {
 } from "@/modules/professional-services/types";
 
 import { PublicProfessionalPage, PublicServicePage } from "./public-catalogue-pages";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
 
 const service: PublicServiceDetail = {
   slug: "custom-home-repair",
@@ -33,6 +37,10 @@ const service: PublicServiceDetail = {
     operatingLocation: "Nairobi, Kenya",
     serviceAreas: ["Westlands"],
     availabilitySummary: "Available Mon, Tue",
+    nextAvailableSlot: {
+      startsAt: "2030-01-07T11:30:00.000Z",
+      timezone: "Africa/Nairobi",
+    },
     verified: true,
     logoUrl: null,
     rating: null,
@@ -51,7 +59,11 @@ const profile: PublicProfessionalProfile = {
 
 describe("public catalogue pages", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn());
+    window.history.replaceState(null, "", "/");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) } as Response),
+    );
   });
 
   it("renders an authoritative custom-quotation service without a numeric total", async () => {
@@ -76,7 +88,7 @@ describe("public catalogue pages", () => {
     );
   });
 
-  it("uses explicit new-professional states instead of fabricated metrics", async () => {
+  it("uses compact, truthful new-professional states instead of fabricated metrics", async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce({
         ok: true,
@@ -86,9 +98,73 @@ describe("public catalogue pages", () => {
 
     render(<PublicProfessionalPage slug={profile.slug} />);
     expect(await screen.findByRole("heading", { name: profile.businessName })).toBeInTheDocument();
-    expect(screen.getByText("No verified reviews yet")).toBeInTheDocument();
     expect(screen.getByText("Not enough activity yet")).toBeInTheDocument();
-    expect(screen.getByText("Portfolio coming soon")).toBeInTheDocument();
+    expect(screen.getByText("Reviews will appear here")).toBeInTheDocument();
+    expect(screen.queryByText("Portfolio coming soon")).not.toBeInTheDocument();
+    expect(screen.queryByText("248 reviews")).not.toBeInTheDocument();
+    expect(screen.queryByText("1,200+")).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: profile.businessName })).toHaveAttribute(
+      "src",
+      expect.stringContaining("homepage-hero-professional-room.png"),
+    );
+    expect(screen.queryByText("Available Mon, Tue")).not.toBeInTheDocument();
+    expect(screen.getByText("Next slot available")).toBeInTheDocument();
+    expect(screen.getByText("Mon, Jan 7, 2:30 PM")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Check availability" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/client/requests/new"),
+    );
+    expect(screen.getAllByRole("link", { name: "Book Now" })[0]).toHaveClass(
+      "border-0",
+      "shadow-none",
+      "ring-0",
+    );
+    expect(screen.getByRole("button", { name: `Save ${profile.businessName}` })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(
+      screen.getByRole("heading", { name: `About ${profile.businessName}` }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Services offered" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View all services" })).toHaveAttribute(
+      "href",
+      "#services",
+    );
+    expect(screen.getAllByText("Select service")).toHaveLength(2);
+    expect(screen.getAllByText("Confirm & pay")).toHaveLength(2);
+
+    const servicesSection = document.getElementById("services");
+    expect(servicesSection).not.toBeNull();
+    servicesSection!.scrollIntoView = vi.fn();
+    const servicesTab = screen.getByRole("button", { name: "Services" });
+    fireEvent.click(servicesTab);
+    expect(servicesSection!.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
+    expect(servicesTab).toHaveAttribute("aria-current", "location");
+    expect(window.location.hash).toBe("#services");
+    expect(
+      screen.getByRole("heading", { name: "Frequently asked questions" }),
+    ).toBeInTheDocument();
+    const faqQuestions = [
+      "How do I book this professional?",
+      "Are the reviews verified?",
+      "When is the price confirmed?",
+    ];
+    const faqDetails = faqQuestions.map((question) =>
+      screen.getByText(question).closest("details"),
+    );
+    expect(faqDetails.every(Boolean)).toBe(true);
+    fireEvent.click(screen.getByText(faqQuestions[0]));
+    expect(faqDetails[0]).toHaveAttribute("open");
+    expect(faqDetails[1]).not.toHaveAttribute("open");
+    expect(faqDetails[2]).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText(faqQuestions[1]));
+    expect(faqDetails[0]).toHaveAttribute("open");
+    expect(faqDetails[1]).toHaveAttribute("open");
+    expect(faqDetails[2]).not.toHaveAttribute("open");
   });
 
   it("routes eligible fixed-price services into direct slot selection", async () => {

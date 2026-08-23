@@ -1,4 +1,6 @@
 import { AppError } from "../../platform/errors/app-error";
+import { buildAvailableSlots } from "../bookings/availability";
+import type { BookingSlotInputs } from "../bookings/repository";
 import type {
   PublicCatalogueStore,
   PublicProfessionalRecord,
@@ -30,6 +32,15 @@ function availabilitySummary(workingHours: PublicProfessionalRecord["workingHour
     .filter((day) => workingHours[day]?.enabled)
     .map((day) => `${day.charAt(0).toUpperCase()}${day.slice(1, 3)}`);
   return availableDays.length > 0 ? `Available ${availableDays.join(", ")}` : null;
+}
+
+function toMinuteOfDay(value: string): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return null;
+  return hour * 60 + minute;
 }
 
 function isComplete(service: PublicServiceRecord) {
@@ -66,6 +77,14 @@ export class PublicCatalogueService {
   constructor(
     private readonly store: PublicCatalogueStore,
     private readonly cloudName?: string,
+    private readonly availabilityStore?: {
+      slotInputsByOrganisation(input: {
+        organisationIds: string[];
+        from: Date;
+        to: Date;
+      }): Promise<Map<string, BookingSlotInputs>>;
+    },
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   async getProfessional(slug: string): Promise<PublicProfessionalProfile> {
@@ -93,7 +112,38 @@ export class PublicCatalogueService {
         ...cards.map((service) => service.category),
       ]),
     );
+    const nextAvailableSlot = await this.findNextAvailableSlot(
+      professional.organisationId,
+      professional.workingHours,
+      cards
+        .filter(
+          (service) =>
+            service.directBookingEnabled &&
+            service.estimatedDurationMinutes != null,
+        )
+        .map((service) => service.estimatedDurationMinutes!),
+    );
 
+    const experienceYears =
+      professional.experienceStartedYear == null
+        ? null
+        : Math.max(0, this.now().getFullYear() - professional.experienceStartedYear);
+    const publishedReviewCount = publishedReviews.length;
+    const publishedAverageRating =
+      publishedReviewCount > 0
+        ? publishedReviews.reduce(
+            (total, review) => total + review.overallRating,
+            0,
+          ) / publishedReviewCount
+        : null;
+    const projectedReviewCount = Math.max(
+      reputation?.reviewCount ?? 0,
+      publishedReviewCount,
+    );
+    const projectedRating =
+      reputation?.averageRatingHundredths == null
+        ? publishedAverageRating
+        : reputation.averageRatingHundredths / 100;
     return {
       slug: professional.slug,
       businessName: professional.businessName,
@@ -103,18 +153,17 @@ export class PublicCatalogueService {
       operatingLocation: professional.operatingLocation,
       serviceAreas: professional.serviceAreas,
       availabilitySummary: availabilitySummary(professional.workingHours),
+      nextAvailableSlot,
       verified: professional.verificationStatus === "verified",
       logoUrl: publicImageUrl(this.cloudName, professional.logoPublicId),
-      rating:
-        reputation?.averageRatingHundredths == null
-          ? null
-          : reputation.averageRatingHundredths / 100,
-      reviewCount: reputation?.reviewCount ?? 0,
+      rating: projectedRating,
+      reviewCount: projectedReviewCount,
       completedJobs: reputation?.verifiedJobs ?? 0,
       responseIndicator:
         reputation && reputation.reviewCount > 0
           ? `${Math.round(reputation.responseRateBasisPoints / 100)}%`
           : null,
+      experienceYears,
       reviews: publishedReviews.map((review) => ({
         id: review.id,
         clientName: review.clientName,
@@ -147,6 +196,14 @@ export class PublicCatalogueService {
       .map((item) => publicImageUrl(this.cloudName, item.publicId))
       .filter((url): url is string => Boolean(url));
     const professional = result.professional;
+    const nextAvailableSlot = await this.findNextAvailableSlot(
+      professional.organisationId,
+      professional.workingHours,
+      result.service.directBookingEnabled &&
+        result.service.estimatedDurationMinutes != null
+        ? [result.service.estimatedDurationMinutes]
+        : [],
+    );
 
     return {
       ...toServiceCard(result.service, imageUrls[0] ?? null),
@@ -162,15 +219,91 @@ export class PublicCatalogueService {
         operatingLocation: professional.operatingLocation,
         serviceAreas: professional.serviceAreas,
         availabilitySummary: availabilitySummary(professional.workingHours),
+        nextAvailableSlot,
         verified: professional.verificationStatus === "verified",
         logoUrl: publicImageUrl(this.cloudName, professional.logoPublicId),
         rating: null,
         reviewCount: 0,
         completedJobs: 0,
         responseIndicator: null,
+        experienceYears:
+          professional.experienceStartedYear == null
+            ? null
+            : Math.max(0, this.now().getFullYear() - professional.experienceStartedYear),
         reviews: [],
       },
     };
+  }
+
+  private async findNextAvailableSlot(
+    organisationId: string,
+    workingHours: PublicProfessionalRecord["workingHours"],
+    durations: number[],
+  ): Promise<{ startsAt: string; timezone: string } | null> {
+    const eligibleDurations = [...new Set(durations)].filter(
+      (duration) => duration > 0,
+    );
+    const candidateDurations =
+      eligibleDurations.length > 0 ? eligibleDurations : [60];
+    if (!this.availabilityStore) return null;
+
+    const now = this.now();
+    const to = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1_000);
+    const availability = await this.availabilityStore.slotInputsByOrganisation({
+      organisationIds: [organisationId],
+      from: now,
+      to,
+    });
+    const configuredInputs = availability.get(organisationId);
+    const inputs =
+      configuredInputs && configuredInputs.rules.length > 0
+        ? configuredInputs
+        : {
+            rules: Object.entries(workingHours).flatMap(([day, hours]) => {
+              if (!hours.enabled) return [];
+              const weekday = [
+                "sunday",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+              ].indexOf(day.toLowerCase());
+              const startMinute = toMinuteOfDay(hours.opensAt);
+              const endMinute = toMinuteOfDay(hours.closesAt);
+              if (weekday < 0 || startMinute == null || endMinute == null) return [];
+              return [
+                {
+                  membershipId: `working-hours-${organisationId}`,
+                  memberName: "Professional",
+                  weekday,
+                  startMinute,
+                  endMinute,
+                  timezone: "Africa/Nairobi",
+                },
+              ];
+            }),
+            blocks: [],
+            reservations: [],
+          } satisfies BookingSlotInputs;
+    if (inputs.rules.length === 0) return null;
+
+    const first = candidateDurations
+      .flatMap((durationMinutes) =>
+        buildAvailableSlots({
+          ...inputs,
+          from: now,
+          to,
+          now,
+          durationMinutes,
+          limit: Number.MAX_SAFE_INTEGER,
+        }),
+      )
+      .sort((left, right) => left.startsAt.localeCompare(right.startsAt))[0];
+    return first
+      ? { startsAt: first.startsAt, timezone: first.timezone }
+      : null;
   }
 
   private unavailable(kind: "professional" | "service") {

@@ -1219,15 +1219,6 @@ function FilterForm({
         <Button type="submit" className="h-10 rounded-xl text-xs">
           Show results
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-10 rounded-xl text-xs"
-          onClick={onClear}
-        >
-          <RefreshCw className="size-3.5" />
-          Clear filters
-        </Button>
       </div>
     </form>
   );

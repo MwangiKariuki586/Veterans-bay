@@ -108,12 +108,14 @@ export interface PublicProfessionalProfile {
   operatingLocation: string | null;
   serviceAreas: string[];
   availabilitySummary: string | null;
+  nextAvailableSlot: { startsAt: string; timezone: string } | null;
   verified: boolean;
   logoUrl: string | null;
   rating: number | null;
   reviewCount: number;
   completedJobs: number;
   responseIndicator: string | null;
+  experienceYears?: number | null;
   reviews?: Array<{
     id: string;
     clientName: string;

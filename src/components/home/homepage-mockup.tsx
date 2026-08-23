@@ -286,15 +286,17 @@ function ProfessionalGrowthCard() {
           aria-hidden="true"
         />
         <Image
-          src="/images/homepage-hero-pro.png"
-          alt="Veterans Bay home service professional"
+          src="/images/featured-professional.png"
+          alt="Professional managing work with Veterans Bay"
           fill
           sizes="(min-width: 1024px) 20vw, (min-width: 640px) 38vw, 45vw"
-          className="object-cover object-[52%_16%] drop-shadow-[0_18px_20px_rgba(15,27,45,0.13)]"
-        />
-        <div
-          className="absolute inset-y-0 left-0 w-[32%] bg-[linear-gradient(90deg,#eff5f5_0%,rgba(239,245,245,0.72)_42%,rgba(239,245,245,0)_100%)]"
-          aria-hidden="true"
+          className="object-cover object-top drop-shadow-[0_18px_20px_rgba(15,27,45,0.13)]"
+          style={{
+            WebkitMaskImage:
+              "linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.45) 30%, black 62%)",
+            maskImage:
+              "linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.45) 30%, black 62%)",
+          }}
         />
       </div>
     </section>

@@ -11,6 +11,7 @@ import {
 } from "../../workers/api/middleware/authorization";
 import type { ApiAppEnvironment } from "../../workers/api/types";
 import { applyPublicProjectionCache } from "../../platform/http/public-cache";
+import { BookingsRepository } from "../bookings/repository";
 import { ProfessionalServicesRepository } from "./repository";
 import { PublicCatalogueRepository } from "./public-repository";
 import { PublicCatalogueService } from "./public-service";
@@ -65,6 +66,7 @@ export function createProfessionalServicesRoutes() {
       const service = new PublicCatalogueService(
         new PublicCatalogueRepository(client.db),
         environment.CLOUDINARY_CLOUD_NAME,
+        new BookingsRepository(client.db),
       );
       const data = await service.getProfessional(context.req.param("slug"));
       return context.json<ApiSuccessBody<PublicProfessionalProfile>>({
@@ -84,6 +86,7 @@ export function createProfessionalServicesRoutes() {
       const service = new PublicCatalogueService(
         new PublicCatalogueRepository(client.db),
         environment.CLOUDINARY_CLOUD_NAME,
+        new BookingsRepository(client.db),
       );
       const data = await service.getService(context.req.param("slug"));
       return context.json<ApiSuccessBody<PublicServiceDetail>>({

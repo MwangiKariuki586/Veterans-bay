@@ -105,6 +105,9 @@ describe("HomepageMockup role routing", () => {
       "/become-a-professional",
     );
     expect(
+      screen.getByAltText("Professional managing work with Veterans Bay"),
+    ).toHaveAttribute("src", expect.stringContaining("featured-professional.png"));
+    expect(
       screen.queryByRole("heading", { name: "Popular Categories" }),
     ).not.toBeInTheDocument();
   });
