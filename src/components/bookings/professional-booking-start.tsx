@@ -17,6 +17,29 @@ interface TeamMember {
   name: string;
   status: string;
 }
+
+function BookingStartPage({
+  repeat,
+  children,
+}: {
+  repeat: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-sm font-semibold text-[#5f8d11]">Bookings</p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-title">
+        {repeat ? "Create a repeat booking" : "Create a customer booking"}
+      </h1>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
+        Confirm the current service, assigned professional, and requested start
+        time before creating the booking.
+      </p>
+      <div className="mt-6">{children}</div>
+    </div>
+  );
+}
+
 export function ProfessionalBookingStart({
   customerId,
   sourceBookingId,
@@ -129,41 +152,51 @@ export function ProfessionalBookingStart({
   }
   if (!customerId)
     return (
-      <StatePanel
-        variant="error"
-        title="Booking unavailable"
-        description="Choose a registered customer before creating a booking."
-      />
+      <BookingStartPage repeat={Boolean(sourceBookingId)}>
+        <StatePanel
+          variant="error"
+          title="Booking unavailable"
+          description="Choose a registered customer before creating a booking."
+        />
+      </BookingStartPage>
     );
   if (!customer && !error)
     return (
-      <StatePanel
-        variant="loading"
-        title="Loading booking context"
-        description="Revalidating the current customer, service, and team."
-      />
+      <BookingStartPage repeat={Boolean(sourceBookingId)}>
+        <StatePanel
+          variant="loading"
+          title="Loading booking context"
+          description="Revalidating the current customer, service, and team."
+        />
+      </BookingStartPage>
     );
   if (!customer)
     return (
-      <StatePanel
-        variant="error"
-        title="Booking unavailable"
-        description={error ?? "Customer unavailable."}
-      />
+      <BookingStartPage repeat={Boolean(sourceBookingId)}>
+        <StatePanel
+          variant="error"
+          title="Booking unavailable"
+          description={error ?? "Customer unavailable."}
+        />
+      </BookingStartPage>
     );
   if (!customer.accountProfileId)
     return (
-      <StatePanel
-        title="Registration required"
-        description="Invite and reconcile this customer before creating an in-app booking."
-      />
+      <BookingStartPage repeat={Boolean(sourceBookingId)}>
+        <StatePanel
+          title="Registration required"
+          description="Invite and reconcile this customer before creating an in-app booking."
+        />
+      </BookingStartPage>
     );
   if (sourceBookingId && source?.status !== "COMPLETED")
     return (
-      <StatePanel
-        title="Repeat booking unavailable"
-        description="Only completed service history can start repeat work."
-      />
+      <BookingStartPage repeat>
+        <StatePanel
+          title="Repeat booking unavailable"
+          description="Only completed service history can start repeat work."
+        />
+      </BookingStartPage>
     );
   if (
     sourceBookingId &&
@@ -171,90 +204,94 @@ export function ProfessionalBookingStart({
     !services?.some((item) => item.id === source.professionalServiceId)
   )
     return (
-      <StatePanel
-        title="Service unavailable"
-        description="The previous service is no longer currently bookable. Start a new request or choose another published service."
-      />
+      <BookingStartPage repeat>
+        <StatePanel
+          title="Service unavailable"
+          description="The previous service is no longer currently bookable. Start a new request or choose another published service."
+        />
+      </BookingStartPage>
     );
   const currentMinor = service?.priceMinor ?? 0;
   const priceChanged = source && currentMinor !== source.totalMinor;
   return (
-    <Surface className="max-w-3xl p-6 shadow-none">
-      <p className="text-sm font-semibold text-[#5f8d11]">
-        {sourceBookingId ? "Repeat booking" : "Existing customer booking"}
-      </p>
-      <h2 className="mt-2 text-2xl font-semibold">{customer.displayName}</h2>
-      <p className="mt-2 text-sm text-[#68717b]">
-        Current catalogue terms and availability are authoritative. Historical
-        prices are reference only.
-      </p>
-      {priceChanged ? (
-        <InlineAlert
-          className="mt-4"
-          variant="warning"
-          title="Price changed"
-          description="The current published service price differs from the previous booking. Review it before continuing."
-        />
-      ) : null}
-      {error ? (
-        <InlineAlert
-          className="mt-4"
-          variant="error"
-          title="Booking needs attention"
-        >
-          {error}
-        </InlineAlert>
-      ) : null}
-      <form className="mt-5 grid gap-4" onSubmit={submit}>
-        <label className="text-sm font-semibold">
-          Current service
-          <select
-            className="mt-1 min-h-11 w-full rounded-2xl border border-black/8 bg-white px-4"
-            required
-            value={serviceId}
-            onChange={(event) => setServiceId(event.target.value)}
-          >
-            {services?.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} ·{" "}
-                {new Intl.NumberFormat("en-KE", {
-                  style: "currency",
-                  currency: item.currency,
-                  maximumFractionDigits: 0,
-                }).format((item.priceMinor ?? 0) / 100)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-semibold">
-          Assigned team member
-          <select
-            className="mt-1 min-h-11 w-full rounded-2xl border border-black/8 bg-white px-4"
-            required
-            value={membershipId}
-            onChange={(event) => setMembershipId(event.target.value)}
-          >
-            {team.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-semibold">
-          Requested start
-          <input
-            className="mt-1 min-h-11 w-full rounded-2xl border border-black/8 px-4"
-            type="datetime-local"
-            required
-            value={startsAt}
-            onChange={(event) => setStartsAt(event.target.value)}
+    <BookingStartPage repeat={Boolean(sourceBookingId)}>
+      <Surface className="max-w-3xl p-6 shadow-none">
+        <p className="text-sm font-semibold text-[#5f8d11]">
+          {sourceBookingId ? "Repeat booking" : "Existing customer booking"}
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold">{customer.displayName}</h2>
+        <p className="mt-2 text-sm text-[#68717b]">
+          Current catalogue terms and availability are authoritative. Historical
+          prices are reference only.
+        </p>
+        {priceChanged ? (
+          <InlineAlert
+            className="mt-4"
+            variant="warning"
+            title="Price changed"
+            description="The current published service price differs from the previous booking. Review it before continuing."
           />
-        </label>
-        <Button type="submit" loading={busy}>
-          Create booking with current terms
-        </Button>
-      </form>
-    </Surface>
+        ) : null}
+        {error ? (
+          <InlineAlert
+            className="mt-4"
+            variant="error"
+            title="Booking needs attention"
+          >
+            {error}
+          </InlineAlert>
+        ) : null}
+        <form className="mt-5 grid gap-4" onSubmit={submit}>
+          <label className="text-sm font-semibold">
+            Current service
+            <select
+              className="mt-1 min-h-11 w-full rounded-2xl border border-black/8 bg-white px-4"
+              required
+              value={serviceId}
+              onChange={(event) => setServiceId(event.target.value)}
+            >
+              {services?.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} ·{" "}
+                  {new Intl.NumberFormat("en-KE", {
+                    style: "currency",
+                    currency: item.currency,
+                    maximumFractionDigits: 0,
+                  }).format((item.priceMinor ?? 0) / 100)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-semibold">
+            Assigned team member
+            <select
+              className="mt-1 min-h-11 w-full rounded-2xl border border-black/8 bg-white px-4"
+              required
+              value={membershipId}
+              onChange={(event) => setMembershipId(event.target.value)}
+            >
+              {team.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-semibold">
+            Requested start
+            <input
+              className="mt-1 min-h-11 w-full rounded-2xl border border-black/8 px-4"
+              type="datetime-local"
+              required
+              value={startsAt}
+              onChange={(event) => setStartsAt(event.target.value)}
+            />
+          </label>
+          <Button type="submit" loading={busy}>
+            Create booking with current terms
+          </Button>
+        </form>
+      </Surface>
+    </BookingStartPage>
   );
 }

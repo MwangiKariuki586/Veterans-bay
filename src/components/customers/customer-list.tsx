@@ -50,8 +50,17 @@ export function CustomerList() {
   }, [search]);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <p className="text-sm font-semibold text-[#5f8d11]">
+        Customer relationships
+      </p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-title">Customers</h1>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
+        Manage customer details, service history, private notes, and repeat work
+        from one place.
+      </p>
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <Input
           aria-label="Search customers"
           placeholder="Search name, email, or phone"
@@ -66,69 +75,71 @@ export function CustomerList() {
           Add customer
         </Link>
       </div>
-      {error ? (
-        <StatePanel
-          variant="error"
-          title="Customers unavailable"
-          description={error}
-        />
-      ) : !page ? (
-        <div className="grid gap-4 md:grid-cols-2" aria-busy="true">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
-          ))}
-        </div>
-      ) : page.items.length === 0 ? (
-        <StatePanel
-          title={search ? "No matching customers" : "No customers yet"}
-          description={
-            search
-              ? "Try a different name, email, or phone."
-              : "Add an existing customer or accept a marketplace booking to begin."
-          }
-        />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {page.items.map((customer) => (
-            <Link
-              key={customer.id}
-              href={`/professional/customers/${customer.id}`}
-            >
-              <Surface className="h-full p-5 shadow-none transition hover:border-[#9ac62b]">
-                <div className="flex justify-between gap-3">
-                  <h2 className="font-semibold">{customer.displayName}</h2>
-                  <span className="text-xs font-semibold text-[#5f8d11]">
-                    {customer.status.replaceAll("_", " ")}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm text-[#68717b]">
-                  {customer.email ?? customer.phone}
-                </p>
-                <p className="mt-3 text-xs text-[#68717b]">
-                  {customer.acquisitionSource.replaceAll("_", " ")}
-                </p>
-                {customer.tags.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {customer.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-[#eef8c8] px-2.5 py-1 text-xs font-semibold"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+      <div className="mt-5">
+        {error ? (
+          <StatePanel
+            variant="error"
+            title="Customers unavailable"
+            description={error}
+          />
+        ) : !page ? (
+          <div className="grid gap-4 md:grid-cols-2" aria-busy="true">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
+            ))}
+          </div>
+        ) : page.items.length === 0 ? (
+          <StatePanel
+            title={search ? "No matching customers" : "No customers yet"}
+            description={
+              search
+                ? "Try a different name, email, or phone."
+                : "Add an existing customer or accept a marketplace booking to begin."
+            }
+          />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {page.items.map((customer) => (
+              <Link
+                key={customer.id}
+                href={`/professional/customers/${customer.id}`}
+              >
+                <Surface className="h-full p-5 shadow-none transition hover:border-[#9ac62b]">
+                  <div className="flex justify-between gap-3">
+                    <h2 className="font-semibold">{customer.displayName}</h2>
+                    <span className="text-xs font-semibold text-[#5f8d11]">
+                      {customer.status.replaceAll("_", " ")}
+                    </span>
                   </div>
-                ) : null}
-                {customer.duplicateOfCustomerId ? (
-                  <p className="mt-3 text-xs font-semibold text-amber-700">
-                    Duplicate candidate — review before use
+                  <p className="mt-2 text-sm text-[#68717b]">
+                    {customer.email ?? customer.phone}
                   </p>
-                ) : null}
-              </Surface>
-            </Link>
-          ))}
-        </div>
-      )}
+                  <p className="mt-3 text-xs text-[#68717b]">
+                    {customer.acquisitionSource.replaceAll("_", " ")}
+                  </p>
+                  {customer.tags.length ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {customer.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-[#eef8c8] px-2.5 py-1 text-xs font-semibold"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {customer.duplicateOfCustomerId ? (
+                    <p className="mt-3 text-xs font-semibold text-amber-700">
+                      Duplicate candidate — review before use
+                    </p>
+                  ) : null}
+                </Surface>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
