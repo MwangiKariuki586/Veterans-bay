@@ -32,6 +32,9 @@ describe("ProfessionalDashboard", () => {
     expect(screen.getByText("Today’s schedule")).toBeInTheDocument();
     expect(screen.getByText(/85,450/)).toBeInTheDocument();
     expect(screen.getByText(/Clear communication and excellent work/)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Business summary" })).toHaveClass("xl:grid-cols-5");
+    expect(screen.getByRole("link", { name: /Respond now/i })).toHaveClass("text-trust");
+    expect(screen.getByRole("link", { name: /Respond now/i })).not.toHaveClass("border");
   });
 
   it("changes chart measure and date range", () => {

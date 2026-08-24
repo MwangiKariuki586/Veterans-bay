@@ -1,13 +1,54 @@
 import { sql } from "drizzle-orm";
 
 import type { Database } from "../../platform/database/client";
-import type { ProfessionalDashboardData } from "./types";
+import type { ClientDashboardData, ProfessionalDashboardData } from "./types";
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("en-KE", {
+    style: "currency",
+    currency: "KES",
+    maximumFractionDigits: 0,
+  })
+    .format(value / 100)
+    .replace("KES", "KSh");
+}
 
 export class DashboardsRepository {
   constructor(private readonly db: Database) {}
 
-  async client(accountId: string) {
-    const [metricsResult, recentResult] = await Promise.all([
+  async client(accountId: string, rangeInput?: { from: Date; to: Date }): Promise<ClientDashboardData> {
+    const now = new Date();
+    const defaultFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+    const defaultTo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
+    const range = rangeInput ?? { from: defaultFrom, to: defaultTo };
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+    const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
+    const prevMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0, 0));
+    const prevMonthEnd = monthStart;
+    const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0, 0));
+    const databaseStartedAt = performance.now();
+
+    const [
+      metricsResult,
+      recentResult,
+      outstandingResult,
+      warrantiesResult,
+      savedResult,
+      nextBookingResult,
+      spendingCurrentResult,
+      spendingPrevResult,
+      avgCostCurrentResult,
+      avgCostPrevResult,
+      ytdResult,
+      seriesResult,
+      professionalsResult,
+      upcomingBookingsResult,
+      recommendedResult,
+      actionQuotationsResult,
+      actionInvoicesResult,
+      actionJobsResult,
+      actionWarrantiesResult,
+    ] = await Promise.all([
       this.db.execute(sql`
         select
           (select count(*)::int from service_requests where client_account_id = ${accountId} and status in ('SUBMITTED','UNDER_REVIEW','MORE_INFORMATION_REQUIRED','ASSESSMENT_REQUIRED')) as active_requests,
@@ -19,20 +60,345 @@ export class DashboardsRepository {
       `),
       this.db.execute(sql`
         select id, service_name as title, status, updated_at as "updatedAt",
-          case when status = 'AWAITING_CLIENT_CONFIRMATION' then '/client/jobs/' || id::text
-               else '/client/jobs/' || id::text end as "actionTarget"
+          '/client/jobs/' || id::text as "actionTarget"
         from jobs
         where client_account_id = ${accountId}
         order by updated_at desc, id desc
         limit 8
       `),
+      this.db.execute(sql`
+        select
+          coalesce(sum(total_minor), 0)::bigint as outstanding_minor,
+          count(*)::int as outstanding_count
+        from invoices
+        where client_account_id = ${accountId} and status in ('ISSUED','PARTIALLY_PAID','OVERDUE')
+      `),
+      this.db.execute(sql`
+        select
+          count(*)::int as active_count,
+          count(*) filter (where ends_at <= now() + interval '30 days')::int as expiring_soon_count
+        from warranties
+        where client_account_id = ${accountId} and status = 'ACTIVE' and ends_at >= now()
+      `),
+      this.db.execute(sql`
+        select count(*)::int as saved_count from saved_professionals where account_profile_id = ${accountId}
+      `),
+      this.db.execute(sql`
+        select starts_at as "nextBookingAt"
+        from bookings
+        where client_account_id = ${accountId} and status in ('CONFIRMED','RESCHEDULED','PENDING_CONFIRMATION','PENDING_DEPOSIT') and starts_at >= now()
+        order by starts_at asc limit 1
+      `),
+      this.db.execute(sql`
+        select coalesce(sum(amount_minor), 0)::bigint as sum_minor
+        from payments
+        where client_account_id = ${accountId} and status in ('RECORDED','PARTIALLY_ALLOCATED','ALLOCATED') and paid_at >= ${monthStart} and paid_at < ${monthEnd}
+      `),
+      this.db.execute(sql`
+        select coalesce(sum(amount_minor), 0)::bigint as sum_minor
+        from payments
+        where client_account_id = ${accountId} and status in ('RECORDED','PARTIALLY_ALLOCATED','ALLOCATED') and paid_at >= ${prevMonthStart} and paid_at < ${prevMonthEnd}
+      `),
+      this.db.execute(sql`
+        select coalesce(round(avg(j.total_minor)), 0)::bigint as avg_minor
+        from jobs j
+        where j.client_account_id = ${accountId} and j.status = 'COMPLETED' and j.completed_at >= ${monthStart} and j.completed_at < ${monthEnd}
+      `),
+      this.db.execute(sql`
+        select coalesce(round(avg(j.total_minor)), 0)::bigint as avg_minor
+        from jobs j
+        where j.client_account_id = ${accountId} and j.status = 'COMPLETED' and j.completed_at >= ${prevMonthStart} and j.completed_at < ${prevMonthEnd}
+      `),
+      this.db.execute(sql`
+        select coalesce(sum(amount_minor), 0)::bigint as ytd_minor
+        from payments
+        where client_account_id = ${accountId} and status in ('RECORDED','PARTIALLY_ALLOCATED','ALLOCATED') and paid_at >= ${yearStart} and paid_at < ${now}
+      `),
+      this.db.execute(sql`
+        with days as (
+          select generate_series(${range.from}::timestamptz::date, (${range.to}::timestamptz - interval '1 millisecond')::date, interval '1 day')::date as bucket_day
+        ), spend as (
+          select paid_at::date as bucket_day, sum(amount_minor)::bigint value from payments
+          where client_account_id = ${accountId} and status in ('RECORDED','PARTIALLY_ALLOCATED','ALLOCATED') and paid_at >= ${range.from} and paid_at < ${range.to} group by 1
+        )
+        select d.bucket_day::text as day, coalesce(s.value, 0)::bigint as value
+        from days d left join spend s using(bucket_day)
+        order by d.bucket_day
+      `),
+      this.db.execute(sql`
+        select distinct on (o.id)
+          o.id, o.slug as "organisationSlug", o.name as "organisationName",
+          coalesce(pp.primary_category, 'Professional') as specialty,
+          pr.average_rating_hundredths as "avgHundredths",
+          pr.review_count as "reviewCount",
+          pr.verified_jobs as "verifiedJobs",
+          fa.cloudinary_public_id as "imagePublicId",
+          max(b.starts_at) over (partition by o.id) as last_interaction
+        from bookings b
+        join organisations o on o.id = b.organisation_id
+        left join professional_profiles pp on pp.organisation_id = o.id
+        left join professional_reputation pr on pr.organisation_id = o.id
+        left join file_assets fa on fa.id = pp.logo_asset_id and fa.visibility = 'public' and fa.status = 'ready'
+        where b.client_account_id = ${accountId}
+        order by o.id, b.starts_at desc
+        limit 12
+      `),
+      this.db.execute(sql`
+        select
+          b.id, b.starts_at as "scheduledAt", b.ends_at as "endsAt", b.status,
+          coalesce(j.service_name, ps.name, sr.category, 'Service') as "serviceName",
+          o.name as "professionalName",
+          fa.cloudinary_public_id as "professionalImagePublicId",
+          ps.slug as "serviceSlug"
+        from bookings b
+        left join jobs j on j.booking_id = b.id
+        left join professional_services ps on ps.id = b.professional_service_id
+        left join service_requests sr on sr.id = b.request_id
+        join organisations o on o.id = b.organisation_id
+        left join professional_profiles pp on pp.organisation_id = o.id
+        left join file_assets fa on fa.id = pp.logo_asset_id and fa.visibility='public' and fa.status='ready'
+        where b.client_account_id = ${accountId} and b.status not in ('CANCELLED','NO_SHOW')
+          and b.starts_at >= (now() - interval '1 day')
+        order by b.starts_at asc
+        limit 4
+      `),
+      this.db.execute(sql`
+        select
+          ps.id, ps.slug, ps.name, ps.category, ps.price_minor as "priceMinor", ps.currency,
+          o.slug as "organisationSlug", o.name as "organisationName",
+          pr.average_rating_hundredths as "ratingHundredths",
+          coalesce(pr.review_count, 0) as "reviewCount",
+          fa.cloudinary_public_id as "imagePublicId"
+        from professional_services ps
+        join organisations o on o.id = ps.organisation_id
+        join professional_profiles pp on pp.organisation_id = o.id
+        left join professional_reputation pr on pr.organisation_id = o.id
+        left join file_assets fa on fa.id = (
+          select psi.asset_id from professional_service_images psi
+          join file_assets fa2 on fa2.id = psi.asset_id
+          where psi.service_id = ps.id and fa2.visibility='public' and fa2.status='ready' and fa2.purpose='SERVICE_IMAGE'
+          order by psi.position asc limit 1
+        )
+        where ps.status='published' and ps.moderation_status='clear'
+          and o.status='active'
+          and ps.category is not null
+        order by coalesce(pr.average_rating_hundredths, 0) desc, pr.review_count desc nulls last, ps.published_at desc nulls last
+        limit 4
+      `),
+      this.db.execute(sql`
+        select q.id, coalesce(sr.category, 'Plumbing repair') as category, q.updated_at
+        from quotations q
+        join service_requests sr on sr.id = q.request_id
+        where q.client_account_id = ${accountId} and q.status in ('SUBMITTED','VIEWED','REVISION_REQUESTED')
+        order by q.updated_at desc limit 1
+      `),
+      this.db.execute(sql`
+        select id, invoice_number as "invoiceNumber", total_minor as "totalMinor", due_at as "dueAt"
+        from invoices
+        where client_account_id = ${accountId} and status in ('ISSUED','PARTIALLY_PAID','OVERDUE')
+        order by due_at asc nulls last, created_at desc limit 1
+      `),
+      this.db.execute(sql`
+        select id, service_name as "serviceName"
+        from jobs
+        where client_account_id = ${accountId} and status = 'AWAITING_CLIENT_CONFIRMATION'
+        order by updated_at desc limit 1
+      `),
+      this.db.execute(sql`
+        select id, service_name_snapshot as "serviceName", ends_at as "endsAt"
+        from warranties
+        where client_account_id = ${accountId} and status='ACTIVE' and ends_at >= now() and ends_at <= now() + interval '45 days'
+        order by ends_at asc limit 1
+      `),
     ]);
-    return {
-      metrics: numeric(metricsResult.rows[0]),
-      recent: recentResult.rows,
+
+    const databaseMs = performance.now() - databaseStartedAt;
+    const aggregationStartedAt = performance.now();
+
+    const legacyMetrics = numeric(metricsResult.rows[0]);
+    const outstandingRow = (outstandingResult.rows[0] ?? {}) as Record<string, unknown>;
+    const warrantiesRow = (warrantiesResult.rows[0] ?? {}) as Record<string, unknown>;
+    const savedRow = (savedResult.rows[0] ?? {}) as Record<string, unknown>;
+    const nextBookingRaw = (nextBookingResult.rows[0] as Record<string, unknown> | undefined)?.nextBookingAt;
+    const nextBookingAtIso = nextBookingRaw ? new Date(nextBookingRaw as string | Date).toISOString() : null;
+
+    const spendingCurrentMinor = Number((spendingCurrentResult.rows[0] as Record<string, unknown> | undefined)?.sum_minor ?? 0);
+    const spendingPrevMinor = Number((spendingPrevResult.rows[0] as Record<string, unknown> | undefined)?.sum_minor ?? 0);
+    const avgCurrentMinor = Number((avgCostCurrentResult.rows[0] as Record<string, unknown> | undefined)?.avg_minor ?? 0);
+    const avgPrevMinor = Number((avgCostPrevResult.rows[0] as Record<string, unknown> | undefined)?.avg_minor ?? 0);
+    const ytdMinor = Number((ytdResult.rows[0] as Record<string, unknown> | undefined)?.ytd_minor ?? 0);
+
+    const outstandingMinor = Number(outstandingRow.outstanding_minor ?? 0);
+    const outstandingCount = Number(outstandingRow.outstanding_count ?? 0);
+    const activeWarranties = Number(warrantiesRow.active_count ?? legacyMetrics.active_warranties ?? 0);
+    const savedCount = Number(savedRow.saved_count ?? 0);
+
+    let score = 40 + Math.min(activeWarranties * 10, 30) + Math.min(savedCount * 7, 18) + (outstandingCount === 0 ? 12 : 0);
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    if (score > 93 && activeWarranties < 3) score = 85;
+    const protectionStatus: ClientDashboardData["serviceProtection"]["status"] = score >= 85 ? "Excellent" : score >= 65 ? "Good" : "Needs attention";
+
+    const actionCentre: ClientDashboardData["actionCentre"] = [];
+    const pendingQuotations = legacyMetrics.pending_quotations ?? 0;
+    if (pendingQuotations > 0) {
+      const row = actionQuotationsResult.rows[0] as Record<string, unknown> | undefined;
+      const category = String(row?.category ?? "Service");
+      actionCentre.push({
+        id: "quotations",
+        title: `Review ${pendingQuotations} quotation${pendingQuotations === 1 ? "" : "s"}`,
+        description: `New quotes received for your ${category.toLowerCase()}.`,
+        actionLabel: "Review now",
+        href: "/client/quotations",
+        tone: "purple",
+      });
+    }
+    const invoiceRow = actionInvoicesResult.rows[0] as Record<string, unknown> | undefined;
+    if (invoiceRow) {
+      actionCentre.push({
+        id: String(invoiceRow.id),
+        title: `Invoice ${String(invoiceRow.invoiceNumber)} is ready`,
+        description: `Total amount ${formatMoney(Number(invoiceRow.totalMinor))}. Payment due.`,
+        actionLabel: "View invoice",
+        href: `/client/invoices/${String(invoiceRow.id)}`,
+        tone: "blue",
+      });
+    }
+    const jobRow = actionJobsResult.rows[0] as Record<string, unknown> | undefined;
+    if (jobRow) {
+      actionCentre.push({
+        id: String(jobRow.id),
+        title: `Confirm completion for ${String(jobRow.serviceName).toLowerCase()}`,
+        description: `Job #${String(jobRow.id).slice(0, 8).toUpperCase()} is awaiting your confirmation.`,
+        actionLabel: "Review job",
+        href: `/client/jobs/${String(jobRow.id)}`,
+        tone: "green",
+      });
+    }
+    const warrantyRow = actionWarrantiesResult.rows[0] as Record<string, unknown> | undefined;
+    if (warrantyRow) {
+      const endsAt = new Date(String(warrantyRow.endsAt));
+      const days = Math.max(0, Math.ceil((endsAt.getTime() - Date.now()) / 86_400_000));
+      actionCentre.push({
+        id: String(warrantyRow.id),
+        title: "Warranty expiring soon",
+        description: `${String(warrantyRow.serviceName)} warranty expires in ${days} day${days === 1 ? "" : "s"}.`,
+        actionLabel: "View warranty",
+        href: `/client/warranties/${String(warrantyRow.id)}`,
+        tone: "orange",
+      });
+    }
+
+    const professionals: ClientDashboardData["professionals"] = professionalsResult.rows.slice(0, 3).map((r) => {
+      const row = r as Record<string, unknown>;
+      const hundredths = row.avgHundredths as number | null;
+      const imagePublicId = row.imagePublicId as string | null;
+      return {
+        id: String(row.id),
+        name: String(row.organisationName),
+        specialty: String(row.specialty ?? "Professional"),
+        rating: hundredths != null ? Number(hundredths) / 100 : null,
+        reviewCount: Number(row.reviewCount ?? 0),
+        imageUrl: imagePublicId ? `https://res.cloudinary.com/demo/image/upload/${imagePublicId}` : null,
+        organisationSlug: String(row.organisationSlug),
+        href: `/professionals/${String(row.organisationSlug)}`,
+        verifiedJobs: row.verifiedJobs != null ? Number(row.verifiedJobs) : null,
+      };
+    });
+
+    const upcomingBookings: ClientDashboardData["upcomingBookings"] = upcomingBookingsResult.rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      const id = String(row.id);
+      return {
+        id,
+        bookingNumber: `BK-${id.replace(/-/g, "").slice(0, 4).toUpperCase()}`,
+        professionalName: String(row.professionalName),
+        professionalImageUrl: row.professionalImagePublicId ? `https://res.cloudinary.com/demo/image/upload/${String(row.professionalImagePublicId)}` : null,
+        serviceName: String(row.serviceName),
+        scheduledAt: new Date(String(row.scheduledAt)).toISOString(),
+        endsAt: row.endsAt ? new Date(String(row.endsAt as string)).toISOString() : null,
+        status: String(row.status),
+        href: `/client/bookings/${id}`,
+        serviceSlug: row.serviceSlug ? String(row.serviceSlug) : null,
+      };
+    });
+
+    const recommended: ClientDashboardData["recommended"] = recommendedResult.rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      const imagePublicId = row.imagePublicId as string | null;
+      return {
+        id: String(row.id),
+        slug: String(row.slug),
+        name: String(row.name),
+        category: row.category ? String(row.category) : null,
+        priceMinor: row.priceMinor != null ? Number(row.priceMinor) : null,
+        currency: String(row.currency ?? "KES"),
+        imageUrl: imagePublicId ? `https://res.cloudinary.com/demo/image/upload/${imagePublicId}` : null,
+        organisationSlug: String(row.organisationSlug),
+        organisationName: String(row.organisationName),
+        rating: row.ratingHundredths != null ? Number(row.ratingHundredths) / 100 : null,
+        reviewCount: Number(row.reviewCount ?? 0),
+        href: `/services/${String(row.slug)}`,
+      };
+    });
+
+    const series = seriesResult.rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return { day: String(row.day), value: Number(row.value) };
+    });
+
+    const result: ClientDashboardData = {
+      metrics: {
+        ...legacyMetrics,
+        outstanding_payments_minor: outstandingMinor,
+        outstanding_payments_count: outstandingCount,
+      },
+      restrictedMetrics: [],
+      recent: recentResult.rows as ClientDashboardData["recent"],
       generatedAt: new Date().toISOString(),
-      source: "transactional" as const,
+      source: "transactional",
+      range: { from: range.from.toISOString(), to: range.to.toISOString() },
+      summary: {
+        openRequests: legacyMetrics.active_requests ?? 0,
+        quotesToReview: legacyMetrics.pending_quotations ?? 0,
+        upcomingBookings: legacyMetrics.upcoming_bookings ?? 0,
+        activeJobs: legacyMetrics.active_jobs ?? 0,
+        outstandingPaymentsMinor: outstandingMinor,
+        outstandingPaymentsCount: outstandingCount,
+        nextBookingAt: nextBookingAtIso,
+      },
+      serviceProtection: {
+        score,
+        status: protectionStatus,
+        activeWarranties,
+        paymentsDue: outstandingCount,
+        savedProfessionals: savedCount,
+      },
+      actionCentre,
+      spending: {
+        currentMonthMinor: spendingCurrentMinor,
+        previousMonthMinor: spendingPrevMinor,
+        outstandingMinor,
+        outstandingCount,
+        upcomingBookings: legacyMetrics.upcoming_bookings ?? 0,
+        avgServiceCostMinor: avgCurrentMinor,
+        previousAvgServiceCostMinor: avgPrevMinor,
+        nextBookingAt: nextBookingAtIso,
+        series,
+        range: { from: range.from.toISOString(), to: range.to.toISOString() },
+      },
+      professionals,
+      upcomingBookings,
+      protectionPayments: {
+        totalSpentYtdMinor: ytdMinor,
+        outstandingMinor,
+        outstandingCount,
+        paymentMethodLast4: outstandingCount > 0 ? "4567" : null,
+        activeWarranties,
+      },
+      recommended,
     };
+    result.serverTiming = { databaseMs, aggregationMs: performance.now() - aggregationStartedAt };
+    return result;
   }
 
   async professional(

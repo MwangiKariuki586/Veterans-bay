@@ -28,8 +28,11 @@ export function createDashboardRoutes() {
       if (!selection || selection.workspace.kind !== "client") {
         throw new Error("Client workspace required.");
       }
+      const range = parseQuery(dashboardRangeQuerySchema, context.req.url);
+      // When no explicit dates, default to current month inside repository
+      const hasRange = new URL(context.req.url).searchParams.has("from") || new URL(context.req.url).searchParams.has("to");
       return withRepository(context, (repository) =>
-        repository.client(selection.accountProfileId),
+        repository.client(selection.accountProfileId, hasRange ? range : undefined),
       );
     },
   );

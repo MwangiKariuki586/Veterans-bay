@@ -1,5 +1,111 @@
 export type DashboardRange = { from: string; to: string };
 
+export interface ClientDashboardActionItem {
+  id: string;
+  title: string;
+  description: string;
+  actionLabel: string;
+  href: string;
+  tone: "purple" | "blue" | "green" | "orange";
+}
+
+export interface ClientDashboardSpending {
+  currentMonthMinor: number;
+  previousMonthMinor: number;
+  outstandingMinor: number;
+  outstandingCount: number;
+  upcomingBookings: number;
+  avgServiceCostMinor: number;
+  previousAvgServiceCostMinor: number;
+  nextBookingAt: string | null;
+  series: Array<{ day: string; value: number }>;
+  range: DashboardRange;
+}
+
+export interface ClientDashboardProfessional {
+  id: string;
+  name: string;
+  specialty: string;
+  rating: number | null;
+  reviewCount: number;
+  imageUrl: string | null;
+  organisationSlug: string;
+  href: string;
+  verifiedJobs: number | null;
+}
+
+export interface ClientDashboardBooking {
+  id: string;
+  bookingNumber: string;
+  professionalName: string;
+  professionalImageUrl: string | null;
+  serviceName: string;
+  scheduledAt: string;
+  endsAt: string | null;
+  status: string;
+  href: string;
+  serviceSlug?: string | null;
+}
+
+export interface ClientDashboardRecommended {
+  id: string;
+  slug: string;
+  name: string;
+  category: string | null;
+  priceMinor: number | null;
+  currency: string;
+  imageUrl: string | null;
+  organisationSlug: string;
+  organisationName: string;
+  rating: number | null;
+  reviewCount: number;
+  href: string;
+}
+
+export interface ClientDashboardData {
+  metrics: Record<string, number | null>;
+  restrictedMetrics: string[];
+  recent: Array<{
+    id: string;
+    title: string;
+    status?: string;
+    updatedAt: string;
+    actionTarget: string;
+  }>;
+  generatedAt: string;
+  source: "transactional";
+  range: DashboardRange;
+  summary: {
+    openRequests: number;
+    quotesToReview: number;
+    upcomingBookings: number;
+    activeJobs: number;
+    outstandingPaymentsMinor: number;
+    outstandingPaymentsCount: number;
+    nextBookingAt: string | null;
+  };
+  serviceProtection: {
+    score: number;
+    status: "Excellent" | "Good" | "Needs attention";
+    activeWarranties: number;
+    paymentsDue: number;
+    savedProfessionals: number;
+  };
+  actionCentre: ClientDashboardActionItem[];
+  spending: ClientDashboardSpending;
+  professionals: ClientDashboardProfessional[];
+  upcomingBookings: ClientDashboardBooking[];
+  protectionPayments: {
+    totalSpentYtdMinor: number;
+    outstandingMinor: number;
+    outstandingCount: number;
+    paymentMethodLast4: string | null;
+    activeWarranties: number;
+  };
+  recommended: ClientDashboardRecommended[];
+  serverTiming?: { databaseMs: number; aggregationMs: number };
+}
+
 export interface ProfessionalDashboardAction {
   id: string;
   title: string;

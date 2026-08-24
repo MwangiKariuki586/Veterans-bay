@@ -164,10 +164,10 @@ export function ProfessionalDashboard() {
       </section>
 
       <section
-        className="grid items-stretch gap-3 xl:grid-cols-[minmax(0,1fr)_336px]"
+        className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-5"
         aria-label="Business summary"
       >
-        <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="contents">
           {topMetrics.map((item) => (
             <MetricCard key={item.label} {...item} />
           ))}
@@ -317,18 +317,18 @@ function MetricCard({
         : "text-muted-foreground";
 
   return (
-    <SectionCard className="flex h-full min-h-[168px] flex-col gap-4 p-4">
-      <div className="flex items-start gap-3">
+    <SectionCard className="flex h-[136px] flex-col p-3">
+      <div className="flex items-start gap-2.5">
         <span
           className={cn(
-            "grid size-10 shrink-0 place-items-center rounded-lg",
+            "grid size-9 shrink-0 place-items-center rounded-lg",
             tones[tone],
           )}
         >
-          <Icon className="size-[18px]" aria-hidden="true" />
+          <Icon className="size-4" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="min-h-[2.5rem] type-card-label leading-snug text-[#39434c]">
+          <p className="line-clamp-2 min-h-7 type-card-label leading-3.5 text-[#39434c]">
             {label}
           </p>
           <p className="truncate type-metric font-semibold numeric-tabular text-foreground">
@@ -341,7 +341,7 @@ function MetricCard({
       </div>
       <Link
         href={href}
-        className="mt-auto flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-black/8 bg-white px-3 type-control hover:bg-[#f5f7f8]"
+        className="ml-[46px] mt-2 inline-flex w-fit items-center gap-1 py-0.5 text-[0.7rem] font-semibold text-trust underline-offset-4 transition-colors hover:text-foreground hover:underline"
       >
         {action}
         <ArrowRight className="size-3.5" aria-hidden="true" />
@@ -359,9 +359,9 @@ function ProfileVisibility({
     data.score >= 85 ? `Great job! ${data.description}` : data.description;
 
   return (
-    <SectionCard className="flex h-full flex-col p-4">
+    <SectionCard className="flex h-[136px] flex-col overflow-hidden p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="type-section-title">Profile visibility</h2>
+        <h2 className="type-card-label font-semibold">Profile visibility</h2>
         <Badge
           variant={
             data.score >= 85
@@ -374,9 +374,9 @@ function ProfileVisibility({
           {data.status}
         </Badge>
       </div>
-      <div className="mt-4 flex min-h-0 flex-1 items-center gap-3">
+      <div className="mt-1 flex min-h-0 flex-1 items-center gap-2.5">
         <div
-          className="relative size-24 shrink-0"
+          className="relative size-[72px] shrink-0"
           role="img"
           aria-label={`Profile completeness ${data.score} percent`}
         >
@@ -397,19 +397,19 @@ function ProfileVisibility({
               />
             </RadialBarChart>
           </ResponsiveContainer>
-          <span className="pointer-events-none absolute inset-[20%] grid place-items-center type-metric font-semibold numeric-tabular leading-none">
+          <span className="pointer-events-none absolute inset-[20%] grid place-items-center text-[1.1rem] font-semibold numeric-tabular leading-none">
             {data.score}%
           </span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="type-workspace-body leading-snug text-[#39434c]">
+          <p className="line-clamp-2 text-[0.68rem] leading-4 text-[#39434c]">
             {headline}
           </p>
           <Link
             href={data.nextActionHref}
-            className="mt-3 inline-flex min-h-9 max-w-full shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-[#9fc86a] bg-white py-2 pl-3 pr-4 type-control text-[#347b1e] hover:bg-[#f4f9ef]"
+            className="mt-1.5 inline-flex w-fit max-w-full shrink-0 items-center gap-1 py-0.5 text-[0.68rem] font-semibold text-trust underline-offset-4 transition-colors hover:text-foreground hover:underline"
           >
-            <ImagePlus className="size-4 shrink-0" aria-hidden="true" />
+            <ImagePlus className="size-3.5 shrink-0" aria-hidden="true" />
             {data.nextAction}
           </Link>
         </div>

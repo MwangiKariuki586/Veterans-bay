@@ -20,6 +20,7 @@ import {
 } from "@/components/workspace/workspace-chrome";
 import type { AuthenticatedShellKind } from "@/components/workspace/workspace-nav";
 import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
+import { ClientDashboardProvider } from "@/components/workspace/client-dashboard-context";
 import { ProfessionalDashboardProvider } from "@/components/workspace/professional-dashboard-context";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
@@ -232,19 +233,22 @@ export function AuthenticatedShell({
     </WorkspaceShellContext.Provider>
   );
 
+  const content = kind === "professional" ? (
+    <ProfessionalDashboardProvider key={workspaceRevision} enabled={!isPending && Boolean(sessionUserId)}>
+      {shell}
+    </ProfessionalDashboardProvider>
+  ) : kind === "client" ? (
+    <ClientDashboardProvider key={workspaceRevision} enabled={!isPending && Boolean(sessionUserId)}>
+      {shell}
+    </ClientDashboardProvider>
+  ) : (
+    <Fragment key={workspaceRevision}>{shell}</Fragment>
+  );
+
   return (
     <div className={`${pageBackdropClass} h-dvh max-h-dvh overflow-hidden`}>
       <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col overflow-hidden bg-white">
-        {kind === "professional" ? (
-          <ProfessionalDashboardProvider
-            key={workspaceRevision}
-            enabled={!isPending && Boolean(sessionUserId)}
-          >
-            {shell}
-          </ProfessionalDashboardProvider>
-        ) : (
-          <Fragment key={workspaceRevision}>{shell}</Fragment>
-        )}
+        {content}
       </div>
     </div>
   );
