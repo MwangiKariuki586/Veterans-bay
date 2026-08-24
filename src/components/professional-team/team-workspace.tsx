@@ -214,10 +214,10 @@ function TeamHeader({ view }: { view: TeamWorkspaceView }) {
             </>
           ) : null}
         </nav>
-        <p className="mt-5 text-xs font-bold tracking-[0.18em] text-[#5f8d11] uppercase">
+        <p className="mt-5 text-xs font-semibold tracking-[0.18em] text-[#5f8d11] uppercase">
           Organisation administration
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-title sm:text-4xl">{title}</h1>
+        <h1 className="mt-2 text-3xl font-semibold tracking-title sm:text-4xl">{title}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[#68717b]">{description}</p>
       </div>
       {view === "member" ? (
@@ -325,7 +325,7 @@ function TeamSummary({ members, invitations }: { members: TeamMember[]; invitati
           <span className="grid size-10 place-items-center rounded-2xl bg-[#eef8c8] text-[#5f8d11]">
             <Icon className="size-4" aria-hidden="true" />
           </span>
-          <p className="mt-4 text-2xl font-bold">{value}</p>
+          <p className="mt-4 text-2xl font-semibold">{value}</p>
           <p className="mt-1 text-xs text-[#68717b]">{label}</p>
         </Surface>
       ))}
@@ -349,7 +349,7 @@ function TeamList({ members, invitations, onInvite }: { members: TeamMember[]; i
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Organisation members</h2>
+          <h2 className="text-xl font-semibold">Organisation members</h2>
           <p className="mt-1 text-sm text-[#68717b]">Role changes should match each person&apos;s real responsibilities.</p>
         </div>
         <InviteMemberDialog onInvite={onInvite} />
@@ -382,10 +382,10 @@ function TeamList({ members, invitations, onInvite }: { members: TeamMember[]; i
             return (
               <li key={member.id}>
                 <Link href={`/professional/team/${member.id}`} className="flex h-full items-start gap-4 rounded-[22px] border border-black/8 bg-white p-4 transition-colors hover:bg-[#f7f9fa]">
-                  <span className="grid size-12 shrink-0 place-items-center rounded-full bg-[#071522] text-sm font-bold text-white">{member.initials}</span>
+                  <span className="grid size-12 shrink-0 place-items-center rounded-full bg-[#071522] text-sm font-semibold text-white">{member.initials}</span>
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold">{member.name}</span>
+                      <span className="font-semibold">{member.name}</span>
                       <Badge variant={statusVariant[member.status]} className="capitalize">{member.status}</Badge>
                     </span>
                     <span className="mt-1 block truncate text-sm text-[#68717b]">{member.email}</span>
@@ -415,7 +415,7 @@ function InvitationsList({ invitations, onInvite, onRevoke, onResend }: { invita
       <TeamTabs active="invitations" />
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Invitation activity</h2>
+          <h2 className="text-xl font-semibold">Invitation activity</h2>
           <p className="mt-1 text-sm text-[#68717b]">Pending access and expired invitations remain traceable.</p>
         </div>
         <InviteMemberDialog onInvite={onInvite} />
@@ -430,7 +430,7 @@ function InvitationsList({ invitations, onInvite, onRevoke, onResend }: { invita
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="break-all font-bold">{invitation.email}</p>
+                    <p className="break-all font-semibold">{invitation.email}</p>
                     <Badge variant={statusVariant[invitation.status]} className="capitalize">{invitation.status}</Badge>
                   </div>
                   <p className="mt-2 text-sm text-[#68717b]">
@@ -458,7 +458,7 @@ function InvitationsList({ invitations, onInvite, onRevoke, onResend }: { invita
       )}
       <Surface className="mt-6 bg-[#071522] p-6 text-white shadow-none">
         <ShieldCheck className="size-6 text-primary" aria-hidden="true" />
-        <h2 className="mt-4 text-lg font-bold">Invitation safeguards</h2>
+        <h2 className="mt-4 text-lg font-semibold">Invitation safeguards</h2>
         <ul className="mt-3 grid gap-2 text-sm text-white/70 sm:grid-cols-2">
           <li>• Access begins only after acceptance.</li>
           <li>• Expired links cannot create membership.</li>
@@ -526,10 +526,10 @@ function MemberDetail({ memberId, members, onUpdate, onTransfer }: { memberId: s
         <div className="space-y-5">
           <Surface className="p-5 shadow-none sm:p-6">
             <div className="flex flex-wrap items-start gap-4">
-              <span className="grid size-16 place-items-center rounded-full bg-[#071522] text-lg font-bold text-white">{member.initials}</span>
+              <span className="grid size-16 place-items-center rounded-full bg-[#071522] text-lg font-semibold text-white">{member.initials}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-2xl font-bold">{member.name}</h2>
+                  <h2 className="text-2xl font-semibold">{member.name}</h2>
                   <Badge variant={statusVariant[member.status]} className="capitalize">{member.status}</Badge>
                 </div>
                 <p className="mt-2 break-all text-sm text-[#68717b]">{member.email}</p>
@@ -541,7 +541,7 @@ function MemberDetail({ memberId, members, onUpdate, onTransfer }: { memberId: s
           </Surface>
 
           <Surface className="p-5 shadow-none sm:p-6">
-            <h2 className="text-lg font-bold">Role and restrictions</h2>
+            <h2 className="text-lg font-semibold">Role and restrictions</h2>
             <p className="mt-2 text-sm text-[#68717b]">Changes here alter the member&apos;s effective workspace access.</p>
             <label className="mt-5 block">
               <span className="mb-2 block text-sm font-semibold">Standard role</span>
@@ -574,7 +574,7 @@ function MemberDetail({ memberId, members, onUpdate, onTransfer }: { memberId: s
           </Surface>
 
           <Surface className="p-5 shadow-none sm:p-6">
-            <h2 className="text-lg font-bold">Recent activity</h2>
+            <h2 className="text-lg font-semibold">Recent activity</h2>
             <ol className="mt-5 space-y-4">
               {member.activity.map((item) => (
                 <li key={item.id} className="flex gap-3">
@@ -594,7 +594,7 @@ function MemberDetail({ memberId, members, onUpdate, onTransfer }: { memberId: s
           <Surface className="bg-[#071522] p-5 text-white shadow-none">
             <ShieldCheck className="size-6 text-primary" />
             <p className="mt-4 text-xs font-semibold tracking-[0.14em] text-primary uppercase">{role.label}</p>
-            <h2 className="mt-2 text-xl font-bold">Effective access</h2>
+            <h2 className="mt-2 text-xl font-semibold">Effective access</h2>
             <p className="mt-2 text-sm leading-6 text-white/65">{role.summary}</p>
             <ul className="mt-5 space-y-2 text-sm text-white/75">
               {role.permissions.map((permission) => <li key={permission} className="flex gap-2"><Check className="mt-0.5 size-4 shrink-0 text-primary" />{permission}</li>)}
@@ -602,7 +602,7 @@ function MemberDetail({ memberId, members, onUpdate, onTransfer }: { memberId: s
           </Surface>
 
           <Surface className="p-5 shadow-none">
-            <h2 className="font-bold">Role history</h2>
+            <h2 className="font-semibold">Role history</h2>
             <ol className="mt-4 space-y-3">
               {member.roleHistory.map((item) => (
                 <li key={item.id} className="text-sm">
@@ -616,7 +616,7 @@ function MemberDetail({ memberId, members, onUpdate, onTransfer }: { memberId: s
 
           {!isOwner ? (
             <Surface className="p-5 shadow-none">
-              <h2 className="font-bold">Ownership</h2>
+              <h2 className="font-semibold">Ownership</h2>
               <p className="mt-2 text-sm leading-6 text-[#68717b]">Ownership transfer keeps one accountable owner and records the change.</p>
               <ConfirmDialog
                 trigger={<Button type="button" variant="outline" className="mt-4 w-full">Transfer ownership</Button>}

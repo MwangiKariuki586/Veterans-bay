@@ -24,11 +24,13 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
+`VERIFICATION PENDING` — The user-directed typography consistency pass replaces all 231 bold and extra-bold utilities across 60 rendered component files with the established semibold hierarchy, caps semantic strong text at weight 600, limits the Poppins payload to weights 400–600, and adds a source-level regression contract. The focused contract tests, all 130 UI tests across 36 files, typecheck, the 82-route production build, and whitespace checks pass. Repository-wide lint reaches the same two pre-existing `react-hooks/set-state-in-effect` errors in `invoice-list.tsx` and `professional-dashboard-context.tsx`; no new lint error is reported. Responsive visual sampling remains pending because no browser surface is connected.
+
 `VERIFICATION PENDING` — Authenticated workspace pages now mount their data loaders immediately while the shared shell validates the existing workspace concurrently. The validated `/workspaces/current` route is the common fast path; workspace listing and selection run only for missing or mismatched workspace state, and successful recovery remounts the page loader against the corrected HttpOnly workspace cookie. Interactive sign-in now keeps the existing login surface and submit-button progress visible until one authoritative workspace resolution completes, then performs one history-replacing redirect; the authenticated `/login` guard no longer races that transition or duplicates the workspace-entry request. All 128 UI tests across 35 files, focused changed-file lint, typecheck, the 82-route production build, and whitespace checks pass. Repository-wide lint reaches two pre-existing `react-hooks/set-state-in-effect` errors in `invoice-list.tsx` and `professional-dashboard-context.tsx`. Browser verification of both loading transitions remains pending because no browser surface is connected.
 
 ## Current Step
 
-Capture an interactive sign-in and a cold authenticated page load when a browser surface is connected; confirm that the login surface persists through workspace resolution and that authenticated destinations show only their page-specific loading state. Then resume the pending public professional-page responsive comparison. Do not deploy without explicit delivery-owner approval.
+When a browser surface is connected, sample the semibold hierarchy across representative public, authentication, client, professional, and administration routes at desktop and mobile widths; then complete the pending sign-in loading-transition and public professional-page responsive checks. Do not deploy without explicit delivery-owner approval.
 
 ## Next Step
 

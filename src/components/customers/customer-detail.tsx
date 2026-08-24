@@ -102,7 +102,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             <p className="text-xs font-semibold text-[#5f8d11]">
               {customer.status.replaceAll("_", " ")}
             </p>
-            <h1 className="mt-2 text-3xl font-bold">{customer.displayName}</h1>
+            <h1 className="mt-2 text-3xl font-semibold">{customer.displayName}</h1>
             <p className="mt-2 text-sm text-[#68717b]">
               {customer.email ?? customer.phone}
             </p>
@@ -153,7 +153,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
       )}
       <div className="grid gap-5 lg:grid-cols-2">
         <Surface className="p-5 shadow-none">
-          <h2 className="font-bold">Private notes</h2>
+          <h2 className="font-semibold">Private notes</h2>
           <form
             className="mt-4 flex gap-2"
             onSubmit={(e: FormEvent) => {
@@ -183,7 +183,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
           </div>
         </Surface>
         <Surface className="p-5 shadow-none">
-          <h2 className="font-bold">Tags</h2>
+          <h2 className="font-semibold">Tags</h2>
           <form
             className="mt-4 flex gap-2"
             onSubmit={(e: FormEvent) => {
@@ -213,7 +213,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
         </Surface>
       </div>
       <Surface className="p-5 shadow-none">
-        <h2 className="font-bold">Service history</h2>
+        <h2 className="font-semibold">Service history</h2>
         {customer.history.length ? (
           <div className="mt-4 divide-y divide-black/6">
             {customer.history.map((item) => (
@@ -248,7 +248,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
         )}
       </Surface>
       <Surface className="p-5 shadow-none">
-        <h2 className="font-bold">Service reminders</h2>
+        <h2 className="font-semibold">Service reminders</h2>
         <p className="mt-2 text-sm text-[#68717b]">
           Scheduled reminders create one in-app notification. SMS and email are
           not enabled.
@@ -324,7 +324,7 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#68717b]">
         {label}
       </p>
-      <p className="mt-2 text-xl font-bold">{value}</p>
+      <p className="mt-2 text-xl font-semibold">{value}</p>
     </Surface>
   );
 }

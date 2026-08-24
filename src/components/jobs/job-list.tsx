@@ -47,7 +47,7 @@ export function JobList({
         <p className="text-sm font-semibold text-[#5f8d11]">
           Service fulfilment
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-title">
+        <h1 className="mt-2 text-3xl font-semibold tracking-title">
           {audience === "client" ? "My jobs" : "Active jobs"}
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -118,7 +118,7 @@ export function JobList({
                     <Badge variant={statusVariant(job.status)}>
                       {job.status.replaceAll("_", " ")}
                     </Badge>
-                    <h2 className="mt-3 text-lg font-bold">
+                    <h2 className="mt-3 text-lg font-semibold">
                       {job.serviceName}
                     </h2>
                     <p className="mt-1 text-sm text-[#68717b]">
@@ -127,7 +127,7 @@ export function JobList({
                         : job.clientName}
                     </p>
                   </div>
-                  <p className="font-bold">
+                  <p className="font-semibold">
                     {formatMoney(job.totalMinor, job.currency)}
                   </p>
                 </div>

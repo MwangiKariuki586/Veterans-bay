@@ -106,18 +106,18 @@ export function AsyncOperations() {
         {summary.map(([label, value]) => (
           <Surface key={label} className="p-4 shadow-none">
             <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-            <p className="mt-2 text-2xl font-bold">{value}</p>
+            <p className="mt-2 text-2xl font-semibold">{value}</p>
           </Surface>
         ))}
       </div>
       <Surface className="overflow-hidden p-0 shadow-none">
-        <div className="px-5 py-4"><h2 className="font-bold">Consumers · last 24 hours</h2></div>
+        <div className="px-5 py-4"><h2 className="font-semibold">Consumers · last 24 hours</h2></div>
         {data.consumers.length ? (
           <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-muted text-xs"><tr><th className="px-4 py-3">Consumer</th><th className="px-4 py-3">Attempts</th><th className="px-4 py-3">Duplicates</th><th className="px-4 py-3">Retries</th><th className="px-4 py-3">Dead letters</th><th className="px-4 py-3">Average duration</th></tr></thead><tbody>{data.consumers.map((item) => <tr key={item.consumerName} className="border-t border-black/8"><td className="px-4 py-3 font-semibold">{item.consumerName}</td><td className="px-4 py-3">{item.attempts}</td><td className="px-4 py-3">{item.duplicates}</td><td className="px-4 py-3">{item.retries}</td><td className="px-4 py-3">{item.dead_letters}</td><td className="px-4 py-3">{item.average_duration_ms}ms</td></tr>)}</tbody></table></div>
         ) : <StatePanel className="m-5" title="No recent consumer activity" description="Consumer attempts will appear after domain events are delivered." />}
       </Surface>
       <Surface className="p-5 shadow-none">
-        <div className="flex items-center justify-between gap-3"><h2 className="font-bold">Dead-letter operations</h2><Badge variant={data.deadLetters.some((item) => item.resolutionState === "open") ? "danger" : "success"}>{data.deadLetters.filter((item) => item.resolutionState === "open").length} open</Badge></div>
+        <div className="flex items-center justify-between gap-3"><h2 className="font-semibold">Dead-letter operations</h2><Badge variant={data.deadLetters.some((item) => item.resolutionState === "open") ? "danger" : "success"}>{data.deadLetters.filter((item) => item.resolutionState === "open").length} open</Badge></div>
         {data.deadLetters.length ? <ul className="mt-4 space-y-4">{data.deadLetters.map((item) => {
           const open = item.resolutionState === "open";
           return <li key={item.id} className="rounded-2xl border border-black/8 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{item.eventType}</p><p className="mt-1 text-xs text-muted-foreground">{item.consumerName} · {item.failureCategory} · {item.attemptCount} attempts</p></div><Badge variant={open ? "danger" : "neutral"}>{item.resolutionState}</Badge></div>{open ? <div className="mt-4"><Label htmlFor={`dead-letter-${item.id}`}>Resolution reason</Label><textarea id={`dead-letter-${item.id}`} className="mt-1 min-h-20 w-full rounded-xl border border-input px-3 py-2 text-sm" value={reasons[item.id] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [item.id]: event.target.value }))} /><div className="mt-3 flex gap-2"><ConfirmDialog title="Retry original event" description="The original event ID and payload will be requeued and the action audited." confirmLabel="Queue retry" onConfirm={() => void resolve(item.id, "retry")} trigger={<Button variant="outline" disabled={busy === item.id || (reasons[item.id]?.trim().length ?? 0) < 10}>Retry</Button>} /><ConfirmDialog title="Discard dead letter" description="Discarding closes this operational failure without changing the authoritative business record." confirmLabel="Discard" tone="danger" onConfirm={() => void resolve(item.id, "discard")} trigger={<Button variant="danger" disabled={busy === item.id || (reasons[item.id]?.trim().length ?? 0) < 10}>Discard</Button>} /></div></div> : null}</li>;

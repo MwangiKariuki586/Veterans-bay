@@ -65,7 +65,7 @@ export function InlineAlert({
       <div className="flex items-start gap-3">
         <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
         <div className="grid min-w-0 flex-1 gap-1">
-          <p className="font-bold text-foreground">{title}</p>
+          <p className="font-semibold text-foreground">{title}</p>
           {description ? (
             <p className="text-sm leading-6 text-foreground/80">{description}</p>
           ) : null}

@@ -189,6 +189,11 @@ select {
 }
 
 @layer base {
+  b,
+  strong {
+    font-weight: 600;
+  }
+
   :focus-visible {
     outline: 3px solid color-mix(in srgb, var(--ring) 42%, transparent);
     outline-offset: 2px;

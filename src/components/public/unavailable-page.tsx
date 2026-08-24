@@ -23,7 +23,7 @@ export function UnavailablePage({
           <span className="mx-auto grid size-14 place-items-center rounded-full bg-warning-soft text-warning">
             <Construction className="size-6" aria-hidden="true" />
           </span>
-          <h2 className="mt-5 text-xl font-bold tracking-title">
+          <h2 className="mt-5 text-xl font-semibold tracking-title">
             This destination is not available yet
           </h2>
           <p className="mt-3 text-sm leading-6 text-[#68717b]">

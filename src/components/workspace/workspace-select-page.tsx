@@ -102,7 +102,7 @@ export function WorkspaceSelectPage() {
               <p className="type-caption font-semibold uppercase tracking-[0.12em] text-[#7cb518]">
                 Your workspaces
               </p>
-              <h1 className="mt-3 text-2xl font-bold tracking-title text-[#0b1c33]">
+              <h1 className="mt-3 text-2xl font-semibold tracking-title text-[#0b1c33]">
                 Choose where you want to continue
               </h1>
               <p className="mt-2 text-sm leading-6 text-[#68717b]">

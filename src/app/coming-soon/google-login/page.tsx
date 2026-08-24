@@ -20,7 +20,7 @@ function GoogleSignInPreview() {
           <MoreHorizontal className="size-6" aria-hidden="true" />
         </div>
         <div className="px-6 py-8">
-          <h2 className="text-center text-base font-bold">Sign in to Veterans Bay</h2>
+          <h2 className="text-center text-base font-semibold">Sign in to Veterans Bay</h2>
           <div className="mt-5 flex h-11 items-center justify-center gap-3 rounded-md border border-[#d6deea] text-sm font-semibold">
             <FcGoogle className="size-5" /> Continue with Google
           </div>
@@ -40,7 +40,7 @@ function GoogleSignInPreview() {
 
       <div className="absolute top-[45%] right-0 hidden w-28 -translate-y-1/2 rounded-2xl border-2 border-[#b9e000] bg-[#fbffe9] px-3 py-5 text-center text-[#071733] shadow-[0_15px_35px_rgba(0,0,0,0.2)] sm:block">
         <ShieldCheck className="mx-auto size-8" aria-hidden="true" />
-        <p className="mt-2 text-sm font-bold leading-5">Secure &amp; trusted</p>
+        <p className="mt-2 text-sm font-semibold leading-5">Secure &amp; trusted</p>
       </div>
     </div>
   );

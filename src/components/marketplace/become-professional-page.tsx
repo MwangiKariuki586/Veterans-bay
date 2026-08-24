@@ -286,7 +286,7 @@ export function BecomeProfessionalPage() {
                 {/* overlay rating card - right */}
                 <div className="absolute right-3 top-1/2 w-[160px] -translate-y-1/2 rounded-[15px] border border-[#e4e7e9] bg-white p-3 shadow-[0_12px_30px_rgba(9,22,34,0.14)] min-[1360px]:-right-4">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[0.88rem] font-bold text-[#0b1c33]">
+                    <span className="text-[0.88rem] font-semibold text-[#0b1c33]">
                       4.9
                     </span>
                     <span className="flex gap-0.5">
@@ -389,7 +389,7 @@ export function BecomeProfessionalPage() {
               },
             ].map(({ n, title, desc, icon: Icon }) => (
               <div key={n} className="relative text-center">
-                <span className="mx-auto grid size-8 place-items-center rounded-full bg-[#c8f43d] text-[0.68rem] font-bold text-[#0b1c33] sm:size-9 sm:text-[0.72rem]">
+                <span className="mx-auto grid size-8 place-items-center rounded-full bg-[#c8f43d] text-[0.68rem] font-semibold text-[#0b1c33] sm:size-9 sm:text-[0.72rem]">
                   {n}
                 </span>
                 <span className="mx-auto mt-3 grid place-items-center text-[#0b1c33]/70">

@@ -25,7 +25,7 @@ export function QuotationVersionView({
               <p className="text-xs text-[#68717b]">
                 {item.category.toLowerCase()} · Qty {item.quantity}
               </p>
-              <p className="shrink-0 text-sm font-bold">
+              <p className="shrink-0 text-sm font-semibold">
                 {formatQuotationMoney(item.totalMinor, version.currency)}
               </p>
             </div>
@@ -102,7 +102,7 @@ function Amount({
 }) {
   return (
     <div
-      className={`flex justify-between gap-5 ${strong ? "border-t border-black/10 pt-2 text-base font-bold" : ""}`}
+      className={`flex justify-between gap-5 ${strong ? "border-t border-black/10 pt-2 text-base font-semibold" : ""}`}
     >
       <dt className="text-[#68717b]">{label}</dt>
       <dd>{value}</dd>
@@ -113,7 +113,7 @@ function Amount({
 function Term({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <h3 className="text-sm font-bold">{label}</h3>
+      <h3 className="text-sm font-semibold">{label}</h3>
       <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#5e6872]">
         {value}
       </p>

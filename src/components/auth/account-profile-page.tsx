@@ -151,7 +151,7 @@ export function AccountProfilePage() {
           <span className="mx-2">›</span>
           <span className="text-foreground">Account Profile</span>
         </nav>
-        <h1 className="mt-4 text-3xl font-bold tracking-title sm:text-4xl">
+        <h1 className="mt-4 text-3xl font-semibold tracking-title sm:text-4xl">
           Account Profile
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -214,7 +214,7 @@ export function AccountProfilePage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-2xl font-bold tracking-title">
+                      <h2 className="text-2xl font-semibold tracking-title">
                         {profile.displayName}
                       </h2>
                       <span className="inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 type-caption font-semibold text-[#5f8d11]">
@@ -249,7 +249,7 @@ export function AccountProfilePage() {
 
               <Surface className="p-6 sm:p-8">
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-lg font-bold">Personal Information</h3>
+                  <h3 className="text-lg font-semibold">Personal Information</h3>
                 </div>
                 {editing ? (
                   <form className="mt-6 space-y-5" onSubmit={onSave}>
@@ -355,7 +355,7 @@ export function AccountProfilePage() {
               </Surface>
 
               <Surface className="p-6 sm:p-8">
-                <h3 className="text-lg font-bold">Security</h3>
+                <h3 className="text-lg font-semibold">Security</h3>
                 <div className="mt-6 space-y-4 text-sm">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/8 pb-4">
                     <div>
@@ -414,7 +414,7 @@ export function AccountProfilePage() {
 
             <aside className="space-y-5">
               <Surface className="p-5">
-                <h3 className="font-bold">Account Summary</h3>
+                <h3 className="font-semibold">Account Summary</h3>
                 <ul className="mt-4 space-y-3 text-sm">
                   {[
                     "Jobs Booked — fixture preview",
@@ -434,7 +434,7 @@ export function AccountProfilePage() {
               </Surface>
               <Surface className="p-5">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold">Payment Methods</h3>
+                  <h3 className="font-semibold">Payment Methods</h3>
                   <span className="text-xs font-semibold text-[#68717b]">
                     Manage later
                   </span>
@@ -459,7 +459,7 @@ export function AccountProfilePage() {
                 </div>
               </Surface>
               <Surface className="p-5">
-                <h3 className="font-bold">Preferences</h3>
+                <h3 className="font-semibold">Preferences</h3>
                 <ul className="mt-4 space-y-3 text-sm">
                   {[
                     ["Email Notifications", "On"],

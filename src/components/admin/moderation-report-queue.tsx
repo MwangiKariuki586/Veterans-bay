@@ -80,7 +80,7 @@ export function ModerationReportQueue() {
       <Surface className="p-5 shadow-none">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold">Open reports</h2>
+            <h2 className="text-lg font-semibold">Open reports</h2>
             <p className="mt-1 text-sm text-muted-foreground">Oldest reports are reviewed first. Opening a case creates immutable history.</p>
           </div>
           <Badge variant="warning">{reports?.totalItems ?? 0} open</Badge>
@@ -92,7 +92,7 @@ export function ModerationReportQueue() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <Badge>{label(report.category)}</Badge>
-                    <h3 className="mt-2 font-bold">{report.summary}</h3>
+                    <h3 className="mt-2 font-semibold">{report.summary}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{report.details}</p>
                     <p className="mt-2 text-xs text-muted-foreground">{label(report.subjectType)} · {new Date(report.createdAt).toLocaleString()}</p>
                   </div>
@@ -115,7 +115,7 @@ export function ModerationReportQueue() {
       </Surface>
 
       <Surface className="p-5 shadow-none">
-        <h2 className="text-lg font-bold">Case history</h2>
+        <h2 className="text-lg font-semibold">Case history</h2>
         {cases?.items.length ? (
           <ul className="mt-4 divide-y divide-black/8">
             {cases.items.map((item) => (

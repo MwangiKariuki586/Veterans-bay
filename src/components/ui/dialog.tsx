@@ -57,7 +57,7 @@ export function DialogTitle({
 }: ComponentProps<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
-      className={cn("text-xl font-bold tracking-tight", className)}
+      className={cn("text-xl font-semibold tracking-tight", className)}
       {...props}
     />
   );

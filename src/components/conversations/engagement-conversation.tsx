@@ -168,9 +168,9 @@ export function EngagementConversation({
         <div>
           <div className="flex items-center gap-2">
             <MessageCircle className="size-5 text-[#5f8d11]" />
-            <h2 className="font-bold">Conversation &amp; activity</h2>
+            <h2 className="font-semibold">Conversation &amp; activity</h2>
             {conversation?.unreadCount ? (
-              <span className="rounded-full bg-[#b9eb35] px-2 py-0.5 text-xs font-bold">
+              <span className="rounded-full bg-[#b9eb35] px-2 py-0.5 text-xs font-semibold">
                 {conversation.unreadCount} unread
               </span>
             ) : null}
@@ -245,7 +245,7 @@ export function EngagementConversation({
                       : "rounded-bl-md bg-white"
                   }`}
                 >
-                  <p className="text-xs font-bold text-[#5f6871]">
+                  <p className="text-xs font-semibold text-[#5f6871]">
                     {item.isOwn ? "You" : item.authorDisplayName}
                   </p>
                   <p className="mt-1 whitespace-pre-wrap text-sm leading-6">

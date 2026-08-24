@@ -39,7 +39,7 @@ export function PaymentList() {
         <p className="text-sm font-semibold text-[#5f8d11]">
           Financial records
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-title">
+        <h1 className="mt-2 text-3xl font-semibold tracking-title">
           Payments
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -74,7 +74,7 @@ export function PaymentList() {
                   >
                     {payment.status.replaceAll("_", " ")}
                   </Badge>
-                  <h2 className="mt-3 font-bold">{payment.clientName}</h2>
+                  <h2 className="mt-3 font-semibold">{payment.clientName}</h2>
                   <p className="mt-1 text-sm text-[#68717b]">
                     {payment.method.replaceAll("_", " ")}
                     {payment.transactionReference
@@ -82,7 +82,7 @@ export function PaymentList() {
                       : ""}
                   </p>
                 </div>
-                <p className="font-bold">
+                <p className="font-semibold">
                   {formatMoney(payment.amountMinor, payment.currency)}
                 </p>
               </div>

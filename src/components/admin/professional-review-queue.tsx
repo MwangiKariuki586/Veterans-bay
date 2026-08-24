@@ -125,7 +125,7 @@ export function ProfessionalReviewQueue() {
           <p className="text-sm font-semibold text-[#5f8d11]">
             Marketplace assurance
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">
             Professional reviews
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -213,7 +213,7 @@ export function ProfessionalReviewQueue() {
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-lg font-bold">{item.name}</h2>
+                        <h2 className="text-lg font-semibold">{item.name}</h2>
                         <Badge variant={badgeTone[item.status]}>
                           {item.status.replaceAll("_", " ")}
                         </Badge>

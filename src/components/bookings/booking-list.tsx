@@ -49,7 +49,7 @@ export function BookingList({
           <p className="text-sm font-semibold text-[#5f8d11]">
             Scheduling workspace
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">
             {audience === "client" ? "My bookings" : "Bookings"}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -152,7 +152,7 @@ export function BookingList({
                         {booking.origin.replaceAll("_", " ").toLowerCase()}
                       </span>
                     </div>
-                    <h2 className="mt-3 text-lg font-bold">
+                    <h2 className="mt-3 text-lg font-semibold">
                       {booking.serviceName}
                     </h2>
                     <p className="mt-1 text-sm text-[#68717b]">
@@ -161,7 +161,7 @@ export function BookingList({
                         : booking.clientName}
                     </p>
                   </div>
-                  <p className="font-bold">
+                  <p className="font-semibold">
                     {formatMoney(booking.totalMinor, booking.currency)}
                   </p>
                 </div>

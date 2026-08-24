@@ -24,7 +24,7 @@ export function LegalDocument({
         <PageContainer className="py-14 sm:py-20">
           <article className="mx-auto max-w-3xl">
           <p className="text-sm font-semibold text-trust">{eyebrow}</p>
-          <h1 className="mt-3 text-4xl font-bold tracking-title sm:text-5xl">
+          <h1 className="mt-3 text-4xl font-semibold tracking-title sm:text-5xl">
             {title}
           </h1>
           <p className="mt-4 text-sm text-muted-foreground">
@@ -35,7 +35,7 @@ export function LegalDocument({
               <section key={section.title} aria-labelledby={slug(section.title)}>
                 <h2
                   id={slug(section.title)}
-                  className="text-xl font-bold tracking-title"
+                  className="text-xl font-semibold tracking-title"
                 >
                   {section.title}
                 </h2>

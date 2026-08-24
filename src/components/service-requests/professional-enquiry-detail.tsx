@@ -123,7 +123,7 @@ export function ProfessionalEnquiryDetail({
                 <p className="text-sm font-semibold text-[#5f8d11]">Service enquiry</p>
                 <Badge variant="neutral">{request.status.replaceAll("_", " ")}</Badge>
               </div>
-              <h1 className="mt-2 text-3xl font-bold tracking-title">
+              <h1 className="mt-2 text-3xl font-semibold tracking-title">
                 {request.category}
               </h1>
               <p className="mt-2 text-sm text-[#68717b]">
@@ -147,7 +147,7 @@ export function ProfessionalEnquiryDetail({
           <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="space-y-5">
               <Surface className="p-6 shadow-none">
-                <h2 className="font-bold">Client requirements</h2>
+                <h2 className="font-semibold">Client requirements</h2>
                 <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[#4f5963]">
                   {request.description}
                 </p>
@@ -167,7 +167,7 @@ export function ProfessionalEnquiryDetail({
               </Surface>
 
               <Surface className="p-6 shadow-none">
-                <h2 className="font-bold">Qualification action</h2>
+                <h2 className="font-semibold">Qualification action</h2>
                 <p className="mt-2 text-sm text-[#68717b]">
                   Notes entered here are visible to the client.
                 </p>
@@ -233,7 +233,7 @@ export function ProfessionalEnquiryDetail({
 
             <aside className="space-y-5">
               <Surface className="p-5 shadow-none">
-                <h2 className="font-bold">Client contact</h2>
+                <h2 className="font-semibold">Client contact</h2>
                 <p className="mt-3 text-sm">{request.client.displayName}</p>
                 <p className="mt-1 text-sm text-[#68717b]">
                   {request.client.primaryEmail}
@@ -245,7 +245,7 @@ export function ProfessionalEnquiryDetail({
               <Surface className="p-5 shadow-none">
                 <div className="flex items-center gap-2">
                   <LockKeyhole className="size-4 text-[#5f8d11]" />
-                  <h2 className="font-bold">Private notes</h2>
+                  <h2 className="font-semibold">Private notes</h2>
                 </div>
                 <p className="mt-2 text-xs leading-5 text-[#68717b]">
                   Organisation-only. Never shown in the client response.

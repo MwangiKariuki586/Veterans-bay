@@ -186,7 +186,7 @@ export function QuotationDetail({
                   {quotation.status.replaceAll("_", " ")}
                 </Badge>
               </div>
-              <h1 className="mt-2 text-3xl font-bold tracking-title">
+              <h1 className="mt-2 text-3xl font-semibold tracking-title">
                 {quotation.requestCategory}
               </h1>
               <p className="mt-2 text-sm text-[#68717b]">
@@ -241,7 +241,7 @@ export function QuotationDetail({
               <Surface className="p-5 shadow-none sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/8 pb-5">
                   <div>
-                    <h2 className="text-lg font-bold">
+                    <h2 className="text-lg font-semibold">
                       Version {selectedVersion.versionNumber}
                     </h2>
                     <p className="mt-1 text-xs text-[#7a838c]">
@@ -286,7 +286,7 @@ export function QuotationDetail({
 
             <aside className="space-y-5">
               <Surface className="p-5 shadow-none">
-                <h2 className="font-bold">Timing</h2>
+                <h2 className="font-semibold">Timing</h2>
                 <dl className="mt-4 space-y-4 text-sm">
                   <Meta
                     label="Expected duration"
@@ -316,7 +316,7 @@ export function QuotationDetail({
               {audience === "client" &&
               ["SUBMITTED", "VIEWED"].includes(quotation.status) ? (
                 <Surface className="p-5 shadow-none">
-                  <h2 className="font-bold">Your decision</h2>
+                  <h2 className="font-semibold">Your decision</h2>
                   <p className="mt-2 text-sm leading-6 text-[#68717b]">
                     Structured acceptance preserves the exact version and creates
                     the booking foundation.
@@ -355,7 +355,7 @@ export function QuotationDetail({
               ) : null}
 
               <Surface className="p-5 shadow-none">
-                <h2 className="font-bold">Version history</h2>
+                <h2 className="font-semibold">Version history</h2>
                 <ol className="mt-4 space-y-4 border-l border-black/10 pl-4">
                   {quotation.history.map((item) => (
                     <li key={item.id}>
@@ -389,7 +389,7 @@ function VersionComparison({ versions }: { versions: QuotationVersion[] }) {
     <Surface className="p-5 shadow-none sm:p-6">
       <div className="flex items-center gap-2">
         <GitCompareArrows className="size-5 text-[#5f8d11]" />
-        <h2 className="text-lg font-bold">
+        <h2 className="text-lg font-semibold">
           v{previous.versionNumber} → v{latest.versionNumber}
         </h2>
       </div>
@@ -421,7 +421,7 @@ function ComparisonValue({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-[#f7f9fa] p-4">
       <dt className="text-xs text-[#7a838c]">{label}</dt>
-      <dd className="mt-2 font-bold">{value}</dd>
+      <dd className="mt-2 font-semibold">{value}</dd>
     </div>
   );
 }

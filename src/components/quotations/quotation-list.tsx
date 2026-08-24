@@ -43,7 +43,7 @@ export function QuotationList({
           <p className="text-sm font-semibold text-[#5f8d11]">
             {audience === "client" ? "Client workspace" : "Professional workspace"}
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">
             Quotations
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -112,7 +112,7 @@ export function QuotationList({
                     Version {quotation.currentVersionNumber}
                   </span>
                 </div>
-                <h2 className="mt-3 text-lg font-bold">
+                <h2 className="mt-3 text-lg font-semibold">
                   {quotation.requestCategory}
                 </h2>
                 <p className="mt-1 text-sm text-[#68717b]">
@@ -122,7 +122,7 @@ export function QuotationList({
                 </p>
               </div>
               <div className="sm:text-right">
-                <p className="font-bold">
+                <p className="font-semibold">
                   {formatQuotationMoney(
                     quotation.currentTotalMinor,
                     quotation.currency,

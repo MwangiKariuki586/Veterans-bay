@@ -46,7 +46,7 @@ export function ProfessionalEnquiriesPage() {
       <p className="text-sm font-semibold text-[#5f8d11]">
         Professional workspace
       </p>
-      <h1 className="mt-2 text-3xl font-bold tracking-title">
+      <h1 className="mt-2 text-3xl font-semibold tracking-title">
         Service enquiries
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -72,7 +72,7 @@ export function ProfessionalEnquiriesPage() {
           <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[#eef8c8]">
             <Inbox className="size-5 text-[#5f8d11]" />
           </span>
-          <h2 className="mt-4 text-xl font-bold">No enquiries to review</h2>
+          <h2 className="mt-4 text-xl font-semibold">No enquiries to review</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#68717b]">
             New requests addressed to this organisation will appear here.
           </p>
@@ -98,7 +98,7 @@ export function ProfessionalEnquiriesPage() {
                     {new Date(request.updatedAt).toLocaleString()}
                   </span>
                 </div>
-                <h2 className="mt-3 text-lg font-bold">
+                <h2 className="mt-3 text-lg font-semibold">
                   {request.category || "Service enquiry"}
                 </h2>
                 <p className="mt-1 line-clamp-2 text-sm leading-6 text-[#68717b]">

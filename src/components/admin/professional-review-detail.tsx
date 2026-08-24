@@ -233,7 +233,7 @@ export function ProfessionalReviewDetail({
           <p className="text-sm font-semibold text-[#5f8d11]">
             Professional application
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">
             {profile.name}
           </h1>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -263,7 +263,7 @@ export function ProfessionalReviewDetail({
       <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
         <div className="space-y-5">
           <Surface className="p-6 shadow-none">
-            <h2 className="text-lg font-bold">Application information</h2>
+            <h2 className="text-lg font-semibold">Application information</h2>
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
               <Detail label="Business type" value={profile.businessType ?? "Not supplied"} />
               <Detail label="Primary category" value={profile.primaryCategory ?? "Not supplied"} />
@@ -304,7 +304,7 @@ export function ProfessionalReviewDetail({
                 <FileCheck2 className="size-4" aria-hidden="true" />
               </span>
               <div>
-                <h2 className="font-bold">Private verification evidence</h2>
+                <h2 className="font-semibold">Private verification evidence</h2>
                 <p className="text-xs text-[#68717b]">
                   Access is restricted and audit logged.
                 </p>
@@ -347,7 +347,7 @@ export function ProfessionalReviewDetail({
           </Surface>
 
           <Surface className="p-6 shadow-none">
-            <h2 className="font-bold">Decision history</h2>
+            <h2 className="font-semibold">Decision history</h2>
             <ol className="mt-5 space-y-4">
               {profile.history.map((item) => (
                 <li key={item.id} className="relative border-l border-black/10 pl-5">
@@ -375,7 +375,7 @@ export function ProfessionalReviewDetail({
           <Surface className="p-6 shadow-none">
             <div className="flex items-center gap-2">
               <ShieldCheck className="size-5 text-[#5f8d11]" aria-hidden="true" />
-              <h2 className="font-bold">Review decision</h2>
+              <h2 className="font-semibold">Review decision</h2>
             </div>
             {canAct ? (
               <>

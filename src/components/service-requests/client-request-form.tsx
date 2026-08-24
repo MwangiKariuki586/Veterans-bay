@@ -334,7 +334,7 @@ export function ClientRequestForm({
             </p>
             {request ? <Badge variant="neutral">{request.status.replaceAll("_", " ")}</Badge> : null}
           </div>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">
             {isDraft ? "Tell us what you need" : request?.category}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -468,7 +468,7 @@ export function ClientRequestForm({
           <div className="mt-7 border-t border-black/8 pt-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="font-bold">Supporting attachments</h2>
+                <h2 className="font-semibold">Supporting attachments</h2>
                 <p className="mt-1 text-xs text-[#68717b]">
                   PDF, JPG, PNG, or WebP up to 8 MB.
                 </p>
@@ -582,7 +582,7 @@ export function ClientRequestForm({
         <aside className="space-y-4">
           <Surface className="bg-[#eef8c8] p-5 shadow-none">
             <CheckCircle2 className="size-5 text-[#5f8d11]" />
-            <h2 className="mt-3 font-bold">Request summary</h2>
+            <h2 className="mt-3 font-semibold">Request summary</h2>
             <dl className="mt-4 space-y-3 text-sm">
               <Summary label="Category" value={form.category || "Not added"} />
               <Summary label="Location" value={form.location || "Not added"} />
@@ -595,7 +595,7 @@ export function ClientRequestForm({
           </Surface>
           {request?.history.length ? (
             <Surface className="p-5 shadow-none">
-              <h2 className="font-bold">Request history</h2>
+              <h2 className="font-semibold">Request history</h2>
               <ol className="mt-4 space-y-4">
                 {request.history.map((item) => (
                   <li key={item.id} className="border-l-2 border-[#b9eb35] pl-3">

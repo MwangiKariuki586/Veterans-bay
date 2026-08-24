@@ -53,7 +53,7 @@ export function BookingCalendar() {
           <p className="text-sm font-semibold text-[#5f8d11]">
             Team schedule
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">
             Booking calendar
           </h1>
           <p className="mt-2 text-sm text-[#68717b]">
@@ -120,7 +120,7 @@ export function BookingCalendar() {
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#68717b]">
                 {day.date.toLocaleDateString([], { weekday: "short" })}
               </p>
-              <p className="mt-1 text-xl font-bold">
+              <p className="mt-1 text-xl font-semibold">
                 {day.date.toLocaleDateString([], {
                   month: "short",
                   day: "numeric",
@@ -136,7 +136,7 @@ export function BookingCalendar() {
                       href={`/professional/bookings/${entry.id}`}
                       className="block rounded-xl border border-[#dbe8b1] bg-[#f7fbdc] p-3"
                     >
-                      <p className="text-xs font-bold">{entry.serviceName}</p>
+                      <p className="text-xs font-semibold">{entry.serviceName}</p>
                       <p className="mt-1 flex items-center gap-1 text-[0.7rem] text-[#59646e]">
                         <Clock3 className="size-3" />
                         {new Date(entry.startsAt).toLocaleTimeString([], {

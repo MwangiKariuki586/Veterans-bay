@@ -119,7 +119,7 @@ export function BookingStart({
         <p className="text-sm font-semibold text-[#5f8d11]">
           {sourceBookingId ? "Repeat booking" : "Direct booking"}
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-title">
+        <h1 className="mt-2 text-3xl font-semibold tracking-title">
           Choose an eligible time
         </h1>
         <p className="mt-2 text-sm text-[#68717b]">
@@ -138,7 +138,7 @@ export function BookingStart({
 
       <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <Surface className="p-5 shadow-none sm:p-6">
-          <h2 className="flex items-center gap-2 text-lg font-bold">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
             <CalendarDays className="size-5 text-[#5f8d11]" />
             Available times
           </h2>
@@ -185,7 +185,7 @@ export function BookingStart({
                       checked={selected}
                       onChange={() => setSelectedSlot(slot)}
                     />
-                    <span className="block text-sm font-bold">
+                    <span className="block text-sm font-semibold">
                       {new Date(slot.startsAt).toLocaleDateString([], {
                         weekday: "short",
                         month: "short",
@@ -211,7 +211,7 @@ export function BookingStart({
 
         <aside>
           <Surface className="p-5 shadow-none">
-            <h2 className="flex items-center gap-2 font-bold">
+            <h2 className="flex items-center gap-2 font-semibold">
               <ShieldCheck className="size-4 text-[#5f8d11]" />
               Confirm your request
             </h2>

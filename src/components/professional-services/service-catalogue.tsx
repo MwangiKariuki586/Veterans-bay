@@ -67,7 +67,7 @@ export function ServiceCatalogue() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-[#5f8d11]">Service catalogue</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">Services clients can request</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">Services clients can request</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">Create clear service offers, keep incomplete work as drafts, and publish only when every required detail is ready.</p>
         </div>
         <Link href="/professional/services/new" className={buttonVariants({ variant: "secondary" })}>
@@ -87,7 +87,7 @@ export function ServiceCatalogue() {
                 <span className="grid size-11 place-items-center rounded-2xl bg-[#eef8c8] text-[#5f8d11]"><Wrench className="size-5" /></span>
                 <span className={cn("rounded-full px-3 py-1 text-xs font-semibold capitalize", service.status === "published" ? "bg-success-soft text-success" : "bg-[#edf1f3] text-[#68717b]")}>{service.status}</span>
               </div>
-              <h2 className="mt-5 text-xl font-bold">{service.name}</h2>
+              <h2 className="mt-5 text-xl font-semibold">{service.name}</h2>
               <p className="mt-1 text-xs text-[#68717b]">{service.category ?? "Category not set"}</p>
               <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#68717b]">{service.description ?? "Add a description before publishing this service."}</p>
               <Link href={`/professional/services/${service.id}`} className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-[#5f8d11]">Manage service <ArrowRight className="size-3.5" /></Link>
@@ -275,7 +275,7 @@ export function ServiceEditor({ serviceId }: { serviceId: string }) {
 
   return <div className="space-y-7">
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div><p className="text-sm font-semibold text-[#5f8d11]">Service catalogue</p><h1 className="mt-2 text-3xl font-bold tracking-title">{service.name}</h1><p className="mt-2 text-sm text-[#68717b]">Version {service.version} &middot; <span className="capitalize">{service.status}</span></p></div>
+      <div><p className="text-sm font-semibold text-[#5f8d11]">Service catalogue</p><h1 className="mt-2 text-3xl font-semibold tracking-title">{service.name}</h1><p className="mt-2 text-sm text-[#68717b]">Version {service.version} &middot; <span className="capitalize">{service.status}</span></p></div>
       <Link href="/professional/services" className={buttonVariants({ variant: "outline" })}>Back to services</Link>
     </div>
     {published ? <InlineAlert variant="success" title="This service is public" description="Unpublish it before changing public details. The current publication snapshot remains preserved." /> : null}
@@ -296,7 +296,7 @@ export function ServiceEditor({ serviceId }: { serviceId: string }) {
     <label className="flex items-start gap-3 rounded-2xl border border-black/8 bg-[#f8fafb] p-4 text-sm leading-6"><input type="checkbox" className="mt-1" checked={form.directBookingEnabled} onChange={(e) => update("directBookingEnabled", e.target.checked)} disabled={published} /><span>Allow clients to book this service directly.</span></label>
     <section>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><h2 className="text-xl font-bold">Service images</h2><p className="mt-1 text-sm text-[#68717b]">The first image becomes the public cover. Add up to six clear examples.</p></div>
+        <div><h2 className="text-xl font-semibold">Service images</h2><p className="mt-1 text-sm text-[#68717b]">The first image becomes the public cover. Add up to six clear examples.</p></div>
         {!published && images.length < 6 ? <label className={buttonVariants({ variant: "outline", size: "sm" })}><input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={imageAction !== null} onChange={(event) => { const file = event.target.files?.[0]; if (file) void addImage(file); event.currentTarget.value = ""; }} /><ImagePlus className="size-4" />{imageAction === "upload" ? "Uploading…" : "Add image"}</label> : null}
       </div>
       {images.length === 0 ? <StatePanel className="mt-4" title="No service images" description="Add an image before publishing to give clients a clearer view of the service." /> : <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{images.map((image, index) => <div key={image.id} className="overflow-hidden rounded-3xl border border-black/8 bg-white"><div className="relative aspect-[4/3] bg-[#eef1f2]">{image.imageUrl ? <Image src={image.imageUrl} alt={`Service image ${index + 1}`} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" /> : null}{index === 0 ? <span className="absolute left-3 top-3 rounded-full bg-[#071522] px-3 py-1 text-xs font-semibold text-white">Cover</span> : null}</div>{!published ? <div className="flex justify-end p-3"><Button type="button" size="sm" variant="ghost" onClick={() => void removeImage(image)} loading={imageAction === image.id}><Trash2 className="size-4" /> Remove</Button></div> : null}</div>)}</div>}
@@ -368,7 +368,7 @@ export function CreateServiceForm() {
     <form onSubmit={submit} className="space-y-7">
       <div>
         <p className="text-sm font-semibold text-[#5f8d11]">New service</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-title">Create a service draft</h1>
+        <h1 className="mt-2 text-3xl font-semibold tracking-title">Create a service draft</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">Start with what you know. This remains private until it passes publication checks and you choose to publish it.</p>
       </div>
       {error ? <InlineAlert title="Check the service details" description={error} /> : null}

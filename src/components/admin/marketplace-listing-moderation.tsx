@@ -121,7 +121,7 @@ export function MarketplaceListingModeration() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-[#5f8d11]">Marketplace assurance</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">
             Listing moderation
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -177,7 +177,7 @@ export function MarketplaceListingModeration() {
                   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.7fr)_auto] xl:items-end">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="font-bold">{item.name}</h2>
+                        <h2 className="font-semibold">{item.name}</h2>
                         <Badge variant={hidden ? "danger" : "success"}>
                           {hidden ? "hidden" : "visible"}
                         </Badge>

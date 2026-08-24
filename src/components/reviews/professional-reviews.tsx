@@ -67,12 +67,12 @@ export function ProfessionalReviews() {
         <Surface key={review.id} className="p-5 shadow-none">
           <div className="flex justify-between gap-4">
             <div>
-              <p className="font-bold">{review.clientName}</p>
+              <p className="font-semibold">{review.clientName}</p>
               <p className="mt-1 text-xs text-[#68717b]">
                 {review.serviceName}
               </p>
             </div>
-            <span className="rounded-full bg-[#eef8c8] px-3 py-1 text-sm font-bold text-[#5f8d11]">
+            <span className="rounded-full bg-[#eef8c8] px-3 py-1 text-sm font-semibold text-[#5f8d11]">
               {review.overallRating}/5
             </span>
           </div>

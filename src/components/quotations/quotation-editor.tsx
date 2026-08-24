@@ -181,7 +181,7 @@ export function QuotationEditor({
         <p className="text-sm font-semibold text-[#5f8d11]">
           {mode === "revision" ? "New immutable version" : "Commercial terms"}
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-title">
+        <h1 className="mt-2 text-3xl font-semibold tracking-title">
           {mode === "create"
             ? "Prepare quotation"
             : mode === "revision"
@@ -207,7 +207,7 @@ export function QuotationEditor({
         <div className="space-y-5">
           <Surface className="p-5 shadow-none sm:p-6">
             <div className="flex items-center justify-between gap-4">
-              <h2 className="text-lg font-bold">Line items</h2>
+              <h2 className="text-lg font-semibold">Line items</h2>
               <Button
                 type="button"
                 size="sm"
@@ -339,7 +339,7 @@ export function QuotationEditor({
 
         <aside>
           <Surface className="sticky top-5 space-y-4 p-5 shadow-none">
-            <h2 className="text-lg font-bold">Pricing & timing</h2>
+            <h2 className="text-lg font-semibold">Pricing & timing</h2>
             <Field label="Currency">
               <input
                 value={currency}
@@ -409,7 +409,7 @@ export function QuotationEditor({
                 <dt className="text-[#68717b]">Subtotal</dt>
                 <dd>{formatQuotationMoney(subtotalMinor, currency)}</dd>
               </div>
-              <div className="flex justify-between text-base font-bold">
+              <div className="flex justify-between text-base font-semibold">
                 <dt>Total</dt>
                 <dd>{formatQuotationMoney(Math.max(0, totalMinor), currency)}</dd>
               </div>

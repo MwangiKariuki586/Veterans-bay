@@ -23,7 +23,7 @@ export function WorkspaceUnavailablePage({
         <span className="mx-auto grid size-14 place-items-center rounded-full bg-warning-soft text-warning">
           <Construction className="size-6" aria-hidden="true" />
         </span>
-        <h2 className="mt-5 text-xl font-bold tracking-title">
+        <h2 className="mt-5 text-xl font-semibold tracking-title">
           This workspace view is not available yet
         </h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#68717b]">

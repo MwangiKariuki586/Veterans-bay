@@ -77,7 +77,7 @@ export function ModerationCaseDetailView({ caseId }: { caseId: string }) {
         {error ? <InlineAlert title="Decision not recorded" description={error} /> : null}
         <Surface className="p-5 shadow-none">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><p className="text-sm font-semibold text-muted-foreground">Case {caseId.slice(0, 8)}</p><h2 className="mt-1 text-xl font-bold">{label(detail.case.caseType)}</h2></div>
+            <div><p className="text-sm font-semibold text-muted-foreground">Case {caseId.slice(0, 8)}</p><h2 className="mt-1 text-xl font-semibold">{label(detail.case.caseType)}</h2></div>
             <Badge variant={closed ? "success" : "warning"}>{label(detail.case.status)}</Badge>
           </div>
           <dl className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -88,7 +88,7 @@ export function ModerationCaseDetailView({ caseId }: { caseId: string }) {
           </dl>
         </Surface>
         <Surface className="p-5 shadow-none">
-          <h2 className="font-bold">Case history</h2>
+          <h2 className="font-semibold">Case history</h2>
           <ol className="mt-4 space-y-4">
             {detail.history.map((item) => (
               <li key={item.id} className="border-l-2 border-primary/40 pl-4">
@@ -102,12 +102,12 @@ export function ModerationCaseDetailView({ caseId }: { caseId: string }) {
       </div>
       <div className="space-y-5">
         <Surface className="p-5 shadow-none">
-          <h2 className="font-bold">Private evidence</h2>
+          <h2 className="font-semibold">Private evidence</h2>
           {detail.evidence.length ? <ul className="mt-3 space-y-2">{detail.evidence.map((item) => <li key={item.assetId} className="rounded-xl bg-muted px-3 py-2 text-sm">{item.purpose} · {item.mimeType}</li>)}</ul> : <StatePanel className="mt-4" title="No linked files" description="Record the evidence reviewed in the decision summary. Private assets remain purpose-limited." />}
         </Surface>
         {!closed ? (
           <Surface className="p-5 shadow-none">
-            <h2 className="font-bold">Record decision</h2>
+            <h2 className="font-semibold">Record decision</h2>
             <div className="mt-4 space-y-4">
               <div><Label htmlFor="case-reason">Reason</Label><textarea id="case-reason" className="mt-1 min-h-24 w-full rounded-xl border border-input bg-white px-3 py-2 text-sm" value={reason} onChange={(event) => setReason(event.target.value)} /></div>
               <div><Label htmlFor="case-evidence">Evidence summary</Label><textarea id="case-evidence" className="mt-1 min-h-24 w-full rounded-xl border border-input bg-white px-3 py-2 text-sm" value={evidenceSummary} onChange={(event) => setEvidenceSummary(event.target.value)} /></div>

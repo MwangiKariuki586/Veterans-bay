@@ -96,7 +96,7 @@ export function CustomerList() {
             >
               <Surface className="h-full p-5 shadow-none transition hover:border-[#9ac62b]">
                 <div className="flex justify-between gap-3">
-                  <h2 className="font-bold">{customer.displayName}</h2>
+                  <h2 className="font-semibold">{customer.displayName}</h2>
                   <span className="text-xs font-semibold text-[#5f8d11]">
                     {customer.status.replaceAll("_", " ")}
                   </span>

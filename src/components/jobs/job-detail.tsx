@@ -140,7 +140,7 @@ export function JobDetail({
               Job {job.id.slice(0, 8)}
             </span>
           </div>
-          <h1 className="mt-3 text-3xl font-bold tracking-title">
+          <h1 className="mt-3 text-3xl font-semibold tracking-title">
             {job.serviceName}
           </h1>
           <p className="mt-2 text-sm text-[#68717b]">
@@ -182,7 +182,7 @@ export function JobDetail({
           <Surface className="p-5 shadow-none sm:p-6">
             <div className="flex items-center gap-2">
               <ClipboardCheck className="size-5 text-[#5f8d11]" />
-              <h2 className="text-lg font-bold">Scope and checklist</h2>
+              <h2 className="text-lg font-semibold">Scope and checklist</h2>
             </div>
             <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#46515b]">
               {job.scopeSnapshot}
@@ -244,7 +244,7 @@ export function JobDetail({
             <Surface className="p-5 shadow-none sm:p-6">
               <div className="flex items-center gap-2">
                 <MessageSquareText className="size-5 text-[#5f8d11]" />
-                <h2 className="text-lg font-bold">Record field update</h2>
+                <h2 className="text-lg font-semibold">Record field update</h2>
               </div>
               <form
                 className="mt-4 grid gap-3"
@@ -318,9 +318,9 @@ export function JobDetail({
           <Surface className="p-5 shadow-none">
             <div className="flex items-center gap-2">
               <CircleDollarSign className="size-5 text-[#5f8d11]" />
-              <h2 className="font-bold">Commercial record</h2>
+              <h2 className="font-semibold">Commercial record</h2>
             </div>
-            <p className="mt-4 text-2xl font-bold">
+            <p className="mt-4 text-2xl font-semibold">
               {formatMoney(job.totalMinor, job.currency)}
             </p>
             <div className="mt-4 grid gap-2 text-sm text-[#68717b]">
@@ -396,7 +396,7 @@ export function JobDetail({
           <Surface className="p-5 shadow-none">
             <div className="flex items-center gap-2">
               <UserRoundPlus className="size-5 text-[#5f8d11]" />
-              <h2 className="font-bold">Assigned team</h2>
+              <h2 className="font-semibold">Assigned team</h2>
             </div>
             <div className="mt-4 grid gap-2">
               {job.assignments.filter((item) => item.active).length ? (
@@ -478,7 +478,7 @@ export function JobDetail({
           <Surface className="p-5 shadow-none">
             <div className="flex items-center gap-2">
               <History className="size-5 text-[#5f8d11]" />
-              <h2 className="font-bold">Fulfilment timeline</h2>
+              <h2 className="font-semibold">Fulfilment timeline</h2>
             </div>
             <div className="mt-4 grid gap-4">
               {job.history.length ? (
@@ -602,7 +602,7 @@ function ClientActions({
       <p className="text-sm font-semibold text-[#5f8d11]">
         Your response is needed
       </p>
-      <h2 className="mt-1 text-xl font-bold">Review the completed work</h2>
+      <h2 className="mt-1 text-xl font-semibold">Review the completed work</h2>
       <p className="mt-2 text-sm text-[#68717b]">
         Check the evidence and confirm completion, request clarification, or
         report work that remains unresolved.
@@ -691,7 +691,7 @@ function EvidenceSection({
     <Surface className="p-5 shadow-none sm:p-6">
       <div className="flex items-center gap-2">
         <FileImage className="size-5 text-[#5f8d11]" />
-        <h2 className="text-lg font-bold">Work evidence</h2>
+        <h2 className="text-lg font-semibold">Work evidence</h2>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {job.evidence.length ? (
@@ -845,7 +845,7 @@ function VariationSection({
     <Surface className="p-5 shadow-none sm:p-6">
       <div className="flex items-center gap-2">
         <CircleDollarSign className="size-5 text-[#5f8d11]" />
-        <h2 className="text-lg font-bold">Additional work</h2>
+        <h2 className="text-lg font-semibold">Additional work</h2>
       </div>
       <div className="mt-4 grid gap-3">
         {job.variations.length ? (
@@ -943,7 +943,7 @@ function VariationSection({
       </div>
       {audience === "professional" && activeJob ? (
         <form className="mt-5 grid gap-3 border-t border-black/6 pt-5" onSubmit={create}>
-          <h3 className="font-bold">Draft a variation</h3>
+          <h3 className="font-semibold">Draft a variation</h3>
           <Input
             aria-label="Additional work description"
             placeholder="Additional work description"

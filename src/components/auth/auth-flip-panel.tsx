@@ -121,7 +121,7 @@ function TrustFeature({
         {icon}
       </span>
       <div>
-        <p className="text-[0.86rem] font-bold text-white">{title}</p>
+        <p className="text-[0.86rem] font-semibold text-white">{title}</p>
         <p className="mt-0.5 text-[0.7rem] leading-[1.1rem] text-white/76">
           {copy}
         </p>
@@ -145,7 +145,7 @@ function TrustPanel({ signup }: { signup: boolean }) {
       <div className="relative z-10 flex h-full flex-col">
         <BrandLockup />
         <div className={signup ? "mt-1" : "mt-6"}>
-          <h2 className="max-w-[280px] text-[1.85rem] leading-[1.16] font-bold tracking-title">
+          <h2 className="max-w-[280px] text-[1.85rem] leading-[1.16] font-semibold tracking-title">
             Trusted services.
             <br />
             One{" "}
@@ -198,7 +198,7 @@ function TrustPanel({ signup }: { signup: boolean }) {
             </span>
           </div>
           <p className="mt-2 text-[0.72rem]">
-            <span className="font-bold text-[#c8ef00]">25,000+</span> homes
+            <span className="font-semibold text-[#c8ef00]">25,000+</span> homes
             trust Veterans Bay
           </p>
         </div>
@@ -390,7 +390,7 @@ function SignInFace({
       />
       <div className="mt-8">
         <div className="flex items-center gap-2">
-          <h1 className="text-[1.65rem] font-bold tracking-title">
+          <h1 className="text-[1.65rem] font-semibold tracking-title">
             Welcome back
           </h1>
           <Hand className="size-6 rotate-[-18deg] text-[#f4b000]" />
@@ -609,7 +609,7 @@ function SignUpFace({ onFlipToSignIn }: { onFlipToSignIn: () => void }) {
       />
       <div className="mt-5">
         <div className="flex items-center gap-2">
-          <h1 className="text-[1.5rem] font-bold tracking-title">
+          <h1 className="text-[1.5rem] font-semibold tracking-title">
             Create your account
           </h1>
           <Hand className="size-5 rotate-[-18deg] text-[#f4b000]" />

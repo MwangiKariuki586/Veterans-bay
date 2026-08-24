@@ -761,7 +761,7 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
           <Surface className="min-h-[154px] rounded-[16px] p-5 shadow-none">
             <div className="grid h-full grid-cols-[108px_minmax(0,1fr)] items-center gap-4">
               <div className="self-center">
-                <p className="text-[34px] font-bold leading-none tracking-tight text-[#0a1724]">
+                <p className="text-[34px] font-semibold leading-none tracking-tight text-[#0a1724]">
                   {rating != null ? rating.toFixed(1) : "New"}
                 </p>
                 <div className="mt-3 flex items-center gap-1 text-[#ffb600]">
@@ -817,7 +817,7 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
               profile.reviews.slice(0, 2).map((review) => (
                 <Surface key={review.id} className="p-4 shadow-none">
                   <div className="flex items-center gap-3">
-                    <span className="grid size-9 place-items-center overflow-hidden rounded-full bg-[#eef2f4] text-xs font-bold text-[#0a1724]">
+                    <span className="grid size-9 place-items-center overflow-hidden rounded-full bg-[#eef2f4] text-xs font-semibold text-[#0a1724]">
                       {review.clientName.slice(0, 2).toUpperCase()}
                     </span>
                     <div>
@@ -897,7 +897,7 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
       <section id="portfolio" className="scroll-mt-24 space-y-3">
         {profile.portfolio.length > 0 ? (
           <>
-            <h2 className="text-sm font-bold text-[#0a1724] sm:text-base">
+            <h2 className="text-sm font-semibold text-[#0a1724] sm:text-base">
               Portfolio
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -918,7 +918,7 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
                     </div>
                   ) : null}
                   <div className="p-4">
-                    <h3 className="font-bold text-[#0a1724]">{item.title}</h3>
+                    <h3 className="font-semibold text-[#0a1724]">{item.title}</h3>
                     {item.description ? (
                       <p className="mt-1 text-sm leading-6 text-[#6b7782]">
                         {item.description}

@@ -131,7 +131,7 @@ export function LiveDashboard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-trust">{config.eyebrow}</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title sm:text-4xl">{config.title}</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-title sm:text-4xl">{config.title}</h1>
         </div>
         <Badge variant="info">
           Updated {new Date(data.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -145,7 +145,7 @@ export function LiveDashboard({
           return (
             <Surface key={key} className="p-4 shadow-none">
               <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-              <p className="mt-3 text-2xl font-bold">
+              <p className="mt-3 text-2xl font-semibold">
                 {restricted
                   ? "Restricted"
                   : key === "revenue_minor"
@@ -171,7 +171,7 @@ export function LiveDashboard({
       {data.engagementTrend ? (
         <Surface className="p-5 shadow-none">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-bold">Marketplace engagement trend</h2>
+            <h2 className="font-semibold">Marketplace engagement trend</h2>
             <p className="text-xs text-muted-foreground">Event-backed · may lag briefly</p>
           </div>
           {data.engagementTrend.length ? (
@@ -188,7 +188,7 @@ export function LiveDashboard({
       ) : null}
 
       <Surface className="p-5 shadow-none">
-        <h2 className="font-bold">Recent history</h2>
+        <h2 className="font-semibold">Recent history</h2>
         {data.recent.length ? (
           <ul className="mt-3 divide-y divide-black/8">
             {data.recent.map((item) => (

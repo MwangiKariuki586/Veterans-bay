@@ -151,7 +151,7 @@ export function InvoiceDetail({
               {invoice.invoiceNumber}
             </span>
           </div>
-          <h1 className="mt-3 text-3xl font-bold tracking-title">
+          <h1 className="mt-3 text-3xl font-semibold tracking-title">
             {invoice.serviceName}
           </h1>
           <p className="mt-2 text-sm text-[#68717b]">
@@ -185,7 +185,7 @@ export function InvoiceDetail({
           <Surface className="p-5 shadow-none sm:p-6">
             <div className="flex items-center gap-2">
               <ReceiptText className="size-5 text-[#5f8d11]" />
-              <h2 className="font-bold">Invoice items</h2>
+              <h2 className="font-semibold">Invoice items</h2>
             </div>
             <div className="mt-5 grid gap-3">
               {invoice.items.map((item) => (
@@ -230,7 +230,7 @@ export function InvoiceDetail({
           <Surface className="p-5 shadow-none sm:p-6">
             <div className="flex items-center gap-2">
               <CircleDollarSign className="size-5 text-[#5f8d11]" />
-              <h2 className="font-bold">Payment history</h2>
+              <h2 className="font-semibold">Payment history</h2>
             </div>
             {invoice.payments.length ? (
               <div className="mt-5 grid gap-4">
@@ -351,7 +351,7 @@ export function InvoiceDetail({
           <Surface className="p-5 shadow-none">
             <div className="flex items-center gap-2">
               <CalendarClock className="size-5 text-[#5f8d11]" />
-              <h2 className="font-bold">Invoice terms</h2>
+              <h2 className="font-semibold">Invoice terms</h2>
             </div>
             <p className="mt-4 text-sm leading-6 text-[#68717b]">
               {invoice.paymentTermsSnapshot}
@@ -401,7 +401,7 @@ export function InvoiceDetail({
           invoice.balanceMinor > 0 &&
           !["DRAFT", "CANCELLED", "REFUNDED"].includes(invoice.status) ? (
             <Surface className="p-5 shadow-none">
-              <h2 className="font-bold">Record payment</h2>
+              <h2 className="font-semibold">Record payment</h2>
               <p className="mt-2 text-sm leading-6 text-[#68717b]">
                 Preview policy: record simulations only. Use Other, keep a
                 PREVIEW- reference, and do not attach real payment evidence.
@@ -533,7 +533,7 @@ function MoneyRow({
   return (
     <div className="flex justify-between gap-4">
       <dt className="text-[#68717b]">{label}</dt>
-      <dd className={strong ? "font-bold" : "font-semibold"}>{value}</dd>
+      <dd className={strong ? "font-semibold" : "font-semibold"}>{value}</dd>
     </div>
   );
 }

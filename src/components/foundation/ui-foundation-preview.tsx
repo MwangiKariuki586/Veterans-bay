@@ -52,11 +52,11 @@ export function UiFoundationPreview() {
     <main className="mx-auto grid w-full max-w-[1440px] gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <header className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface px-5 py-4 shadow-soft">
         <div className="flex items-center gap-3">
-          <span className="grid size-11 place-items-center rounded-full border border-border bg-surface-subtle font-extrabold">
+          <span className="grid size-11 place-items-center rounded-full border border-border bg-surface-subtle font-semibold">
             VB
           </span>
           <div>
-            <p className="font-bold">Veterans Bay</p>
+            <p className="font-semibold">Veterans Bay</p>
             <p className="text-xs text-muted-foreground">UI foundation preview</p>
           </div>
         </div>
@@ -67,7 +67,7 @@ export function UiFoundationPreview() {
             </Button>
           </SheetTrigger>
           <SheetContent aria-describedby="preview-menu-description">
-            <SheetTitle className="pr-10 text-xl font-bold">Shared patterns</SheetTitle>
+            <SheetTitle className="pr-10 text-xl font-semibold">Shared patterns</SheetTitle>
             <SheetDescription
               id="preview-menu-description"
               className="mt-2 text-sm leading-6 text-muted-foreground"
@@ -93,7 +93,7 @@ export function UiFoundationPreview() {
           <ShieldCheck className="size-4" aria-hidden="true" />
           Shared visual language
         </Badge>
-        <h1 className="max-w-3xl text-4xl font-extrabold tracking-title sm:text-5xl">
+        <h1 className="max-w-3xl text-4xl font-semibold tracking-title sm:text-5xl">
           Calm, trustworthy controls for the complete service journey.
         </h1>
         <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
@@ -106,7 +106,7 @@ export function UiFoundationPreview() {
         <Surface className="grid gap-6 p-5 sm:p-7">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-bold">Controls</h2>
+              <h2 className="text-xl font-semibold">Controls</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Primary, secondary, quiet, destructive, and processing states.
               </p>
@@ -206,7 +206,7 @@ export function UiFoundationPreview() {
         <div className="grid gap-6">
           <Surface className="grid gap-5 p-5 sm:p-7">
             <div>
-              <h2 className="text-xl font-bold">Semantic status</h2>
+              <h2 className="text-xl font-semibold">Semantic status</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Text and icon meaning remains visible without colour.
               </p>
@@ -223,7 +223,7 @@ export function UiFoundationPreview() {
 
           <Surface className="grid gap-5 p-5 sm:p-7">
             <div>
-              <h2 className="text-xl font-bold">Loading structure</h2>
+              <h2 className="text-xl font-semibold">Loading structure</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Reduced-motion preferences disable the pulse animation.
               </p>

@@ -233,7 +233,7 @@ export function ProfessionalProfileManager() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-[#5f8d11]">Public presence</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">
             Business profile
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -262,7 +262,7 @@ export function ProfessionalProfileManager() {
       <Surface className="overflow-hidden p-0 shadow-none">
         <div className="bg-[#071522] p-6 text-white sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-[26px] border border-white/15 bg-[#b8f52a] text-2xl font-bold text-[#071522]">
+            <div className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-[26px] border border-white/15 bg-[#b8f52a] text-2xl font-semibold text-[#071522]">
               {profile.logoUrl ? (
                 <Image
                   src={profile.logoUrl}
@@ -277,7 +277,7 @@ export function ProfessionalProfileManager() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-2xl font-bold">{profile.businessName}</h2>
+                <h2 className="text-2xl font-semibold">{profile.businessName}</h2>
                 {profile.verificationStatus === "verified" ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-[#b8f52a]">
                     <BadgeCheck className="size-3.5" /> Verified
@@ -395,7 +395,7 @@ export function ProfessionalProfileManager() {
       <section>
         <div>
           <p className="text-sm font-semibold text-[#5f8d11]">Portfolio</p>
-          <h2 className="mt-2 text-2xl font-bold tracking-title">
+          <h2 className="mt-2 text-2xl font-semibold tracking-title">
             Show recent work
           </h2>
           <p className="mt-2 text-sm text-[#68717b]">
@@ -426,7 +426,7 @@ export function ProfessionalProfileManager() {
                   ) : null}
                 </div>
                 <div className="p-5">
-                  <h3 className="font-bold">{item.title}</h3>
+                  <h3 className="font-semibold">{item.title}</h3>
                   {item.description ? (
                     <p className="mt-2 text-sm leading-6 text-[#68717b]">
                       {item.description}

@@ -462,7 +462,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
         </span>
         <div>
           <p className="text-xs text-[#68717b]">Professional onboarding</p>
-          <p className="font-bold">{record?.name || "New organisation"}</p>
+          <p className="font-semibold">{record?.name || "New organisation"}</p>
         </div>
       </div>
       <div className="mt-6 h-2 overflow-hidden rounded-full bg-[#edf1f3]">
@@ -474,7 +474,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
       <ol className="mt-6 space-y-4">
         {steps.map((step, index) => (
           <li key={step.label} className="flex items-center gap-3 text-sm">
-            <span className={cn("grid size-7 place-items-center rounded-full text-xs font-bold", step.done ? "bg-primary text-[#071522]" : "bg-[#edf1f3] text-[#68717b]")}>{step.done ? <Check className="size-4" /> : index + 1}</span>
+            <span className={cn("grid size-7 place-items-center rounded-full text-xs font-semibold", step.done ? "bg-primary text-[#071522]" : "bg-[#edf1f3] text-[#68717b]")}>{step.done ? <Check className="size-4" /> : index + 1}</span>
             {step.label}
           </li>
         ))}
@@ -485,7 +485,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
   const reviewHeader = (
     <>
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5f8d11]">Trusted. Skilled. Reliable.</p>
-      <h1 className="mt-3 text-3xl font-bold tracking-title sm:text-4xl">{pageTitle}</h1>
+      <h1 className="mt-3 text-3xl font-semibold tracking-title sm:text-4xl">{pageTitle}</h1>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-[#68717b]">
         {pendingReview
           ? "Your application is complete and locked while an administrator reviews it. The decision will appear on this page."
@@ -519,7 +519,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
 
           <Surface className="overflow-hidden p-6 sm:p-9">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5f8d11]">Trusted. Skilled. Reliable.</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-title sm:text-4xl">{pageTitle}</h1>
+            <h1 className="mt-3 text-3xl font-semibold tracking-title sm:text-4xl">{pageTitle}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[#68717b]">Save your progress at any time. Private verification evidence is visible only to authorised reviewers.</p>
 
             {error ? <InlineAlert className="mt-6" variant="error" title="Check your application details" description={error} /> : null}
@@ -599,7 +599,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
 }
 
 function FormSection({ icon: Icon, title, description, children }: { icon: typeof Building2; title: string; description: string; children: React.ReactNode }) {
-  return <section><div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[#eef8c8] text-[#5f8d11]"><Icon className="size-5" /></span><div><h2 className="text-xl font-bold">{title}</h2><p className="mt-1 text-sm text-[#68717b]">{description}</p></div></div><div className="mt-5 grid gap-5 sm:grid-cols-2">{children}</div></section>;
+  return <section><div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[#eef8c8] text-[#5f8d11]"><Icon className="size-5" /></span><div><h2 className="text-xl font-semibold">{title}</h2><p className="mt-1 text-sm text-[#68717b]">{description}</p></div></div><div className="mt-5 grid gap-5 sm:grid-cols-2">{children}</div></section>;
 }
 
 function Field({ label, children, error, full = false }: { label: string; children: React.ReactNode; error?: string; full?: boolean }) {
@@ -641,7 +641,7 @@ function ReviewPanel({ header, progressCard, record, saving, onSubmit }: { heade
           ))}
         </div>
         <div className="mt-6 rounded-2xl border border-black/8 p-5">
-          <h2 className="font-bold">Submission history</h2>
+          <h2 className="font-semibold">Submission history</h2>
           <ol className="mt-4 space-y-4">
             {record.history.map((item) => (
               <li key={item.id} className="flex gap-3">
@@ -658,7 +658,7 @@ function ReviewPanel({ header, progressCard, record, saving, onSubmit }: { heade
       </Surface>
       <aside aria-label="Review readiness" className="h-fit rounded-[1.75rem] bg-[#071522] p-6 text-white">
         <Clock3 className="size-6 text-primary" />
-        <h2 className="mt-4 text-xl font-bold">{pendingReview ? "Awaiting approval" : "Review readiness"}</h2>
+        <h2 className="mt-4 text-xl font-semibold">{pendingReview ? "Awaiting approval" : "Review readiness"}</h2>
         <p className="mt-2 text-sm leading-6 text-white/65">
           {pendingReview
             ? `All ${record.readiness.totalCount} requirements were completed and submitted.`

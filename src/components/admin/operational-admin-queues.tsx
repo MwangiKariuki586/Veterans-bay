@@ -130,7 +130,7 @@ function DecisionQueue<T extends { id: string }>({
         return (
           <Surface key={item.id} className="p-5 shadow-none">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div><h2 className="font-bold">{title(item)}</h2><p className="mt-1 text-sm text-muted-foreground">{description(item)}</p></div>
+              <div><h2 className="font-semibold">{title(item)}</h2><p className="mt-1 text-sm text-muted-foreground">{description(item)}</p></div>
               <Badge variant={closed ? "success" : "warning"}>{status(item).replaceAll("_", " ")}</Badge>
             </div>
             {!closed ? (
@@ -202,11 +202,11 @@ export function PlatformRulesManager() {
   return (
     <div className="grid gap-5 xl:grid-cols-2">
       <Surface className="p-5 shadow-none">
-        <h2 className="font-bold">Configured rules</h2>
+        <h2 className="font-semibold">Configured rules</h2>
         {rules?.length ? <ul className="mt-4 space-y-3">{rules.map((rule) => <li key={rule.id} className="rounded-2xl border border-black/8 p-4"><div className="flex items-center justify-between gap-2"><p className="font-semibold">{rule.name}</p><Badge variant={rule.status === "ACTIVE" ? "success" : "neutral"}>{rule.status}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{rule.description}</p><code className="mt-2 block rounded-lg bg-muted p-2 text-xs">{JSON.stringify(rule.value)}</code></li>)}</ul> : <StatePanel className="mt-4" title="No platform rules" description="Add the first explicitly versioned operational rule." />}
       </Surface>
       <Surface className="p-5 shadow-none">
-        <h2 className="font-bold">Add or update rule</h2>
+        <h2 className="font-semibold">Add or update rule</h2>
         {error ? <InlineAlert className="mt-4" title="Rule not saved" description={error} /> : null}
         <div className="mt-4 space-y-3">
           <Field label="Stable key" value={key} onChange={setKey} placeholder="moderation.review_window_days" />

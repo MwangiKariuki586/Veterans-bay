@@ -55,7 +55,7 @@ export function ReviewJobPanel({ jobId }: { jobId: string }) {
         <p className="text-sm font-semibold text-[#5f8d11]">
           Your verified review
         </p>
-        <p className="mt-2 font-bold">{state.review.overallRating}/5</p>
+        <p className="mt-2 font-semibold">{state.review.overallRating}/5</p>
         <p className="mt-2 text-sm text-[#68717b]">{state.review.feedback}</p>
         {state.review.response ? (
           <div className="mt-4 rounded-2xl bg-[#f3f5f6] p-4 text-sm">
@@ -69,7 +69,7 @@ export function ReviewJobPanel({ jobId }: { jobId: string }) {
   return (
     <Surface className="mt-5 p-5 shadow-none">
       <p className="text-sm font-semibold text-[#5f8d11]">Verified review</p>
-      <h2 className="mt-1 text-xl font-bold">Share your experience</h2>
+      <h2 className="mt-1 text-xl font-semibold">Share your experience</h2>
       <form className="mt-4 space-y-4" onSubmit={onSubmit}>
         <div className="grid gap-3 sm:grid-cols-3">
           {Object.entries(ratings).map(([key, value]) => (

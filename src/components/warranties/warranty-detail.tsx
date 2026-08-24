@@ -131,7 +131,7 @@ export function WarrantyDetail({
           >
             {warranty.status}
           </Badge>
-          <h1 className="mt-3 text-3xl font-bold tracking-title">
+          <h1 className="mt-3 text-3xl font-semibold tracking-title">
             {warranty.serviceName}
           </h1>
           <p className="mt-2 text-sm text-[#68717b]">
@@ -158,7 +158,7 @@ export function WarrantyDetail({
           <Surface className="p-5 shadow-none sm:p-6">
             <div className="flex items-center gap-2">
               <TriangleAlert className="size-5 text-[#5f8d11]" />
-              <h2 className="font-bold">Claim history</h2>
+              <h2 className="font-semibold">Claim history</h2>
             </div>
             {warranty.claims.length ? (
               <div className="mt-5 grid gap-5">
@@ -188,7 +188,7 @@ export function WarrantyDetail({
           <Surface className="p-5 shadow-none">
             <div className="flex items-center gap-2">
               <ShieldCheck className="size-5 text-[#5f8d11]" />
-              <h2 className="font-bold">Recorded coverage</h2>
+              <h2 className="font-semibold">Recorded coverage</h2>
             </div>
             <p className="mt-4 text-sm leading-6 text-[#45515c]">
               {warranty.termsSnapshot}
@@ -210,7 +210,7 @@ export function WarrantyDetail({
           warranty.status === "ACTIVE" &&
           !hasOpenClaim ? (
             <Surface className="p-5 shadow-none">
-              <h2 className="font-bold">Submit a warranty claim</h2>
+              <h2 className="font-semibold">Submit a warranty claim</h2>
               <p className="mt-2 text-sm leading-6 text-[#68717b]">
                 Describe the issue and add supporting evidence. A claim does not
                 promise financial compensation.
@@ -329,7 +329,7 @@ function ClaimCard({
           <Badge variant={claimStatusVariant(claim.status)}>
             {claim.status.replaceAll("_", " ")}
           </Badge>
-          <h3 className="mt-3 font-bold">
+          <h3 className="mt-3 font-semibold">
             Claim {claim.sequence}: {claim.subject}
           </h3>
           <p className="mt-2 text-sm leading-6 text-[#68717b]">

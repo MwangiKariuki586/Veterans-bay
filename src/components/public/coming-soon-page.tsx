@@ -137,7 +137,7 @@ function PreviewPanel({
                 {benefit.icon}
               </span>
               <span>
-                <span className="block text-[0.76rem] font-bold leading-5">{benefit.title}</span>
+                <span className="block text-[0.76rem] font-semibold leading-5">{benefit.title}</span>
                 {benefit.description ? (
                   <span className="mt-0.5 block type-caption leading-4 text-[#64738e]">{benefit.description}</span>
                 ) : null}
@@ -166,7 +166,7 @@ function FeatureStatusCard(props: FeatureStatusPageProps) {
           <p className={cn("inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold", status.pillClass)}>
             <status.Icon className="size-4" aria-hidden="true" /> {status.label}
           </p>
-          <h1 className="mt-7 max-w-[430px] text-[2.15rem] leading-[1.08] font-extrabold tracking-title text-[#071733] sm:text-[3rem] lg:text-[3.2rem]">
+          <h1 className="mt-7 max-w-[430px] text-[2.15rem] leading-[1.08] font-semibold tracking-title text-[#071733] sm:text-[3rem] lg:text-[3.2rem]">
             {props.title}
           </h1>
           <span className="mt-6 block h-[3px] w-14 bg-[#a8d400]" aria-hidden="true" />

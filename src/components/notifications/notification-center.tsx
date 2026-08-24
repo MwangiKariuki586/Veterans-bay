@@ -98,7 +98,7 @@ export function NotificationCenter() {
           <p className="text-sm font-semibold text-[#5f8d11]">
             Account activity
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">
             Notifications
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -185,7 +185,7 @@ export function NotificationCenter() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-bold">{item.title}</h2>
+                      <h2 className="font-semibold">{item.title}</h2>
                       {!item.readAt ? (
                         <Badge variant="trust">
                           <Circle className="size-2 fill-current" /> Unread

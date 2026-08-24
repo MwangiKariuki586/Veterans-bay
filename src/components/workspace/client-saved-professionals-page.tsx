@@ -107,7 +107,7 @@ export function ClientSavedProfessionalsPage() {
       </nav>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-title">
+          <h1 className="text-3xl font-semibold tracking-title">
             Saved professionals
           </h1>
           <p className="mt-2 text-sm leading-6 text-[#68717b]">
@@ -182,7 +182,7 @@ export function ClientSavedProfessionalsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h2 className="font-bold">{item.businessName}</h2>
+                        <h2 className="font-semibold">{item.businessName}</h2>
                         <p className="mt-1 text-xs font-semibold text-[#5f8d11]">
                           {item.primaryCategory ?? "Home services"}
                         </p>

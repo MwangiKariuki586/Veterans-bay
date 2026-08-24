@@ -162,7 +162,7 @@ export function AvailabilitySettings() {
         <p className="text-sm font-semibold text-[#5f8d11]">
           Scheduling rules
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-title">
+        <h1 className="mt-2 text-3xl font-semibold tracking-title">
           Professional availability
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -184,7 +184,7 @@ export function AvailabilitySettings() {
       {configuration ? (
         <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <Surface className="p-5 shadow-none sm:p-6">
-            <h2 className="flex items-center gap-2 text-lg font-bold">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
               <Clock3 className="size-5 text-[#5f8d11]" /> Working hours
             </h2>
             {configuration.members.length === 0 ? (
@@ -281,7 +281,7 @@ export function AvailabilitySettings() {
 
           <aside className="space-y-5">
             <Surface className="p-5 shadow-none">
-              <h2 className="flex items-center gap-2 font-bold">
+              <h2 className="flex items-center gap-2 font-semibold">
                 <CalendarOff className="size-4 text-[#5f8d11]" />
                 Add unavailable time
               </h2>
@@ -329,7 +329,7 @@ export function AvailabilitySettings() {
             </Surface>
 
             <Surface className="p-5 shadow-none">
-              <h2 className="flex items-center gap-2 font-bold">
+              <h2 className="flex items-center gap-2 font-semibold">
                 <UsersRound className="size-4 text-[#5f8d11]" />
                 Upcoming unavailable periods
               </h2>

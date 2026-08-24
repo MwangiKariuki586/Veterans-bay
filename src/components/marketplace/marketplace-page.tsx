@@ -1076,7 +1076,7 @@ function MobileFilterSheet({
         }}
       >
         <div className="border-b border-black/8 px-6 py-5 pr-16">
-          <SheetTitle className="text-xl font-bold">
+          <SheetTitle className="text-xl font-semibold">
             Refine your search
           </SheetTitle>
           <SheetDescription

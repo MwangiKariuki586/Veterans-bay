@@ -183,7 +183,7 @@ export function ProfessionalBookingStart({
       <p className="text-sm font-semibold text-[#5f8d11]">
         {sourceBookingId ? "Repeat booking" : "Existing customer booking"}
       </p>
-      <h2 className="mt-2 text-2xl font-bold">{customer.displayName}</h2>
+      <h2 className="mt-2 text-2xl font-semibold">{customer.displayName}</h2>
       <p className="mt-2 text-sm text-[#68717b]">
         Current catalogue terms and availability are authoritative. Historical
         prices are reference only.

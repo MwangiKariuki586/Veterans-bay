@@ -54,7 +54,7 @@ export function ClientRequestsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-[#5f8d11]">Client requests</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-title">
+          <h1 className="mt-2 text-3xl font-semibold tracking-title">
             Your service requests
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -88,7 +88,7 @@ export function ClientRequestsPage() {
           <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[#eef8c8]">
             <ClipboardList className="size-5 text-[#5f8d11]" />
           </span>
-          <h2 className="mt-4 text-xl font-bold">No service requests yet</h2>
+          <h2 className="mt-4 text-xl font-semibold">No service requests yet</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#68717b]">
             Tell us what needs doing. You can save incomplete details and return
             before sending them to a professional.
@@ -117,7 +117,7 @@ export function ClientRequestsPage() {
                     Updated {new Date(request.updatedAt).toLocaleDateString()}
                   </span>
                 </div>
-                <h2 className="mt-3 truncate text-lg font-bold">
+                <h2 className="mt-3 truncate text-lg font-semibold">
                   {request.category || "Untitled service request"}
                 </h2>
                 <p className="mt-1 line-clamp-2 text-sm leading-6 text-[#68717b]">

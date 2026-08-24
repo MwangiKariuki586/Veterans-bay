@@ -44,7 +44,7 @@ export function WarrantyList({
       <p className="text-sm font-semibold text-[#5f8d11]">
         Post-service protection
       </p>
-      <h1 className="mt-2 text-3xl font-bold tracking-title">
+      <h1 className="mt-2 text-3xl font-semibold tracking-title">
         {audience === "client" ? "My warranties" : "Warranties"}
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -122,7 +122,7 @@ export function WarrantyList({
                     >
                       {warranty.status}
                     </Badge>
-                    <h2 className="mt-3 text-lg font-bold">
+                    <h2 className="mt-3 text-lg font-semibold">
                       {warranty.serviceName}
                     </h2>
                     <p className="mt-1 text-sm text-[#68717b]">

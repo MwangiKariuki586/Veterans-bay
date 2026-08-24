@@ -55,7 +55,7 @@ export function PublicPageIntro({
         />
         {eyebrow}
       </span>
-      <h1 className="mt-6 text-4xl leading-[1.05] font-bold tracking-title sm:text-5xl">
+      <h1 className="mt-6 text-4xl leading-[1.05] font-semibold tracking-title sm:text-5xl">
         {title}
       </h1>
       <p className="mt-5 text-base leading-7 text-[#68717b] sm:text-lg">

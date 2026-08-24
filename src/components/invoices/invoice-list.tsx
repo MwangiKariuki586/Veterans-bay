@@ -64,7 +64,7 @@ export function InvoiceList({
         <p className="text-sm font-semibold text-[#5f8d11]">
           Financial records
         </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-title">
+        <h1 className="mt-2 text-3xl font-semibold tracking-title">
           {audience === "client" ? "My invoices" : "Invoices"}
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
@@ -136,7 +136,7 @@ export function InvoiceList({
                     <Badge variant={statusVariant(invoice.status)}>
                       {invoice.status.replaceAll("_", " ")}
                     </Badge>
-                    <h2 className="mt-3 text-lg font-bold">
+                    <h2 className="mt-3 text-lg font-semibold">
                       {invoice.serviceName}
                     </h2>
                     <p className="mt-1 text-sm text-[#68717b]">
@@ -147,7 +147,7 @@ export function InvoiceList({
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">
+                    <p className="font-semibold">
                       {formatMoney(invoice.totalMinor, invoice.currency)}
                     </p>
                     <p className="mt-1 text-xs text-[#68717b]">

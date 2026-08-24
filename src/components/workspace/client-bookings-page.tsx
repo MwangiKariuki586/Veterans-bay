@@ -64,7 +64,7 @@ export function ClientBookingsPage() {
         <span className="mx-2">›</span>
         <span className="text-foreground">Bookings</span>
       </nav>
-      <h1 className="mt-4 text-3xl font-bold tracking-title">My Bookings</h1>
+      <h1 className="mt-4 text-3xl font-semibold tracking-title">My Bookings</h1>
       <p className="mt-2 text-sm text-[#68717b]">
         Track and manage all your booking requests in one place.
       </p>
@@ -194,7 +194,7 @@ export function ClientBookingsPage() {
         <aside className="space-y-4">
           <Surface className="p-5 shadow-none">
             <p className="text-xs text-[#68717b]">Total Bookings</p>
-            <p className="mt-1 text-3xl font-bold">{summary.total}</p>
+            <p className="mt-1 text-3xl font-semibold">{summary.total}</p>
             <ul className="mt-4 space-y-2 text-sm">
               {[
                 ["Upcoming", summary.upcoming, "bg-[#5f8d11]"],
@@ -212,7 +212,7 @@ export function ClientBookingsPage() {
           </Surface>
           <Surface className="p-5 shadow-none">
             <Wrench className="size-5 text-[#5f8d11]" />
-            <h2 className="mt-3 font-bold">Need a Custom Job?</h2>
+            <h2 className="mt-3 font-semibold">Need a Custom Job?</h2>
             <p className="mt-2 text-sm text-[#68717b]">
               Post a job and get quotes from verified pros.
             </p>
@@ -228,7 +228,7 @@ export function ClientBookingsPage() {
           </Surface>
           <Surface className="p-5 shadow-none">
             <Gift className="size-5 text-[#5f8d11]" />
-            <h2 className="mt-3 font-bold">Refer & Earn</h2>
+            <h2 className="mt-3 font-semibold">Refer & Earn</h2>
             <p className="mt-2 text-sm text-[#68717b]">
               Invite friends and earn KSh 500 in credits.
             </p>
@@ -244,7 +244,7 @@ export function ClientBookingsPage() {
           </Surface>
           <Surface className="bg-[#eef8c8] p-5 shadow-none">
             <Headphones className="size-5" />
-            <h2 className="mt-3 font-bold">Help & Support</h2>
+            <h2 className="mt-3 font-semibold">Help & Support</h2>
             <p className="mt-2 text-sm text-[#3d4a2a]">
               Our support team is available 24/7.
             </p>

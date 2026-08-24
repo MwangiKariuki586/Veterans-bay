@@ -165,7 +165,7 @@ export function BookingDetail({
                   {booking.status.replaceAll("_", " ")}
                 </Badge>
               </div>
-              <h1 className="mt-2 text-3xl font-bold tracking-title">
+              <h1 className="mt-2 text-3xl font-semibold tracking-title">
                 {booking.serviceName}
               </h1>
               <p className="mt-2 text-sm text-[#68717b]">
@@ -173,7 +173,7 @@ export function BookingDetail({
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xl font-bold">
+              <p className="text-xl font-semibold">
                 {formatMoney(booking.totalMinor, booking.currency)}
               </p>
               {audience === "client" && booking.status === "COMPLETED" ? (
@@ -199,7 +199,7 @@ export function BookingDetail({
           <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
             <div className="space-y-5">
               <Surface className="p-5 shadow-none sm:p-6">
-                <h2 className="text-lg font-bold">Schedule</h2>
+                <h2 className="text-lg font-semibold">Schedule</h2>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <ScheduleValue
                     icon={<CalendarCheck2 className="size-4" />}
@@ -233,7 +233,7 @@ export function BookingDetail({
               </Surface>
 
               <Surface className="p-5 shadow-none sm:p-6">
-                <h2 className="text-lg font-bold">Scope and terms</h2>
+                <h2 className="text-lg font-semibold">Scope and terms</h2>
                 <div className="mt-5 grid gap-5 sm:grid-cols-2">
                   <Term label="Scope" value={booking.scope} />
                   <Term label="Exclusions" value={booking.exclusions} />
@@ -243,7 +243,7 @@ export function BookingDetail({
               </Surface>
 
               <Surface className="p-5 shadow-none sm:p-6">
-                <h2 className="text-lg font-bold">Schedule history</h2>
+                <h2 className="text-lg font-semibold">Schedule history</h2>
                 {booking.history.length === 0 ? (
                   <p className="mt-4 text-sm text-[#68717b]">
                     No schedule changes have been recorded.
@@ -278,7 +278,7 @@ export function BookingDetail({
             <aside className="space-y-5">
               {needsSlots ? (
                 <Surface className="p-5 shadow-none">
-                  <h2 className="font-bold">
+                  <h2 className="font-semibold">
                     {audience === "client"
                       ? booking.status === "CONFIRMED" ||
                         booking.status === "RESCHEDULED"
@@ -372,7 +372,7 @@ export function BookingDetail({
               {audience === "professional" &&
               ["CONFIRMED", "RESCHEDULED"].includes(booking.status) ? (
                 <Surface className="p-5 shadow-none">
-                  <h2 className="font-bold">Service outcome</h2>
+                  <h2 className="font-semibold">Service outcome</h2>
                   <p className="mt-2 text-sm leading-6 text-[#68717b]">
                     Record the outcome only after the scheduled service window
                     has ended.
@@ -386,7 +386,7 @@ export function BookingDetail({
               ) : null}
 
               <Surface className="p-5 shadow-none">
-                <h2 className="font-bold">Cancellation policy</h2>
+                <h2 className="font-semibold">Cancellation policy</h2>
                 <p className="mt-3 text-sm leading-6 text-[#68717b]">
                   {booking.cancellationPolicy}
                 </p>
@@ -440,7 +440,7 @@ export function BookingDetail({
 
               {booking.paymentRequirements.length > 0 ? (
                 <Surface className="p-5 shadow-none">
-                  <h2 className="flex items-center gap-2 font-bold">
+                  <h2 className="flex items-center gap-2 font-semibold">
                     <CircleDollarSign className="size-4 text-[#5f8d11]" />
                     Payment requirements
                   </h2>
@@ -607,7 +607,7 @@ function ScheduleValue({
 function Term({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <h3 className="text-sm font-bold">{label}</h3>
+      <h3 className="text-sm font-semibold">{label}</h3>
       <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#59646e]">
         {value}
       </p>

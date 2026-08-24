@@ -76,7 +76,7 @@ function NotificationBell({ authoritativeCount }: { authoritativeCount?: number 
       <Bell className="size-[1.15rem]" aria-hidden="true" />
       {count ? (
         <span
-          className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#7cb518] px-1 type-caption font-bold leading-none text-white"
+          className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#7cb518] px-1 type-caption font-semibold leading-none text-white"
           aria-hidden="true"
         >
           {count > 99 ? "99+" : count}
@@ -242,7 +242,7 @@ function SignedInActions({
         aria-label="Messages"
       >
         <MessageCircle className="size-[1.15rem]" aria-hidden="true" />
-        {utilityBadges?.messages ? <span className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#2f7d18] px-1 type-caption font-bold leading-none text-white">{utilityBadges.messages > 99 ? "99+" : utilityBadges.messages}</span> : null}
+        {utilityBadges?.messages ? <span className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#2f7d18] px-1 type-caption font-semibold leading-none text-white">{utilityBadges.messages > 99 ? "99+" : utilityBadges.messages}</span> : null}
       </Link>
       {workspaceKind === "professional" ? (
         <Link
@@ -345,7 +345,7 @@ export function SiteHeader({
             </Button>
           </SheetTrigger>
           <SheetContent aria-describedby="site-menu-description">
-            <SheetTitle className="pr-10 text-xl font-bold tracking-title">
+            <SheetTitle className="pr-10 text-xl font-semibold tracking-title">
               Veterans Bay
             </SheetTitle>
             <SheetDescription
