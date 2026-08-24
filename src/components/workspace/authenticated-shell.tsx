@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
   type ReactNode,
@@ -31,12 +31,16 @@ import {
 } from "@/components/ui/sheet";
 import { WorkspaceMainSkeleton } from "@/components/ui/workspace-skeletons";
 import { authClient } from "@/lib/auth-client";
+import { loginHrefFor, pathWithSearch } from "@/lib/auth-redirect";
 import {
   clearAllClientResourceCaches,
   getCachedResource,
   setCachedResource,
 } from "@/lib/client-resource-cache";
-import type { WorkspaceSummary } from "@/modules/workspace/types";
+import {
+  listAvailableWorkspaces,
+  selectWorkspace,
+} from "@/lib/workspace-entry";
 
 export type { AuthenticatedShellKind };
 
@@ -49,20 +53,6 @@ const WorkspaceShellContext = createContext({
 
 export function useWorkspaceShell() {
   return useContext(WorkspaceShellContext);
-}
-
-async function fetchWorkspaces() {
-  const response = await fetch("/api/v1/workspaces", { credentials: "include" });
-  const body = (await response.json()) as {
-    data?: { workspaces: WorkspaceSummary[]; defaultWorkspaceId: string | null };
-    error?: { code?: string };
-  };
-
-  if (!response.ok || !body.data) {
-    throw new Error(body.error?.code ?? "WORKSPACES_UNAVAILABLE");
-  }
-
-  return body.data;
 }
 
 function cachedLabelFor(kind: AuthenticatedShellKind) {
@@ -83,6 +73,7 @@ export function AuthenticatedShell({
   hideIntro?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session, isPending } = authClient.useSession();
   const cachedLabel = cachedLabelFor(kind);
   const [workspaceLabel, setWorkspaceLabel] = useState<string>(
@@ -99,13 +90,15 @@ export function AuthenticatedShell({
 
     if (!session) {
       clearAllClientResourceCaches();
-      router.replace("/login");
+      router.replace(
+        loginHrefFor(pathWithSearch(pathname, window.location.search)),
+      );
       return;
     }
 
-    void fetchWorkspaces()
-      .then(async (data) => {
-        const matching = data.workspaces.find((item) => {
+    void listAvailableWorkspaces()
+      .then(async (workspaces) => {
+        const matching = workspaces.find((item) => {
           if (kind === "client") {
             return item.kind === "client";
           }
@@ -116,18 +109,23 @@ export function AuthenticatedShell({
         });
 
         if (!matching) {
-          router.replace("/workspace/select");
+          if (kind === "professional") {
+            router.replace("/professional/onboarding");
+            return;
+          }
+
+          setError(
+            kind === "admin"
+              ? "You do not have administrator access."
+              : "A client workspace is not available for this account.",
+          );
+          setReady(true);
           return;
         }
 
         setWorkspaceLabel(matching.label);
         setCachedResource(WORKSPACE_CACHE_NS, kind, matching.label);
-        await fetch("/api/v1/workspaces/select", {
-          method: "POST",
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ workspaceId: matching.id }),
-        });
+        await selectWorkspace(matching.id);
 
         setError(null);
         setReady(true);
@@ -136,7 +134,7 @@ export function AuthenticatedShell({
         setError("Unable to resolve workspace access.");
         setReady(true);
       });
-  }, [isPending, kind, router, session]);
+  }, [isPending, kind, pathname, router, session]);
 
   const shell = (
     <WorkspaceShellContext.Provider value={{ workspaceLabel }}>

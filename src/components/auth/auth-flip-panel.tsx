@@ -25,16 +25,18 @@ import { GuestHeader } from "@/components/public/guest-header";
 import { Button } from "@/components/ui/button";
 import { WorkspaceMainSkeleton } from "@/components/ui/workspace-skeletons";
 import { authClient } from "@/lib/auth-client";
+import {
+  DEFAULT_POST_AUTH_PATH,
+  safeReturnPath,
+} from "@/lib/auth-redirect";
 import { cn } from "@/lib/utils";
 import { enterPrimaryWorkspace } from "@/lib/workspace-entry";
 
 export type AuthMode = "signin" | "signup";
 export type SelfServiceAccountType = "client" | "professional";
 
-const WORKSPACE_ENTRY_PATH = "/workspace/select";
-
 async function resolvePostAuthPath(redirectTo: string) {
-  if (redirectTo !== WORKSPACE_ENTRY_PATH) {
+  if (redirectTo !== DEFAULT_POST_AUTH_PATH) {
     return redirectTo;
   }
 
@@ -42,7 +44,7 @@ async function resolvePostAuthPath(redirectTo: string) {
     const workspace = await enterPrimaryWorkspace();
     return workspace.href;
   } catch {
-    return WORKSPACE_ENTRY_PATH;
+    return DEFAULT_POST_AUTH_PATH;
   }
 }
 
@@ -865,10 +867,7 @@ export function AuthFlipPanel() {
   const searchParams = useSearchParams();
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const requestedRedirect = searchParams.get("redirect");
-  const redirectTo =
-    requestedRedirect?.startsWith("/") && !requestedRedirect.startsWith("//")
-      ? requestedRedirect
-      : WORKSPACE_ENTRY_PATH;
+  const redirectTo = safeReturnPath(requestedRedirect);
   const showSignup = pathname === "/register";
 
   useEffect(() => {
@@ -905,7 +904,7 @@ export function AuthFlipPanel() {
   function flipTo(next: AuthMode) {
     const destination = next === "signup" ? "/register" : "/login";
     const suffix =
-      redirectTo !== WORKSPACE_ENTRY_PATH
+      redirectTo !== DEFAULT_POST_AUTH_PATH
         ? `?redirect=${encodeURIComponent(redirectTo)}`
         : "";
     router.replace(`${destination}${suffix}`, { scroll: false });

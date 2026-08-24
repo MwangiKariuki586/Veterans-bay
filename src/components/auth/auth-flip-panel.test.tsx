@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/register",
+  search: "",
   push: vi.fn(),
   refresh: vi.fn(),
   replace: vi.fn(),
@@ -16,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(mocks.search),
   useRouter: () => ({
     push: mocks.push,
     refresh: mocks.refresh,
@@ -74,6 +75,7 @@ describe("account journey signup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.pathname = "/register";
+    mocks.search = "";
     mocks.session = null;
     mocks.sessionPending = false;
     mocks.signUp.mockResolvedValue({ data: { user: { id: "user-1" } } });
@@ -236,6 +238,7 @@ describe("authenticated auth-route guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.pathname = "/login";
+    mocks.search = "";
     mocks.session = { user: { id: "user-1" } };
     mocks.sessionPending = false;
   });
@@ -267,6 +270,7 @@ describe("account journey sign in", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.pathname = "/login";
+    mocks.search = "";
     mocks.session = null;
     mocks.sessionPending = false;
     mocks.signIn.mockResolvedValue({ data: { user: { id: "user-1" } } });
@@ -305,6 +309,26 @@ describe("account journey sign in", () => {
         expect.objectContaining({ method: "POST" }),
       );
       expect(mocks.push).toHaveBeenCalledWith("/client");
+    });
+  });
+
+  it("returns to the protected destination requested before sign in", async () => {
+    mocks.search = "redirect=%2Fprofessional%2Fenquiries%3Fstatus%3Dnew";
+
+    render(<AuthFlipPanel />);
+
+    fireEvent.change(document.querySelector("#signin-email")!, {
+      target: { value: "alex@example.com" },
+    });
+    fireEvent.change(document.querySelector("#signin-password")!, {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^sign in/i }));
+
+    await waitFor(() => {
+      expect(mocks.push).toHaveBeenCalledWith(
+        "/professional/enquiries?status=new",
+      );
     });
   });
 

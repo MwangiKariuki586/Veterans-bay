@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
 import { authClient } from "@/lib/auth-client";
+import { loginHrefFor } from "@/lib/auth-redirect";
 import { cn } from "@/lib/utils";
 import type { PublicAccountProfile } from "@/modules/identity/types";
 
@@ -62,7 +63,7 @@ export function AccountProfilePage() {
     }
 
     if (!session) {
-      router.replace("/login");
+      router.replace(loginHrefFor("/account/profile"));
       return;
     }
 
