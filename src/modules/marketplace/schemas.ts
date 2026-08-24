@@ -19,7 +19,7 @@ export const marketplaceSearchQuerySchema = z.object({
   instantBooking: z.literal("true").optional(),
   sort: z.enum(["relevance", "newest"]).default("relevance"),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(10).default(10),
+  pageSize: z.coerce.number().int().min(1).max(9).default(9),
 });
 
 const marketplaceSearchEventSchema = z.object({

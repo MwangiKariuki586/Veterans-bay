@@ -10,7 +10,7 @@ const query: MarketplaceSearchQuery = {
   availability: "today",
   sort: "relevance",
   page: 1,
-  pageSize: 10,
+  pageSize: 9,
 };
 
 describe("marketplace service", () => {
@@ -80,7 +80,7 @@ describe("marketplace service", () => {
     expect(store.search).toHaveBeenCalledWith(query);
     expect(result).toEqual({
       page: 1,
-      pageSize: 10,
+      pageSize: 9,
       totalItems: 1,
       totalPages: 1,
       items: [
@@ -120,6 +120,22 @@ describe("marketplace service", () => {
       page: 3,
       totalItems: 0,
       totalPages: 1,
+    });
+  });
+
+  it("calculates multi-page totals from the bounded page size", async () => {
+    const store: MarketplaceStore = {
+      recordAnalytics: vi.fn(),
+      search: vi.fn().mockResolvedValue({ items: [], totalItems: 29 }),
+    };
+
+    await expect(
+      new MarketplaceService(store).search({ ...query, page: 2 }),
+    ).resolves.toMatchObject({
+      page: 2,
+      pageSize: 9,
+      totalItems: 29,
+      totalPages: 4,
     });
   });
 

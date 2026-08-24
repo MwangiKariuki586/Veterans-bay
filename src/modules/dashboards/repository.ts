@@ -164,25 +164,41 @@ export class DashboardsRepository {
       `),
       this.db.execute(sql`
         select
-          ps.id, ps.slug, ps.name, ps.category, ps.price_minor as "priceMinor", ps.currency,
-          o.slug as "organisationSlug", o.name as "organisationName",
-          pr.average_rating_hundredths as "ratingHundredths",
-          coalesce(pr.review_count, 0) as "reviewCount",
-          fa.cloudinary_public_id as "imagePublicId"
-        from professional_services ps
-        join organisations o on o.id = ps.organisation_id
-        join professional_profiles pp on pp.organisation_id = o.id
-        left join professional_reputation pr on pr.organisation_id = o.id
-        left join file_assets fa on fa.id = (
-          select psi.asset_id from professional_service_images psi
-          join file_assets fa2 on fa2.id = psi.asset_id
-          where psi.service_id = ps.id and fa2.visibility='public' and fa2.status='ready' and fa2.purpose='SERVICE_IMAGE'
-          order by psi.position asc limit 1
-        )
-        where ps.status='published' and ps.moderation_status='clear'
-          and o.status='active'
-          and ps.category is not null
-        order by coalesce(pr.average_rating_hundredths, 0) desc, pr.review_count desc nulls last, ps.published_at desc nulls last
+          ranked.id, ranked.slug, ranked.name, ranked.category,
+          ranked."priceMinor", ranked.currency, ranked."organisationSlug",
+          ranked."organisationName", ranked."ratingHundredths",
+          ranked."reviewCount", ranked."imagePublicId"
+        from (
+          select
+            ps.id, ps.slug, ps.name, ps.category, ps.price_minor as "priceMinor", ps.currency,
+            ps.published_at as "publishedAt",
+            o.slug as "organisationSlug", o.name as "organisationName",
+            pr.average_rating_hundredths as "ratingHundredths",
+            coalesce(pr.review_count, 0) as "reviewCount",
+            fa.cloudinary_public_id as "imagePublicId",
+            row_number() over (
+              partition by o.id
+              order by ps.published_at desc nulls last, ps.id
+            ) as provider_rank
+          from professional_services ps
+          join organisations o on o.id = ps.organisation_id
+          join professional_profiles pp on pp.organisation_id = o.id
+          left join professional_reputation pr on pr.organisation_id = o.id
+          left join file_assets fa on fa.id = (
+            select psi.asset_id from professional_service_images psi
+            join file_assets fa2 on fa2.id = psi.asset_id
+            where psi.service_id = ps.id and fa2.visibility='public' and fa2.status='ready' and fa2.purpose='SERVICE_IMAGE'
+            order by psi.position asc limit 1
+          )
+          where ps.status='published' and ps.moderation_status='clear'
+            and o.status='active'
+            and ps.category is not null
+        ) ranked
+        where ranked.provider_rank = 1
+        order by coalesce(ranked."ratingHundredths", 0) desc,
+          ranked."reviewCount" desc nulls last,
+          ranked."publishedAt" desc nulls last,
+          ranked.id
         limit 4
       `),
       this.db.execute(sql`

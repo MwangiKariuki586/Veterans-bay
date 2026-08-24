@@ -29,4 +29,17 @@ describe("marketplace schemas", () => {
       }),
     ).toMatchObject({ activeFilters: ["topRated", "instantBooking"] });
   });
+
+  it("defaults to nine results and accepts later pages", () => {
+    expect(marketplaceSearchQuerySchema.parse({ page: "3" })).toMatchObject({
+      page: 3,
+      pageSize: 9,
+    });
+  });
+
+  it("rejects page sizes above the public result bound", () => {
+    expect(() =>
+      marketplaceSearchQuerySchema.parse({ pageSize: "10" }),
+    ).toThrow();
+  });
 });

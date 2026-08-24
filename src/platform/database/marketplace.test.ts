@@ -12,7 +12,7 @@ import { withTestDatabase } from "./testing/helpers";
 const baseQuery: MarketplaceSearchQuery = {
   sort: "relevance",
   page: 1,
-  pageSize: 10,
+  pageSize: 9,
 };
 
 describe("marketplace persistence", () => {

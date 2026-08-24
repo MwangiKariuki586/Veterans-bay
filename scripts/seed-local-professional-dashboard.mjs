@@ -16,6 +16,8 @@ const ids = {
   fixtureProfiles: [1,2,3,4].map((n) => `d3200000-0000-4000-8000-${String(n).padStart(12,"0")}`),
   fixtureServices: [1,2,3,4].map((n) => `d3300000-0000-4000-8000-${String(n).padStart(12,"0")}`),
   fixtureServiceSnapshots: [1,2,3,4].map((n) => `d3350000-0000-4000-8000-${String(n).padStart(12,"0")}`),
+  paginationServices: Array.from({ length: 24 }, (_, index) => `d3400000-0000-4000-8000-${String(index + 1).padStart(12,"0")}`),
+  paginationServiceSnapshots: Array.from({ length: 24 }, (_, index) => `d3450000-0000-4000-8000-${String(index + 1).padStart(12,"0")}`),
   requests: [1,2,3,4,5].map((n) => `d4000000-0000-4000-8000-${String(n).padStart(12,"0")}`),
   requestKeys: [1,2,3,4,5].map((n) => `d4100000-0000-4000-8000-${String(n).padStart(12,"0")}`),
   quotations: [1,2,3].map((n) => `d5000000-0000-4000-8000-${String(n).padStart(12,"0")}`),
@@ -68,6 +70,32 @@ try {
     ["home-deep-cleaning", "Home Deep Cleaning", "Cleaning", "Detailed room-by-room cleaning using home-safe products.", 280000, 180, 7],
     ["appliance-repair", "Appliance Repair", "Appliance", "Diagnosis and repair for common household appliances.", 380000, 120, 30],
   ];
+  const paginationServiceRows = [
+    [0, "circuit-breaker-replacement", "Circuit Breaker Replacement", "Electrical", "Replace faulty breakers and restore safe circuit protection.", "fixed", 450000, 90, 30, "on_site", true],
+    [0, "indoor-lighting-installation", "Indoor Lighting Installation", "Electrical", "Install ceiling, wall, and feature lighting for living spaces.", "starting_from", 250000, 120, 30, "on_site", true],
+    [0, "outdoor-security-lighting", "Outdoor Security Lighting", "Electrical", "Fit weather-resistant security and pathway lighting.", "starting_from", 320000, 150, 30, "on_site", true],
+    [0, "socket-and-switch-repair", "Socket and Switch Repair", "Electrical", "Diagnose and replace damaged sockets and switches.", "fixed", 180000, 60, 14, "on_site", true],
+    [0, "electrical-safety-inspection", "Electrical Safety Inspection", "Electrical", "Inspect household wiring, protection devices, and visible faults.", "fixed", 300000, 90, 14, "on_site", true],
+    [0, "backup-power-consultation", "Backup Power Consultation", "Electrical", "Assess your home and recommend a suitable backup power setup.", "custom_quote", null, 60, 0, "hybrid", false],
+    [1, "wardrobe-assembly", "Wardrobe Assembly", "Carpentry", "Assemble freestanding and modular wardrobes securely.", "starting_from", 220000, 150, 14, "on_site", true],
+    [1, "tv-wall-mounting", "TV Wall Mounting", "Carpentry", "Mount televisions safely with tidy cable routing.", "fixed", 200000, 90, 14, "on_site", true],
+    [1, "shelving-installation", "Shelving Installation", "Carpentry", "Install practical wall shelves for kitchens, offices, and bedrooms.", "starting_from", 160000, 90, 14, "on_site", true],
+    [1, "curtain-rod-installation", "Curtain Rod Installation", "Carpentry", "Measure and install curtain rods with secure wall fixings.", "fixed", 140000, 60, 7, "on_site", true],
+    [1, "office-furniture-setup", "Office Furniture Setup", "Carpentry", "Assemble desks, chairs, cabinets, and meeting-room furniture.", "starting_from", 350000, 180, 14, "on_site", true],
+    [1, "custom-carpentry-assessment", "Custom Carpentry Assessment", "Carpentry", "Discuss measurements, materials, and scope for a custom project.", "custom_quote", null, 60, 0, "hybrid", false],
+    [2, "move-out-cleaning", "Move-out Cleaning", "Cleaning", "Deep clean an empty home before handover or occupation.", "starting_from", 450000, 240, 7, "on_site", true],
+    [2, "sofa-upholstery-cleaning", "Sofa and Upholstery Cleaning", "Cleaning", "Refresh fabric seating with targeted stain and odour treatment.", "starting_from", 240000, 120, 7, "on_site", true],
+    [2, "kitchen-deep-cleaning", "Kitchen Deep Cleaning", "Cleaning", "Degrease worktops, cabinets, appliances, and tiled surfaces.", "fixed", 260000, 150, 7, "on_site", true],
+    [2, "bathroom-sanitisation", "Bathroom Sanitisation", "Cleaning", "Descale, disinfect, and detail bathroom surfaces and fixtures.", "fixed", 180000, 90, 7, "on_site", true],
+    [2, "post-construction-cleaning", "Post-construction Cleaning", "Cleaning", "Remove fine dust and building residue after renovation work.", "custom_quote", null, 300, 7, "on_site", false],
+    [2, "recurring-home-cleaning", "Recurring Home Cleaning", "Cleaning", "Schedule dependable weekly or fortnightly household cleaning.", "starting_from", 200000, 180, 7, "on_site", true],
+    [3, "washing-machine-repair", "Washing Machine Repair", "Appliance", "Diagnose drainage, spin, leak, and power faults.", "starting_from", 300000, 120, 30, "on_site", true],
+    [3, "refrigerator-diagnostics", "Refrigerator Diagnostics", "Appliance", "Identify cooling, thermostat, compressor, and seal problems.", "fixed", 220000, 60, 14, "on_site", true],
+    [3, "oven-cooker-repair", "Oven and Cooker Repair", "Appliance", "Repair heating, ignition, thermostat, and control faults.", "starting_from", 280000, 120, 30, "on_site", true],
+    [3, "air-conditioner-maintenance", "Air Conditioner Maintenance", "Appliance", "Clean and service residential split air-conditioning units.", "fixed", 350000, 120, 30, "on_site", true],
+    [3, "dishwasher-repair", "Dishwasher Repair", "Appliance", "Resolve filling, drainage, heating, and cleaning-cycle issues.", "starting_from", 320000, 120, 30, "on_site", true],
+    [3, "appliance-installation", "Appliance Installation", "Appliance", "Connect and test common freestanding household appliances.", "starting_from", 200000, 90, 14, "on_site", true],
+  ];
   const fixtureWorkingHours = { monday: { enabled: true, opensAt: "08:00", closesAt: "17:00" }, tuesday: { enabled: true, opensAt: "08:00", closesAt: "17:00" }, wednesday: { enabled: true, opensAt: "08:00", closesAt: "17:00" }, thursday: { enabled: true, opensAt: "08:00", closesAt: "17:00" }, friday: { enabled: true, opensAt: "08:00", closesAt: "17:00" }, saturday: { enabled: true, opensAt: "09:00", closesAt: "14:00" } };
 
   for (let i=0;i<providerRows.length;i++) {
@@ -78,6 +106,11 @@ try {
     await client.query(`insert into professional_reputation (organisation_id,verified_jobs,review_count,average_rating_hundredths,response_rate_basis_points,completion_rate_basis_points,repeat_rate_basis_points,cancellation_rate_basis_points,warranty_resolution_rate_basis_points,dispute_rate_basis_points,recalculated_at) values ($1,$2,$3,$4,9400,9600,3200,300,9000,100,now()) on conflict (organisation_id) do update set verified_jobs=excluded.verified_jobs,review_count=excluded.review_count,average_rating_hundredths=excluded.average_rating_hundredths,response_rate_basis_points=excluded.response_rate_basis_points,completion_rate_basis_points=excluded.completion_rate_basis_points,recalculated_at=now()`, [ids.fixtureOrganisations[i], verifiedJobs, reviewCount, ratingHundredths]);
     await client.query(`insert into professional_services (id,organisation_id,slug,name,category,description,fulfilment_model,pricing_model,price_minor,currency,estimated_duration_minutes,service_areas,requirements,warranty_duration_days,warranty_terms,direct_booking_enabled,status,moderation_status,version,published_at) values ($1,$2,$3,$4,$5,$6,'on_site','starting_from',$7,'KES',$8,'["Nairobi","Westlands","Kilimani","Lavington"]'::jsonb,'["Provide safe access to the work area"]'::jsonb,$9,'Workmanship warranty applies to the agreed service scope.',true,'published','clear',1,now() - ($10 * interval '1 day')) on conflict (id) do update set name=excluded.name,category=excluded.category,description=excluded.description,price_minor=excluded.price_minor,estimated_duration_minutes=excluded.estimated_duration_minutes,warranty_duration_days=excluded.warranty_duration_days,status='published',moderation_status='clear',updated_at=now()`, [ids.fixtureServices[i], ids.fixtureOrganisations[i], serviceSlug, serviceName, serviceCategory, serviceDescription, priceMinor, durationMinutes, warrantyDays, i+1]);
     await client.query(`insert into professional_service_snapshots (id,service_id,version,snapshot) values ($1,$2,1,$3::jsonb) on conflict (service_id,version) do nothing`, [ids.fixtureServiceSnapshots[i], ids.fixtureServices[i], JSON.stringify({ name: serviceName, category: serviceCategory, pricingModel: "starting_from", priceMinor, currency: "KES", estimatedDurationMinutes: durationMinutes, warrantyDurationDays: warrantyDays, directBookingEnabled: true, marker: "local-dashboard-seed" })]);
+  }
+  for (let i=0;i<paginationServiceRows.length;i++) {
+    const [providerIndex, serviceSlug, serviceName, category, description, pricingModel, priceMinor, durationMinutes, warrantyDays, fulfilmentModel, directBookingEnabled] = paginationServiceRows[i];
+    await client.query(`insert into professional_services (id,organisation_id,slug,name,category,description,fulfilment_model,pricing_model,price_minor,currency,estimated_duration_minutes,service_areas,requirements,warranty_duration_days,warranty_terms,direct_booking_enabled,status,moderation_status,version,published_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'KES',$10,'["Nairobi","Westlands","Kilimani","Lavington"]'::jsonb,'["Provide safe access to the work area"]'::jsonb,$11,'Workmanship warranty applies to the agreed service scope.',$12,'published','clear',1,now() - ($13 * interval '1 day')) on conflict (id) do nothing`, [ids.paginationServices[i], ids.fixtureOrganisations[providerIndex], serviceSlug, serviceName, category, description, fulfilmentModel, pricingModel, priceMinor, durationMinutes, warrantyDays, directBookingEnabled, i+10]);
+    await client.query(`insert into professional_service_snapshots (id,service_id,version,snapshot) values ($1,$2,1,$3::jsonb) on conflict (service_id,version) do nothing`, [ids.paginationServiceSnapshots[i], ids.paginationServices[i], JSON.stringify({ name: serviceName, category, pricingModel, priceMinor, currency: "KES", fulfilmentModel, estimatedDurationMinutes: durationMinutes, warrantyDurationDays: warrantyDays, directBookingEnabled, marker: "local-marketplace-pagination-seed" })]);
   }
   await client.query(`insert into professional_reputation (organisation_id,verified_jobs,review_count,average_rating_hundredths,response_rate_basis_points,completion_rate_basis_points,repeat_rate_basis_points,cancellation_rate_basis_points,warranty_resolution_rate_basis_points,dispute_rate_basis_points,recalculated_at) values ($1,42,124,480,9600,9700,4100,200,9300,100,now()) on conflict (organisation_id) do update set verified_jobs=42,review_count=124,average_rating_hundredths=480,response_rate_basis_points=9600,completion_rate_basis_points=9700,recalculated_at=now()`, [organisationId]);
   for (let i=0;i<ids.savedProfessionals.length;i++) {
@@ -119,15 +152,15 @@ try {
     (select count(*)::int from professional_service_snapshots where service_id = any($3::uuid[]) and version=1) as snapshot_count,
     (select count(*)::int from saved_professionals where account_profile_id=$4) as saved_count,
     (select count(*)::int from warranties where id = any($5::uuid[]) and status='ACTIVE') as warranty_count,
-    (select count(*)::int from account where id in ('local-dashboard-client-credential','local-dashboard-team-credential')) as credential_count`, [ids.fixtureOrganisations, ids.fixtureServices, [ids.service, ...ids.fixtureServices], ids.client, ids.warranties]);
+    (select count(*)::int from account where id in ('local-dashboard-client-credential','local-dashboard-team-credential')) as credential_count`, [ids.fixtureOrganisations, [...ids.fixtureServices, ...ids.paginationServices], [ids.service, ...ids.fixtureServices, ...ids.paginationServices], ids.client, ids.warranties]);
   const verification = verificationResult.rows[0];
-  if (verification.provider_count !== 4 || verification.fixture_service_count !== 4 || verification.snapshot_count !== 5 || verification.saved_count < 2 || verification.warranty_count !== 3 || verification.credential_count !== 2) {
+  if (verification.provider_count !== 4 || verification.fixture_service_count !== 28 || verification.snapshot_count !== 29 || verification.saved_count < 2 || verification.warranty_count !== 3 || verification.credential_count !== 2) {
     throw new Error(`Local dashboard seed verification failed: ${JSON.stringify(verification)}`);
   }
   await client.query(`insert into availability_blocks (organisation_id,membership_id,starts_at,ends_at,reason,created_by_account_id) select $1,$2,$3,$4,'Synthetic local dashboard training block.',$5 where not exists (select 1 from availability_blocks where organisation_id=$1 and membership_id=$2 and reason='Synthetic local dashboard training block.')`, [organisationId,ids.membership,at(1,8),at(1,12),ownerId]);
   await client.query("commit");
   console.log(`Seeded Local Flow Plumbing dashboard scenario (${organisationId}).`);
-  console.log("Verified 5 published services, 4 recommendation providers, 3 active warranties, 2 saved professionals, and both dashboard logins.");
+  console.log("Verified 29 seed-owned published services (enough to exercise four 9-item pages), 4 recommendation providers, 3 active warranties, 2 saved professionals, and both dashboard logins.");
   console.log(`Local login: local.dashboard.team@veterans-bay.invalid / ${localPassword}`);
   console.log(`Client login: local.dashboard.client@veterans-bay.invalid / ${localClientPassword}`);
 } catch (error) {

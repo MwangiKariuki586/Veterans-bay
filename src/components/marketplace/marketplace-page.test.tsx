@@ -15,7 +15,7 @@ vi.mock("next/navigation", () => ({
 
 const result: MarketplaceSearchResult = {
   page: 1,
-  pageSize: 10,
+  pageSize: 9,
   totalItems: 1,
   totalPages: 1,
   items: [
@@ -91,7 +91,7 @@ describe("marketplace page", () => {
       screen.getByRole("link", { name: "Plumbing inspection" }),
     ).toHaveAttribute("href", "/services/plumbing-inspection");
     expect(fetch).toHaveBeenCalledWith(
-      "/api/v1/public/marketplace?pageSize=10",
+      "/api/v1/public/marketplace?pageSize=9",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
@@ -317,6 +317,45 @@ describe("marketplace page", () => {
     const clearButtons = screen.getAllByRole("button", { name: "Clear filters" });
     fireEvent.click(clearButtons.at(-1)!);
     expect(push).toHaveBeenCalledWith("/marketplace");
+  });
+
+  it("paginates through URL state while preserving active filters", async () => {
+    currentSearch = new URLSearchParams("category=Cleaning&page=2");
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input).startsWith("/api/v1/public/marketplace?")) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: {
+              ...result,
+              page: 2,
+              totalItems: 29,
+              totalPages: 4,
+            },
+          }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({ data: [] }),
+      } as Response;
+    });
+
+    render(<MarketplacePage />);
+
+    expect(await screen.findByText("Page 2 of 4")).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/public/marketplace?category=Cleaning&page=2&pageSize=9",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Previous/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Next/i }));
+
+    expect(push).toHaveBeenCalledWith("/marketplace?category=Cleaning");
+    expect(push).toHaveBeenCalledWith(
+      "/marketplace?category=Cleaning&page=3",
+    );
   });
 
   it("does not delay results when analytics delivery fails", async () => {

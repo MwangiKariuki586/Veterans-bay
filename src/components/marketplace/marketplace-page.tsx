@@ -145,7 +145,7 @@ function apiSearchParams(searchParams: URLSearchParams) {
     const value = searchParams.get(key);
     if (value) next.set(key, value);
   }
-  next.set("pageSize", "10");
+  next.set("pageSize", "9");
   return next;
 }
 
