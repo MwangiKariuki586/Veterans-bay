@@ -123,3 +123,150 @@
 - Defer P3 optical adjustments until browser-rendered comparison is available.
 
 final result: blocked
+
+---
+
+# Dark Band Width Alignment Design QA
+
+**Comparison Target**
+
+- Source visual truth: the user-provided community-stats and final-CTA screenshots.
+- Implementation: `/become-a-professional`.
+- After screenshot: unavailable because no supported browser surface is connected.
+
+**Implemented Alignment**
+
+- Changed both sections from viewport-wide breakouts to the parent shell's full width, giving them identical outer edges aligned with the navigation and footer.
+- Preserved their existing inner 1340px rail and responsive gutters.
+- Reverted the unrelated lighting, texture, avatar, typography, padding, spacing, and watermark changes from the previous misinterpreted pass.
+- Made no height or content-density changes in this correction.
+- Follow-up: the stats band now uses the shared 22px radius. The CTA no longer has a navy surface; it inherits the page background and uses dark heading, supporting-copy, and watermark colors for contrast.
+
+**User-Selected Replacement**
+
+- Replaced the rejected proof/CTA composition with the supplied community-proof reference, then integrated the narrow reputation column into the testimonial hierarchy at the user's direction.
+- Removed both the standalone stats band and the duplicate testimonial card from How It Works.
+- Desktop now uses two primary columns: community heading/metrics/avatar proof and the Mark D. Plumbing testimonial.
+- The compact 42-job and Top Rated evidence row sits directly beneath Mark's profile and rating instead of reading as a detached dashboard KPI.
+- Both desktop columns are equal-height flex stacks: the kicker and quote share the top edge, while the avatar proof and testimonial evidence share the bottom edge.
+- Mobile preserves the same content hierarchy, with the compact evidence row remaining attached to the testimonial.
+- The growth-card View all leads and View Dashboard controls are semantic, keyboard-focusable links with visible hover and focus states.
+- The final CTA button, house watermark, and prior dotted treatment are not present because the selected reference does not include them.
+- Existing avatar assets and icon-library symbols provide every visible image and icon in the reference.
+
+**Verification**
+
+- [x] Changed-file ESLint.
+- [x] TypeScript strict check.
+- [x] 82-route Next.js production build.
+- [x] Local route response.
+- [x] Single testimonial and single completed-job proof confirmed.
+- [x] Compact job and reputation evidence is nested beneath Mark's profile in the testimonial column.
+- [x] Whitespace validation.
+- [ ] Same-viewport rendered comparison.
+
+final result: blocked
+
+---
+
+# Community Stats Band Design QA
+
+**Comparison Target**
+
+- Source visual truth: the user-provided compact navy stats-band reference.
+- Implementation: `/become-a-professional`, immediately below the professional-growth cards.
+- After screenshot: unavailable because no supported browser surface is connected.
+
+**Implemented Alignment**
+
+- Reduced desktop vertical padding and set explicit compact line-heights to remove the oversized band height.
+- Replaced the loose 50/50 composition with an 880px metrics track and adjacent proof cluster so the avatars no longer sit against the far edge.
+- Aligned the inner content to the shared navigation and footer's authoritative 1340px rail and 26px desktop gutter; the navy surface remains full width.
+- Refined the statistic dividers to muted lime, increased avatar size, added bright rings, and tightened proof-copy width and leading.
+- Preserved the existing responsive stacked treatment below the desktop breakpoint.
+
+**Verification**
+
+- [x] Changed-file ESLint.
+- [x] TypeScript strict check.
+- [x] Local route response.
+- [x] Whitespace validation.
+- [ ] Same-viewport rendered comparison.
+
+final result: blocked
+
+---
+
+# Professional Growth Section Design QA
+
+**Comparison Target**
+
+- Source visual truth: the user-provided "Built for professionals who want to grow" mockup.
+- Implementation: `/become-a-professional`, signed-out state.
+- Target desktop composition: three landscape work scenes with outward-overlapping UI panels and compact icon-led supporting copy.
+- Implementation screenshot: unavailable because no supported browser surface is connected.
+
+**Implemented Alignment**
+
+- Replaced unrelated room, portrait, and booking imagery with section-specific plumber, work-management, and reputation scenes matching the mockup's subjects and focal placement.
+- Rebuilt the three media compositions so the UI panels overhang the outer and inner image edges at widths of 1360px and above, while remaining safely inset at narrower widths.
+- Matched the mockup's compact vertical rhythm, stronger section headline, larger supporting titles and descriptions, rounded media corners, subtle panel borders/shadows, and lime icon medallions.
+- Preserved semantic headings, descriptive image alternatives, and real icon-library assets.
+
+**Verification**
+
+- [x] Changed-file ESLint.
+- [x] TypeScript strict check.
+- [x] 82-route Next.js production build.
+- [x] Local `/become-a-professional` response and all three generated image references.
+- [x] Whitespace validation.
+- [ ] Same-viewport screenshot comparison at desktop and mobile widths.
+
+**Finding**
+
+- [P2, blocked] Optical comparison of crops, overhang, and responsive stacking remains unavailable until a supported browser surface is connected.
+
+**Follow-up Screenshot Correction**
+
+- The supplied implementation screenshot showed the section forcing a white background instead of inheriting the page backdrop.
+- The page-level horizontal clipping boundary cut off the first floating panel, while the middle panel used a smaller overhang than the two outer panels.
+- The section now inherits the page backdrop and the redundant clipping boundary is removed. At wide desktop widths, the two outer panels offset by the image's 16px inset so their outside edges terminate exactly on the shared navigation/footer rail; the dashboard panel uses the mockup's shallow 20px overhang so it cannot touch the neighbouring card.
+- The dashboard panel no longer inherits the page's 22px body line-height: its miniature rows use a compact 16px rhythm and its width now matches the two outer panels, keeping it vertically contained and visually consistent.
+- Focused lint, typecheck, local route, and whitespace checks pass after the correction. A fresh rendered after-screenshot remains unavailable because no browser surface is connected.
+
+final result: blocked
+
+---
+
+# Become a Professional Page Design QA
+
+**Comparison Target**
+
+- Source visual truth: user-provided crops of the Become a Professional page.
+- Implementation: `/become-a-professional`, signed-out state.
+- Implementation screenshot: unavailable because neither supported browser surface is connected.
+- Viewport and density normalization: unavailable without a browser-rendered capture.
+
+**Focused Evidence**
+
+- The hero's fixed-color overlay was replaced by an image mask so the page backdrop remains continuous.
+- Duplicate hero padding was removed so the section uses the same horizontal rail as the public navigation.
+- The testimonial image is the left-hand black panel shown in the final crop. A single continuous opacity mask now softens its top, right, bottom, and left edges into the navy card surface.
+
+**Findings**
+
+- [P2, blocked] Rendered confirmation is unavailable.
+  Location: hero transition, navigation alignment, and testimonial image perimeter.
+  Evidence: the route responds successfully, but no browser-rendered after capture can be produced.
+  Fix: capture the route at matching responsive widths when a supported browser is connected.
+
+**Implementation Checklist**
+
+- [x] Keep the hero backdrop transition continuous.
+- [x] Align the hero with the navigation rail.
+- [x] Use one continuous all-edge mask for the testimonial image.
+- [x] Remove corner-specific radius treatment from the testimonial image.
+- [x] Run code and route checks.
+- [ ] Complete screenshot-backed responsive comparison.
+
+final result: blocked
