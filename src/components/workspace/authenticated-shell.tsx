@@ -4,6 +4,7 @@ import { Menu } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
+  Fragment,
   type ReactNode,
   useContext,
   useEffect,
@@ -29,7 +30,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { WorkspaceMainSkeleton } from "@/components/ui/workspace-skeletons";
 import { authClient } from "@/lib/auth-client";
 import { loginHrefFor, pathWithSearch } from "@/lib/auth-redirect";
 import {
@@ -38,8 +38,10 @@ import {
   setCachedResource,
 } from "@/lib/client-resource-cache";
 import {
+  getCurrentWorkspace,
   listAvailableWorkspaces,
   selectWorkspace,
+  WorkspaceEntryError,
 } from "@/lib/workspace-entry";
 
 export type { AuthenticatedShellKind };
@@ -57,6 +59,15 @@ export function useWorkspaceShell() {
 
 function cachedLabelFor(kind: AuthenticatedShellKind) {
   return getCachedResource<string>(WORKSPACE_CACHE_NS, kind, WORKSPACE_CACHE_TTL_MS);
+}
+
+function matchesShellKind(
+  kind: AuthenticatedShellKind,
+  workspace: { kind: "client" | "organisation" | "platform" },
+) {
+  if (kind === "client") return workspace.kind === "client";
+  if (kind === "professional") return workspace.kind === "organisation";
+  return workspace.kind === "platform";
 }
 
 export function AuthenticatedShell({
@@ -79,9 +90,10 @@ export function AuthenticatedShell({
   const [workspaceLabel, setWorkspaceLabel] = useState<string>(
     cachedLabel ?? "Workspace",
   );
-  const [ready, setReady] = useState(Boolean(cachedLabel));
   const [error, setError] = useState<string | null>(null);
+  const [workspaceRevision, setWorkspaceRevision] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const sessionUserId = session?.user.id;
 
   useEffect(() => {
     if (isPending) {
@@ -93,48 +105,78 @@ export function AuthenticatedShell({
       router.replace(
         loginHrefFor(pathWithSearch(pathname, window.location.search)),
       );
-      return;
     }
+  }, [isPending, pathname, router, session]);
 
-    void listAvailableWorkspaces()
-      .then(async (workspaces) => {
-        const matching = workspaces.find((item) => {
-          if (kind === "client") {
-            return item.kind === "client";
-          }
-          if (kind === "professional") {
-            return item.kind === "organisation";
-          }
-          return item.kind === "platform";
-        });
+  useEffect(() => {
+    if (isPending || !sessionUserId) return;
 
-        if (!matching) {
-          if (kind === "professional") {
-            router.replace("/professional/onboarding");
-            return;
-          }
+    const controller = new AbortController();
 
-          setError(
-            kind === "admin"
-              ? "You do not have administrator access."
-              : "A client workspace is not available for this account.",
-          );
-          setReady(true);
+    async function recoverWorkspace() {
+      const workspaces = await listAvailableWorkspaces(controller.signal);
+      const matching = workspaces.find((item) => matchesShellKind(kind, item));
+
+      if (!matching) {
+        if (kind === "professional") {
+          router.replace("/professional/onboarding");
           return;
         }
 
-        setWorkspaceLabel(matching.label);
-        setCachedResource(WORKSPACE_CACHE_NS, kind, matching.label);
-        await selectWorkspace(matching.id);
+        setError(
+          kind === "admin"
+            ? "You do not have administrator access."
+            : "A client workspace is not available for this account.",
+        );
+        return;
+      }
 
+      const selected = await selectWorkspace(matching.id, controller.signal);
+      setWorkspaceLabel(selected.label);
+      setCachedResource(WORKSPACE_CACHE_NS, kind, selected.label);
+      setError(null);
+      setWorkspaceRevision((revision) => revision + 1);
+    }
+
+    async function bootstrapWorkspace() {
+      try {
+        const current = await getCurrentWorkspace(controller.signal);
+        if (!matchesShellKind(kind, current)) {
+          await recoverWorkspace();
+          return;
+        }
+
+        setWorkspaceLabel(current.label);
+        setCachedResource(WORKSPACE_CACHE_NS, kind, current.label);
         setError(null);
-        setReady(true);
-      })
-      .catch(() => {
-        setError("Unable to resolve workspace access.");
-        setReady(true);
-      });
-  }, [isPending, kind, pathname, router, session]);
+      } catch (cause) {
+        if (cause instanceof DOMException && cause.name === "AbortError") return;
+        if (cause instanceof WorkspaceEntryError && cause.status === 401) {
+          router.replace(
+            loginHrefFor(
+              pathWithSearch(window.location.pathname, window.location.search),
+            ),
+          );
+          return;
+        }
+
+        try {
+          await recoverWorkspace();
+        } catch (recoveryCause) {
+          if (
+            recoveryCause instanceof DOMException &&
+            recoveryCause.name === "AbortError"
+          ) {
+            return;
+          }
+          setError("Unable to resolve workspace access.");
+        }
+      }
+    }
+
+    void bootstrapWorkspace();
+    return () => controller.abort();
+  }, [isPending, kind, router, sessionUserId]);
 
   const shell = (
     <WorkspaceShellContext.Provider value={{ workspaceLabel }}>
@@ -156,16 +198,14 @@ export function AuthenticatedShell({
           className="hidden min-h-0 overflow-hidden rounded-none border-y-0 border-l-0 shadow-none lg:flex"
         />
         <main className="min-h-0 min-w-0 overflow-x-clip overflow-y-auto bg-[#f8fafb] p-3 sm:p-5 lg:p-6">
-          {!ready ? (
-            <WorkspaceMainSkeleton />
-          ) : error ? (
+          {error ? (
             <InlineAlert
               variant="error"
               title="Workspace unavailable"
               description={error}
             />
           ) : (
-            <WorkspaceChromeProvider>
+            <WorkspaceChromeProvider key={workspaceRevision}>
               <div className="flex min-h-full flex-col gap-6">
                 <div>
                   {!hideIntro ? (
@@ -196,11 +236,14 @@ export function AuthenticatedShell({
     <div className={`${pageBackdropClass} h-dvh max-h-dvh overflow-hidden`}>
       <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col overflow-hidden bg-white">
         {kind === "professional" ? (
-          <ProfessionalDashboardProvider enabled={ready}>
+          <ProfessionalDashboardProvider
+            key={workspaceRevision}
+            enabled={!isPending && Boolean(sessionUserId)}
+          >
             {shell}
           </ProfessionalDashboardProvider>
         ) : (
-          shell
+          <Fragment key={workspaceRevision}>{shell}</Fragment>
         )}
       </div>
     </div>

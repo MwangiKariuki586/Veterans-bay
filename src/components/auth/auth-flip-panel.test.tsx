@@ -308,7 +308,8 @@ describe("account journey sign in", () => {
         "/api/v1/workspaces/enter",
         expect.objectContaining({ method: "POST" }),
       );
-      expect(mocks.push).toHaveBeenCalledWith("/client");
+      expect(mocks.replace).toHaveBeenCalledWith("/client");
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -326,10 +327,61 @@ describe("account journey sign in", () => {
     fireEvent.click(screen.getByRole("button", { name: /^sign in/i }));
 
     await waitFor(() => {
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/professional/enquiries?status=new",
       );
     });
+  });
+
+  it("keeps the login surface visible while one workspace redirect resolves", async () => {
+    let resolveWorkspace!: (value: {
+      ok: boolean;
+      json: () => Promise<{
+        data: { id: string; kind: string; href: string };
+      }>;
+    }) => void;
+    const workspaceResponse = new Promise<{
+      ok: boolean;
+      json: () => Promise<{
+        data: { id: string; kind: string; href: string };
+      }>;
+    }>((resolve) => {
+      resolveWorkspace = resolve;
+    });
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(workspaceResponse));
+    const view = render(<AuthFlipPanel />);
+
+    fireEvent.change(document.querySelector("#signin-email")!, {
+      target: { value: "alex@example.com" },
+    });
+    fireEvent.change(document.querySelector("#signin-password")!, {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^sign in/i }));
+
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1));
+    mocks.session = { user: { id: "user-1" } };
+    view.rerender(<AuthFlipPanel />);
+
+    expect(
+      screen.getByRole("heading", { name: "Welcome back" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("main", { name: "Opening your workspace" }),
+    ).not.toBeInTheDocument();
+
+    resolveWorkspace({
+      ok: true,
+      json: async () => ({
+        data: { id: "client:profile-1", kind: "client", href: "/client" },
+      }),
+    });
+
+    await waitFor(() => {
+      expect(mocks.replace).toHaveBeenCalledWith("/client");
+    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("places sign-in input errors beneath the fields without a toast", () => {

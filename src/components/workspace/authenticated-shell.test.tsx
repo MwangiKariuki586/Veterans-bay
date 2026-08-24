@@ -1,21 +1,24 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthenticatedShell } from "./authenticated-shell";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/client/bookings/new",
-  replace: vi.fn(),
+  router: { replace: vi.fn() },
   search: "service=plumbing",
   session: null as { user: { id: string } } | null,
   sessionPending: true,
+  cachedLabel: "Client workspace" as string | null,
+  currentWorkspace: vi.fn(),
   listWorkspaces: vi.fn(),
   selectWorkspace: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname,
-  useRouter: () => ({ replace: mocks.replace }),
+  useRouter: () => mocks.router,
 }));
 
 vi.mock("@/components/public/site-header", () => ({
@@ -37,11 +40,20 @@ vi.mock("@/lib/auth-client", () => ({
 
 vi.mock("@/lib/client-resource-cache", () => ({
   clearAllClientResourceCaches: vi.fn(),
-  getCachedResource: () => "Client workspace",
+  getCachedResource: () => mocks.cachedLabel,
   setCachedResource: vi.fn(),
 }));
 
 vi.mock("@/lib/workspace-entry", () => ({
+  WorkspaceEntryError: class WorkspaceEntryError extends Error {
+    constructor(
+      readonly code: string,
+      readonly status: number,
+    ) {
+      super(code);
+    }
+  },
+  getCurrentWorkspace: mocks.currentWorkspace,
   listAvailableWorkspaces: mocks.listWorkspaces,
   selectWorkspace: mocks.selectWorkspace,
 }));
@@ -54,6 +66,8 @@ describe("authenticated shell", () => {
     window.history.replaceState({}, "", `/?${mocks.search}`);
     mocks.session = null;
     mocks.sessionPending = true;
+    mocks.cachedLabel = "Client workspace";
+    mocks.currentWorkspace.mockReset();
     mocks.listWorkspaces.mockReset();
     mocks.selectWorkspace.mockReset();
   });
@@ -87,8 +101,89 @@ describe("authenticated shell", () => {
       </AuthenticatedShell>,
     );
 
-    expect(mocks.replace).toHaveBeenCalledWith(
+    expect(mocks.router.replace).toHaveBeenCalledWith(
       "/login?redirect=%2Fclient%2Fbookings%2Fnew%3Fservice%3Dplumbing",
+    );
+  });
+
+  it("mounts page content while the current workspace is validated", () => {
+    mocks.cachedLabel = null;
+    mocks.session = { user: { id: "user-1" } };
+    mocks.sessionPending = false;
+    mocks.currentWorkspace.mockReturnValue(new Promise(() => undefined));
+
+    render(
+      <AuthenticatedShell kind="client" hideIntro>
+        <section>Client bookings</section>
+      </AuthenticatedShell>,
+    );
+
+    expect(screen.getByText("Client bookings")).toBeInTheDocument();
+    expect(mocks.currentWorkspace).toHaveBeenCalledOnce();
+    expect(mocks.listWorkspaces).not.toHaveBeenCalled();
+    expect(mocks.selectWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("uses the current workspace without listing or selecting it again", async () => {
+    mocks.session = { user: { id: "user-1" } };
+    mocks.sessionPending = false;
+    mocks.currentWorkspace.mockResolvedValue({
+      id: "client:profile-1",
+      kind: "client",
+      label: "Personal account",
+    });
+
+    render(
+      <AuthenticatedShell kind="client" hideIntro>
+        <section>Client dashboard</section>
+      </AuthenticatedShell>,
+    );
+
+    await waitFor(() => expect(mocks.currentWorkspace).toHaveBeenCalledOnce());
+    expect(mocks.listWorkspaces).not.toHaveBeenCalled();
+    expect(mocks.selectWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("recovers a mismatched workspace and remounts page data loaders", async () => {
+    const mounted = vi.fn();
+    function PageLoader() {
+      useEffect(() => {
+        mounted();
+      }, []);
+      return <section>Professional enquiries</section>;
+    }
+
+    mocks.session = { user: { id: "user-1" } };
+    mocks.sessionPending = false;
+    mocks.currentWorkspace.mockResolvedValue({
+      id: "client:profile-1",
+      kind: "client",
+      label: "Personal account",
+    });
+    mocks.listWorkspaces.mockResolvedValue([
+      {
+        id: "organisation:organisation-1",
+        kind: "organisation",
+        label: "Emkay Ltd",
+      },
+    ]);
+    mocks.selectWorkspace.mockResolvedValue({
+      id: "organisation:organisation-1",
+      kind: "organisation",
+      label: "Emkay Ltd",
+    });
+
+    render(
+      <AuthenticatedShell kind="professional" hideIntro>
+        <PageLoader />
+      </AuthenticatedShell>,
+    );
+
+    await waitFor(() => expect(mounted).toHaveBeenCalledTimes(2));
+    expect(mocks.listWorkspaces).toHaveBeenCalledOnce();
+    expect(mocks.selectWorkspace).toHaveBeenCalledWith(
+      "organisation:organisation-1",
+      expect.any(AbortSignal),
     );
   });
 
@@ -97,6 +192,11 @@ describe("authenticated shell", () => {
     mocks.search = "";
     mocks.session = { user: { id: "user-1" } };
     mocks.sessionPending = false;
+    mocks.currentWorkspace.mockResolvedValue({
+      id: "client:profile-1",
+      kind: "client",
+      label: "Personal account",
+    });
     mocks.listWorkspaces.mockResolvedValue([
       {
         id: "client:profile-1",
@@ -113,8 +213,10 @@ describe("authenticated shell", () => {
     );
 
     await waitFor(() => {
-      expect(mocks.replace).toHaveBeenCalledWith("/professional/onboarding");
+      expect(mocks.router.replace).toHaveBeenCalledWith(
+        "/professional/onboarding",
+      );
     });
-    expect(mocks.replace).not.toHaveBeenCalledWith("/workspace/select");
+    expect(mocks.router.replace).not.toHaveBeenCalledWith("/workspace/select");
   });
 });

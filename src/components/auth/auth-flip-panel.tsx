@@ -323,9 +323,11 @@ function Divider() {
 
 function SignInFace({
   onFlipToSignUp,
+  onInteractiveSignInChange,
   redirectTo,
 }: {
   onFlipToSignUp: () => void;
+  onInteractiveSignInChange: (active: boolean) => void;
   redirectTo: string;
 }) {
   const router = useRouter();
@@ -354,20 +356,29 @@ function SignInFace({
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
-    const result = await authClient.signIn.email({
-      email,
-      password,
-      rememberMe: form.get("remember") === "on",
-    });
+    onInteractiveSignInChange(true);
+    const result = await authClient.signIn
+      .email({
+        email,
+        password,
+        rememberMe: form.get("remember") === "on",
+      })
+      .catch(() => null);
+    if (!result) {
+      setSubmitting(false);
+      onInteractiveSignInChange(false);
+      toast.error("Unable to sign in with the details provided.");
+      return;
+    }
     if (result.error) {
       setSubmitting(false);
+      onInteractiveSignInChange(false);
       toast.error(mapSignInError(result.error));
       return;
     }
     toast.success("Signed in.");
     const destination = await resolvePostAuthPath(redirectTo);
-    setSubmitting(false);
-    router.push(destination);
+    router.replace(destination);
     router.refresh();
   }
 
@@ -866,12 +877,13 @@ export function AuthFlipPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session, isPending: sessionPending } = authClient.useSession();
+  const [interactiveSignIn, setInteractiveSignIn] = useState(false);
   const requestedRedirect = searchParams.get("redirect");
   const redirectTo = safeReturnPath(requestedRedirect);
   const showSignup = pathname === "/register";
 
   useEffect(() => {
-    if (sessionPending || !session) {
+    if (interactiveSignIn || sessionPending || !session) {
       return;
     }
 
@@ -885,9 +897,9 @@ export function AuthFlipPanel() {
     return () => {
       cancelled = true;
     };
-  }, [redirectTo, router, session, sessionPending]);
+  }, [interactiveSignIn, redirectTo, router, session, sessionPending]);
 
-  if (sessionPending || session) {
+  if (!interactiveSignIn && (sessionPending || session)) {
     return (
       <main
         className="min-h-screen bg-[radial-gradient(circle_at_top,#fff_0%,#eef3f6_66%,#e7edf0_100%)] px-4 py-8"
@@ -929,6 +941,7 @@ export function AuthFlipPanel() {
             >
               <SignInFace
                 onFlipToSignUp={() => flipTo("signup")}
+                onInteractiveSignInChange={setInteractiveSignIn}
                 redirectTo={redirectTo}
               />
             </div>

@@ -24,11 +24,11 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
-`VERIFICATION PENDING` — Authentication return-path handling is centralized so protected navigation preserves its intended internal destination through sign-in. Workspace recovery is role-aware: missing professional access routes to professional onboarding instead of the default dashboard, administrator/client mismatches render explicit access errors, single-workspace accounts bypass the selector, and `/workspace/select` presents actual choices only for accounts with multiple eligible workspaces. The complete 122-test UI suite across 34 files, focused workspace recovery and chooser tests, changed-file lint, typecheck, the 82-route production build, and whitespace checks pass. Browser verification of the corrected signed-out professional-link journey remains pending because no browser surface is connected.
+`VERIFICATION PENDING` — Authenticated workspace pages now mount their data loaders immediately while the shared shell validates the existing workspace concurrently. The validated `/workspaces/current` route is the common fast path; workspace listing and selection run only for missing or mismatched workspace state, and successful recovery remounts the page loader against the corrected HttpOnly workspace cookie. Interactive sign-in now keeps the existing login surface and submit-button progress visible until one authoritative workspace resolution completes, then performs one history-replacing redirect; the authenticated `/login` guard no longer races that transition or duplicates the workspace-entry request. All 128 UI tests across 35 files, focused changed-file lint, typecheck, the 82-route production build, and whitespace checks pass. Repository-wide lint reaches two pre-existing `react-hooks/set-state-in-effect` errors in `invoice-list.tsx` and `professional-dashboard-context.tsx`. Browser verification of both loading transitions remains pending because no browser surface is connected.
 
 ## Current Step
 
-Capture the refined full public professional page at desktop, tablet, and mobile widths when the in-app browser is available, compare the focused overview composition with the supplied mockup, and resolve any remaining optical differences. Do not deploy without explicit delivery-owner approval.
+Capture an interactive sign-in and a cold authenticated page load when a browser surface is connected; confirm that the login surface persists through workspace resolution and that authenticated destinations show only their page-specific loading state. Then resume the pending public professional-page responsive comparison. Do not deploy without explicit delivery-owner approval.
 
 ## Next Step
 
