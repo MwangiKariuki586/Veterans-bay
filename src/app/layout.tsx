@@ -20,8 +20,8 @@ export const metadata: Metadata = {
   description:
     "A service marketplace and professional operations platform for home repair and maintenance.",
   icons: {
-    icon: "/images/veterans-bay-logo.png",
-    apple: "/images/veterans-bay-logo.png",
+    icon: "/images/veterans-bay-favicon.png",
+    apple: "/images/veterans-bay-favicon.png",
   },
 };
 
