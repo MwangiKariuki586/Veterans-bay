@@ -182,7 +182,10 @@ export function AuthenticatedShell({
   const shell = (
     <WorkspaceShellContext.Provider value={{ workspaceLabel }}>
       <div className="shrink-0 border-b border-black/8 px-4 py-3 sm:px-6 lg:h-[92px] lg:px-6 lg:py-[18px]">
-        <SiteHeader workspaceContext={{ kind, label: workspaceLabel }} />
+        <SiteHeader
+          variant="workspace"
+          workspaceContext={{ kind, label: workspaceLabel }}
+        />
       </div>
       <div className="flex shrink-0 items-center justify-end border-b border-black/8 bg-white px-4 py-2 lg:hidden">
         <WorkspaceMenu
@@ -224,7 +227,7 @@ export function AuthenticatedShell({
                   ) : null}
                   {children}
                 </div>
-                <WorkspaceFooter kind={kind} />
+                <WorkspaceFooter />
               </div>
             </WorkspaceChromeProvider>
           )}
@@ -254,12 +257,12 @@ export function AuthenticatedShell({
   );
 }
 
-function WorkspaceFooter({ kind }: { kind: AuthenticatedShellKind }) {
+function WorkspaceFooter() {
   const { contentReady } = useWorkspaceChrome();
   if (!contentReady) {
     return null;
   }
-  return <AuthenticatedFooter kind={kind} className="mt-auto" />;
+  return <AuthenticatedFooter className="mt-auto" />;
 }
 
 function WorkspaceMenu({

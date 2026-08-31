@@ -9,6 +9,7 @@ import {
 } from "./schema/engagement-conversations";
 import { organisations } from "./schema/organisations";
 import { outboxEvents } from "./schema/outbox-events";
+import { professionalServices } from "./schema/professional-services";
 import {
   serviceRequestHistory,
   serviceRequests,
@@ -48,9 +49,26 @@ describe("service request persistence", () => {
           status: "active",
         })
         .returning();
+      await db.insert(professionalServices).values({
+        organisationId: organisation.id,
+        slug: `request-service-${marker}`,
+        name: "Request Test Plumbing",
+        category: "Plumbing",
+        status: "published",
+        moderationStatus: "clear",
+      });
       const repository = new ServiceRequestsRepository(db);
 
       try {
+        await expect(repository.listRequestProfessionals()).resolves.toEqual(
+          expect.arrayContaining([
+            {
+              slug: organisation.slug,
+              name: organisation.name,
+              categories: ["Plumbing"],
+            },
+          ]),
+        );
         const values = {
           source: "PROFESSIONAL_BOOKING_LINK" as const,
           category: "Plumbing",
@@ -77,6 +95,25 @@ describe("service request persistence", () => {
         });
         expect(retry.id).toBe(draft.id);
         expect(draft.organisationId).toBe(organisation.id);
+        const filteredList = await repository.listClient({
+          clientAccountId: client.id,
+          bucket: "draft",
+          category: "Plumbing",
+          preferredTime: "morning",
+          urgency: "SOON",
+          search: "leaking",
+          sort: "updated_desc",
+          page: 1,
+          pageSize: 10,
+        });
+        expect(filteredList.items.map((item) => item.id)).toEqual([draft.id]);
+        expect(filteredList.summary).toMatchObject({
+          total: 1,
+          active: 0,
+          needsAction: 0,
+          drafts: 1,
+          closed: 0,
+        });
         await expect(
           repository.getClient(otherClient.id, draft.id),
         ).resolves.toBeNull();

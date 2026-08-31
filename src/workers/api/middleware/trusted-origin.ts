@@ -1,6 +1,7 @@
 import { createMiddleware } from "hono/factory";
 
 import { AppError } from "../../../platform/errors/app-error";
+import { getTrustedWebOrigins } from "../../../platform/auth/trusted-origins";
 import type { ApiAppEnvironment } from "../types";
 
 export const trustedOriginMiddleware = createMiddleware<ApiAppEnvironment>(
@@ -8,7 +9,8 @@ export const trustedOriginMiddleware = createMiddleware<ApiAppEnvironment>(
     const origin = context.req.header("origin");
 
     if (origin) {
-      if (origin !== context.get("environment").WEB_ORIGIN) {
+      const trustedOrigins = getTrustedWebOrigins(context.get("environment"));
+      if (!trustedOrigins.includes(origin)) {
         throw new AppError({
           code: "ORIGIN_NOT_ALLOWED",
           message: "The request origin is not allowed.",

@@ -1,4 +1,4 @@
-import { ClientRequestForm } from "@/components/service-requests/client-request-form";
+import { redirect } from "next/navigation";
 
 export default async function ClientRequestDetailPage({
   params,
@@ -6,7 +6,5 @@ export default async function ClientRequestDetailPage({
   params: Promise<{ requestId: string }>;
 }) {
   const { requestId } = await params;
-  return (
-    <ClientRequestForm requestId={requestId} />
-  );
+  redirect(`/client/requests?requestId=${encodeURIComponent(requestId)}`);
 }

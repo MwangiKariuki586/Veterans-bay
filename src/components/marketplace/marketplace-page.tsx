@@ -1126,21 +1126,6 @@ function FilterForm({
         compact ? "mt-4 gap-3" : "gap-5 overflow-y-auto p-6",
       )}
     >
-      <label
-        className={cn(
-          "min-w-0 max-w-full font-medium",
-          compact ? "text-[0.7rem]" : "text-sm",
-        )}
-      >
-        Search
-        <input
-          value={draft.q}
-          onChange={(event) => update("q", event.target.value)}
-          className={fieldClass}
-          placeholder="e.g. leaking pipe"
-          maxLength={120}
-        />
-      </label>
       <FilterSelect
         label="Category"
         value={draft.category}

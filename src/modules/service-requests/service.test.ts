@@ -38,13 +38,13 @@ function record(
   return {
     id: "00000000-0000-4000-8000-000000000010",
     clientAccountId: "00000000-0000-4000-8000-000000000001",
-    organisationId: null,
+    organisationId: "00000000-0000-4000-8000-000000000030",
     preferredServiceId: null,
     idempotencyKey: "00000000-0000-4000-8000-000000000020",
     source: "MARKETPLACE_DISCOVERY",
     category: "Plumbing",
-    preferredProfessionalSlug: null,
-    preferredProfessionalName: null,
+    preferredProfessionalSlug: "veterans-plumbing",
+    preferredProfessionalName: "Veterans Plumbing",
     preferredServiceSlug: null,
     preferredServiceName: null,
     description: "Repair a leaking kitchen sink and inspect the pipework.",
@@ -89,6 +89,13 @@ function store(
     ),
     categoryIsActive: vi.fn().mockResolvedValue(true),
     listActiveCategories: vi.fn().mockResolvedValue(["Plumbing"]),
+    listRequestProfessionals: vi.fn().mockResolvedValue([
+      {
+        slug: "veterans-plumbing",
+        name: "Veterans Plumbing",
+        categories: ["Plumbing"],
+      },
+    ]),
     attachAsset: vi.fn().mockResolvedValue(record()),
     removeAsset: vi.fn().mockResolvedValue(record()),
     cancel: vi.fn().mockResolvedValue(record({ status: "CANCELLED", version: 2 })),
@@ -168,6 +175,9 @@ describe("ServiceRequestsService", () => {
     const repository = store({
       getClient: vi.fn().mockResolvedValue(
         record({
+          organisationId: null,
+          preferredProfessionalSlug: null,
+          preferredProfessionalName: null,
           category: null,
           description: "Too short",
           location: null,
@@ -187,6 +197,7 @@ describe("ServiceRequestsService", () => {
       code: "REQUEST_NOT_READY",
       issues: expect.arrayContaining([
         { code: "required", path: "category" },
+        { code: "required", path: "preferredProfessional" },
         { code: "required", path: "description" },
         { code: "required", path: "location" },
         { code: "required", path: "preferredTime" },

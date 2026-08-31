@@ -27,7 +27,7 @@ export function PublicShell({
             : undefined,
         )}
       >
-        <SiteHeader marketplace={marketplace} />
+        <SiteHeader variant="marketing" marketplace={marketplace} />
         <div className={marketplace ? "mt-5 sm:mt-7" : "mt-8"}>{children}</div>
         <PublicFooter marketplace={marketplace} />
       </div>

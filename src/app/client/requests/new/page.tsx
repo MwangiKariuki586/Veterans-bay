@@ -1,4 +1,4 @@
-import { ClientRequestForm } from "@/components/service-requests/client-request-form";
+import { redirect } from "next/navigation";
 
 export default async function NewClientRequestPage({
   searchParams,
@@ -6,33 +6,22 @@ export default async function NewClientRequestPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = await searchParams;
-  const source =
-    typeof query.source === "string" &&
-    [
-      "MARKETPLACE_DISCOVERY",
-      "PROFESSIONAL_BOOKING_LINK",
-      "REPEAT_CLIENT",
-      "DIRECT_SERVICE_PAGE",
-    ].includes(query.source)
-      ? (query.source as
-          | "MARKETPLACE_DISCOVERY"
-          | "PROFESSIONAL_BOOKING_LINK"
-          | "REPEAT_CLIENT"
-          | "DIRECT_SERVICE_PAGE")
-      : "MARKETPLACE_DISCOVERY";
-  return (
-    <ClientRequestForm
-        initial={{
-          source,
-          category:
-            typeof query.category === "string" ? query.category : undefined,
-          preferredProfessionalSlug:
-            typeof query.professional === "string"
-              ? query.professional
-              : undefined,
-          preferredServiceSlug:
-            typeof query.service === "string" ? query.service : undefined,
-        }}
-      />
+  const destination = new URLSearchParams();
+  destination.set(
+    "editor",
+    typeof query.requestId === "string" ? query.requestId : "new",
   );
+  const forwarded = [
+    ["source", "requestSource"],
+    ["category", "requestCategory"],
+    ["professional", "requestProfessional"],
+    ["service", "requestService"],
+  ] as const;
+  for (const [sourceKey, destinationKey] of forwarded) {
+    const value = query[sourceKey];
+    if (typeof value === "string" && value) {
+      destination.set(destinationKey, value);
+    }
+  }
+  redirect(`/client/requests?${destination.toString()}`);
 }

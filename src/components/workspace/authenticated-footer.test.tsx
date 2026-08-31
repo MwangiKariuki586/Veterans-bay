@@ -5,7 +5,7 @@ import { AuthenticatedFooter } from "./authenticated-footer";
 
 describe("authenticated footer", () => {
   it("accepts shell positioning styles while preserving its footer semantics", () => {
-    render(<AuthenticatedFooter kind="professional" className="mt-auto" />);
+    render(<AuthenticatedFooter className="mt-auto" />);
 
     expect(screen.getByRole("contentinfo")).toHaveClass("mt-auto");
     expect(screen.getByRole("navigation", { name: "Legal" })).toBeInTheDocument();

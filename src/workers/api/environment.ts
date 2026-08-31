@@ -1,7 +1,42 @@
 import { z } from "zod";
 
+import {
+  parseAdditionalWebOrigins,
+  parseWebOrigin,
+} from "../../platform/auth/trusted-origins";
+
+const webOriginSchema = z.string().transform((value, context) => {
+  try {
+    return parseWebOrigin(value);
+  } catch {
+    context.addIssue({
+      code: "custom",
+      message: "Expected an absolute HTTP(S) web origin without a path, query, or fragment.",
+    });
+    return z.NEVER;
+  }
+});
+
+const additionalWebOriginsSchema = z
+  .string()
+  .optional()
+  .transform((value, context) => {
+    if (!value) return [];
+
+    try {
+      return parseAdditionalWebOrigins(value);
+    } catch {
+      context.addIssue({
+        code: "custom",
+        message: "Expected a comma-separated list of absolute web origins.",
+      });
+      return z.NEVER;
+    }
+  });
+
 export const apiEnvironmentSchema = z.object({
   APP_ENV: z.enum(["development", "test", "preview", "production"]),
+  ADDITIONAL_WEB_ORIGINS: additionalWebOriginsSchema,
   API_RATE_LIMITER: z.custom<{ limit(options: { key: string }): Promise<{ success: boolean }> }>(
     (value) =>
       typeof value === "object" &&
@@ -43,7 +78,18 @@ export const apiEnvironmentSchema = z.object({
     )
     .optional(),
   PUBLIC_REGISTRATION_ENABLED: z.enum(["true", "false"]),
-  WEB_ORIGIN: z.url(),
+  WEB_ORIGIN: webOriginSchema,
+}).superRefine((environment, context) => {
+  if (
+    (environment.APP_ENV === "preview" || environment.APP_ENV === "production") &&
+    environment.ADDITIONAL_WEB_ORIGINS.length > 0
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "Additional web origins are restricted to development and test environments.",
+      path: ["ADDITIONAL_WEB_ORIGINS"],
+    });
+  }
 });
 
 export type ApiEnvironment = z.infer<typeof apiEnvironmentSchema>;

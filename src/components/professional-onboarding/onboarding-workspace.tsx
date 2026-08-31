@@ -503,7 +503,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
     return (
       <div className={pageBackdropClass}>
         <div className={pageFrameClass()}>
-          <SiteHeader />
+          <SiteHeader variant="marketing" />
           <ReviewPanel header={reviewHeader} progressCard={progressCard} record={record} saving={saving} onSubmit={submit} />
         </div>
       </div>
@@ -513,7 +513,7 @@ export function OnboardingWorkspace({ mode }: { mode: PageMode }) {
   return (
     <div className={pageBackdropClass}>
       <div className={pageFrameClass()}>
-        <SiteHeader />
+        <SiteHeader variant="marketing" />
         <main className={cn("mt-5 grid gap-5", mode !== "review" && "lg:grid-cols-[280px_minmax(0,1fr)]")}>
           {mode !== "review" ? progressCard : null}
 

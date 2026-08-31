@@ -122,32 +122,102 @@ describe("Veterans Bay API foundation", () => {
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
   });
 
-  it("allows the configured origin and handles preflight", async () => {
+  it("allows each configured development origin and handles preflight", async () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
-    const environment = bindings();
+    const environment = bindings({
+      ADDITIONAL_WEB_ORIGINS:
+        "http://192.168.100.8:3001, http://localhost:3000",
+    });
+    const origins = [environment.WEB_ORIGIN, "http://192.168.100.8:3001"];
+
+    for (const origin of origins) {
+      const response = await app.request(
+        "/api/health",
+        { headers: { origin } },
+        environment,
+      );
+      const preflight = await app.request(
+        "/api/v1/system/probe",
+        {
+          headers: { origin },
+          method: "OPTIONS",
+        },
+        environment,
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+      expect(response.headers.get("access-control-allow-credentials")).toBe(
+        "true",
+      );
+      expect(preflight.status).toBe(204);
+      expect(preflight.headers.get("access-control-allow-origin")).toBe(origin);
+      expect(preflight.headers.get("access-control-allow-methods")).toContain(
+        "POST",
+      );
+    }
+  });
+
+  it("fails safely when an additional origin is malformed", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     const response = await app.request(
       "/api/health",
-      { headers: { origin: environment.WEB_ORIGIN } },
-      environment,
-    );
-    const preflight = await app.request(
-      "/api/v1/system/probe",
-      {
-        headers: { origin: environment.WEB_ORIGIN },
-        method: "OPTIONS",
-      },
-      environment,
+      {},
+      bindings({
+        ADDITIONAL_WEB_ORIGINS: "http://localhost:3001/not-an-origin",
+      }),
     );
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("access-control-allow-origin")).toBe(
-      environment.WEB_ORIGIN,
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "CONFIGURATION_ERROR" },
+    });
+
+    const unsupportedProtocolResponse = await app.request(
+      "/api/health",
+      {},
+      bindings({ ADDITIONAL_WEB_ORIGINS: "ftp://localhost:3001" }),
     );
-    expect(preflight.status).toBe(204);
-    expect(preflight.headers.get("access-control-allow-methods")).toContain(
-      "POST",
+    expect(unsupportedProtocolResponse.status).toBe(503);
+  });
+
+  it.each(["preview", "production"])(
+    "rejects additional origins in the %s environment",
+    async (appEnvironment) => {
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+      const response = await app.request(
+        "/api/health",
+        {},
+        bindings({
+          ADDITIONAL_WEB_ORIGINS: "https://secondary.example.com",
+          APP_ENV: appEnvironment,
+          BETTER_AUTH_URL: "https://primary.example.com",
+          WEB_ORIGIN: "https://primary.example.com",
+        }),
+      );
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "CONFIGURATION_ERROR" },
+      });
+    },
+  );
+
+  it("rejects origin lookalikes instead of using prefix matching", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request(
+      "/api/health",
+      { headers: { origin: "http://localhost:3000.attacker.example" } },
+      bindings({
+        ADDITIONAL_WEB_ORIGINS: "http://192.168.100.8:3001",
+      }),
     );
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
   });
 
   it("disables public registration when the environment switch is off", async () => {

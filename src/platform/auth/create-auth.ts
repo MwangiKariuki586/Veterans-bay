@@ -13,8 +13,10 @@ import {
 } from "../../modules/identity/service";
 import { createDatabaseClient } from "../database/client";
 import { authSchema, user as authUser } from "./schema";
+import { getTrustedWebOrigins } from "./trusted-origins";
 
 export interface AuthEnvironment {
+  ADDITIONAL_WEB_ORIGINS?: readonly string[];
   APP_ENV: "development" | "test" | "preview" | "production";
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
@@ -45,7 +47,7 @@ export function createAuth(env: AuthEnvironment) {
     baseURL: env.BETTER_AUTH_URL,
     basePath: "/api/auth",
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [env.WEB_ORIGIN],
+    trustedOrigins: getTrustedWebOrigins(env),
     database: drizzleAdapter(db, {
       provider: "pg",
       schema: authSchema,

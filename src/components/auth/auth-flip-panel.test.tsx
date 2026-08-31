@@ -44,10 +44,6 @@ vi.mock("@/components/public/public-shell", () => ({
   PublicShell: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-vi.mock("@/components/public/site-header", () => ({
-  SiteHeader: () => <div data-testid="site-header" />,
-}));
-
 import { AuthFlipPanel } from "./auth-flip-panel";
 
 function completeCommonFields() {

@@ -4,9 +4,12 @@ import {
   count,
   desc,
   eq,
+  ilike,
   inArray,
+  isNotNull,
   lte,
   notInArray,
+  or,
   sql,
 } from "drizzle-orm";
 
@@ -29,10 +32,14 @@ import {
 import { buildPageResult, paginationOffset, type PageResult } from "../../platform/http/pagination";
 import type {
   ServiceRequestAttachment,
+  ClientRequestBucket,
+  ClientRequestSort,
+  ClientRequestSummary,
   ServiceRequestHistoryItem,
   ServiceRequestSource,
   ServiceRequestStatus,
   ServiceRequestValues,
+  ServiceRequestProfessionalOption,
 } from "./types";
 import {
   expirableServiceRequestStatuses,
@@ -77,9 +84,15 @@ export interface ServiceRequestsStore {
   listClient(input: {
     clientAccountId: string;
     status?: ServiceRequestStatus;
+    bucket?: ClientRequestBucket;
+    category?: string;
+    preferredTime?: string;
+    urgency?: ServiceRequestValues["urgency"];
+    search?: string;
+    sort: ClientRequestSort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<ServiceRequestRecord>>;
+  }): Promise<PageResult<ServiceRequestRecord> & { summary: ClientRequestSummary }>;
   getClient(
     clientAccountId: string,
     requestId: string,
@@ -104,6 +117,7 @@ export interface ServiceRequestsStore {
   }): Promise<ServiceRequestDetailRecord | null>;
   categoryIsActive(category: string): Promise<boolean>;
   listActiveCategories(): Promise<string[]>;
+  listRequestProfessionals(): Promise<ServiceRequestProfessionalOption[]>;
   attachAsset(input: {
     clientAccountId: string;
     requestId: string;
@@ -771,29 +785,98 @@ export class ServiceRequestsRepository implements ServiceRequestsStore {
   async listClient(input: {
     clientAccountId: string;
     status?: ServiceRequestStatus;
+    bucket?: ClientRequestBucket;
+    category?: string;
+    preferredTime?: string;
+    urgency?: ServiceRequestValues["urgency"];
+    search?: string;
+    sort: ClientRequestSort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<ServiceRequestRecord>> {
+  }): Promise<PageResult<ServiceRequestRecord> & { summary: ClientRequestSummary }> {
+    const bucketStatuses: Record<ClientRequestBucket, ServiceRequestStatus[]> = {
+      draft: ["DRAFT"],
+      active: [
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "MORE_INFORMATION_REQUIRED",
+        "ASSESSMENT_REQUIRED",
+        "QUOTED",
+      ],
+      "needs-action": ["MORE_INFORMATION_REQUIRED", "QUOTED"],
+      closed: ["CONVERTED", "DECLINED", "CANCELLED", "EXPIRED"],
+    };
     const filters = [
       eq(serviceRequests.clientAccountId, input.clientAccountId),
       ...(input.status ? [eq(serviceRequests.status, input.status)] : []),
+      ...(input.bucket
+        ? [inArray(serviceRequests.status, bucketStatuses[input.bucket])]
+        : []),
+      ...(input.category ? [eq(serviceRequests.category, input.category)] : []),
+      ...(input.preferredTime
+        ? [ilike(serviceRequests.preferredTime, `%${input.preferredTime}%`)]
+        : []),
+      ...(input.urgency ? [eq(serviceRequests.urgency, input.urgency)] : []),
+      ...(input.search
+        ? [
+            or(
+              ilike(serviceRequests.description, `%${input.search}%`),
+              ilike(serviceRequests.category, `%${input.search}%`),
+              ilike(organisations.name, `%${input.search}%`),
+              ilike(professionalServices.name, `%${input.search}%`),
+            )!,
+          ]
+        : []),
     ];
-    const [items, [{ total }]] = await Promise.all([
+    const orderBy = {
+      updated_desc: [desc(serviceRequests.updatedAt), desc(serviceRequests.id)],
+      updated_asc: [asc(serviceRequests.updatedAt), asc(serviceRequests.id)],
+      category_asc: [asc(serviceRequests.category), desc(serviceRequests.updatedAt)],
+      category_desc: [desc(serviceRequests.category), desc(serviceRequests.updatedAt)],
+      status_asc: [asc(serviceRequests.status), desc(serviceRequests.updatedAt)],
+      status_desc: [desc(serviceRequests.status), desc(serviceRequests.updatedAt)],
+    }[input.sort];
+    const [items, [{ total }], statusTotals] = await Promise.all([
       this.selectBase()
         .where(and(...filters))
-        .orderBy(desc(serviceRequests.updatedAt), desc(serviceRequests.id))
+        .orderBy(...orderBy)
         .limit(input.pageSize)
         .offset(paginationOffset(input)),
       this.db
         .select({ total: count() })
         .from(serviceRequests)
+        .leftJoin(
+          organisations,
+          eq(organisations.id, serviceRequests.organisationId),
+        )
+        .leftJoin(
+          professionalServices,
+          eq(professionalServices.id, serviceRequests.preferredServiceId),
+        )
         .where(and(...filters)),
+      this.db
+        .select({ status: serviceRequests.status, total: count() })
+        .from(serviceRequests)
+        .where(eq(serviceRequests.clientAccountId, input.clientAccountId))
+        .groupBy(serviceRequests.status),
     ]);
-    return buildPageResult(
+    const totals = new Map(statusTotals.map((row) => [row.status, row.total]));
+    const sum = (statuses: ServiceRequestStatus[]) =>
+      statuses.reduce((result, status) => result + (totals.get(status) ?? 0), 0);
+    return {
+      ...buildPageResult(
       items.map((item) => this.mapRecord(item)),
       total,
       input,
-    );
+      ),
+      summary: {
+        total: sum([...bucketStatuses.draft, ...bucketStatuses.active, ...bucketStatuses.closed]),
+        active: sum(bucketStatuses.active),
+        needsAction: sum(bucketStatuses["needs-action"]),
+        drafts: sum(bucketStatuses.draft),
+        closed: sum(bucketStatuses.closed),
+      },
+    };
   }
 
   getClient(clientAccountId: string, requestId: string) {
@@ -1061,6 +1144,53 @@ export class ServiceRequestsRepository implements ServiceRequestsStore {
     return records.map((item) => item.name);
   }
 
+  async listRequestProfessionals(): Promise<
+    ServiceRequestProfessionalOption[]
+  > {
+    const rows = await this.db
+      .select({
+        slug: organisations.slug,
+        name: organisations.name,
+        category: professionalServices.category,
+      })
+      .from(professionalServices)
+      .innerJoin(
+        organisations,
+        eq(organisations.id, professionalServices.organisationId),
+      )
+      .where(
+        and(
+          eq(organisations.status, "active"),
+          eq(professionalServices.status, "published"),
+          eq(professionalServices.moderationStatus, "clear"),
+          isNotNull(professionalServices.category),
+        ),
+      )
+      .orderBy(
+        asc(organisations.name),
+        asc(professionalServices.category),
+        asc(professionalServices.id),
+      );
+
+    const professionals = new Map<string, ServiceRequestProfessionalOption>();
+    for (const row of rows) {
+      if (!row.category) continue;
+      const current = professionals.get(row.slug);
+      if (current) {
+        if (!current.categories.includes(row.category)) {
+          current.categories.push(row.category);
+        }
+      } else {
+        professionals.set(row.slug, {
+          slug: row.slug,
+          name: row.name,
+          categories: [row.category],
+        });
+      }
+    }
+    return [...professionals.values()];
+  }
+
   async attachAsset(input: {
     clientAccountId: string;
     requestId: string;
@@ -1168,6 +1298,18 @@ export class ServiceRequestsRepository implements ServiceRequestsStore {
         and(
           eq(organisations.slug, values.preferredProfessionalSlug),
           eq(organisations.status, "active"),
+          sql`exists (
+            select 1
+            from professional_services eligible_service
+            where eligible_service.organisation_id = ${organisations.id}
+              and eligible_service.status = 'published'
+              and eligible_service.moderation_status = 'clear'
+              ${
+                values.category
+                  ? sql`and lower(eligible_service.category) = lower(${values.category})`
+                  : sql``
+              }
+          )`,
         ),
       )
       .limit(1);
@@ -1184,6 +1326,11 @@ export class ServiceRequestsRepository implements ServiceRequestsStore {
           eq(professionalServices.slug, values.preferredServiceSlug),
           eq(professionalServices.status, "published"),
           eq(professionalServices.moderationStatus, "clear"),
+          ...(values.category
+            ? [
+                sql`lower(${professionalServices.category}) = lower(${values.category})`,
+              ]
+            : []),
         ),
       )
       .limit(1);

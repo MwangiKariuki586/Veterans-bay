@@ -73,4 +73,19 @@ export const clientServiceRequestListQuerySchema = paginationQuerySchema.extend(
       "EXPIRED",
     ])
     .optional(),
+  bucket: z.enum(["draft", "active", "needs-action", "closed"]).optional(),
+  category: z.string().trim().min(1).max(120).optional(),
+  preferredTime: z.string().trim().min(1).max(60).optional(),
+  urgency: z.enum(["FLEXIBLE", "SOON", "URGENT"]).optional(),
+  search: z.string().trim().max(120).optional(),
+  sort: z
+    .enum([
+      "updated_desc",
+      "updated_asc",
+      "category_asc",
+      "category_desc",
+      "status_asc",
+      "status_desc",
+    ])
+    .default("updated_desc"),
 });

@@ -14,7 +14,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
-import { StatePanel } from "@/components/ui/state-panel";
 import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
 import { Surface } from "@/components/ui/surface";
 import type {
@@ -40,6 +39,7 @@ export function BookingDetail({
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   useEffect(() => {
@@ -97,6 +97,7 @@ export function BookingDetail({
     if (!booking) return;
     setBusy(action);
     setError(null);
+    setActionError(null);
     try {
       const updated = await bookingAction(
         audience,
@@ -107,14 +108,28 @@ export function BookingDetail({
       setBooking(updated);
       setPendingAction(null);
       setReason("");
-      setSelectedSlot(null);
       if (
         !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(updated.status)
       ) {
-        setSlots(await getBookingSlots(audience, booking.id));
+        const refreshedSlots = await getBookingSlots(audience, booking.id);
+        setSlots(refreshedSlots);
+        setSelectedSlot(
+          updated.requestedStartAt && updated.requestedMembershipId
+            ? (refreshedSlots.find(
+                (item) =>
+                  item.startsAt === updated.requestedStartAt &&
+                  item.membershipId === updated.requestedMembershipId,
+              ) ?? selectedSlot)
+            : null,
+        );
+      } else {
+        setSelectedSlot(null);
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Booking action failed.");
+      const message =
+        cause instanceof Error ? cause.message : "Booking action failed.";
+      setError(message);
+      setActionError(message);
     } finally {
       setBusy(null);
     }
@@ -283,6 +298,9 @@ export function BookingDetail({
                       ? booking.status === "CONFIRMED" ||
                         booking.status === "RESCHEDULED"
                         ? "Request another time"
+                        : booking.status === "PENDING_CONFIRMATION" &&
+                            booking.requestedStartAt
+                          ? "Time awaiting confirmation"
                         : "Choose a time"
                       : booking.status === "RESCHEDULE_REQUESTED"
                         ? "Review requested time"
@@ -364,6 +382,7 @@ export function BookingDetail({
                     selectedSlot={selectedSlot}
                     busy={busy}
                     reason={reason}
+                    actionError={actionError}
                     runAction={runAction}
                   />
                 </Surface>
@@ -476,6 +495,7 @@ function ScheduleAction({
   selectedSlot,
   busy,
   reason,
+  actionError,
   runAction,
 }: {
   audience: "client" | "professional";
@@ -483,6 +503,7 @@ function ScheduleAction({
   selectedSlot: BookingSlot | null;
   busy: string | null;
   reason: string;
+  actionError: string | null;
   runAction: (
     action: string,
     body: Record<string, unknown>,
@@ -490,27 +511,63 @@ function ScheduleAction({
 }) {
   if (audience === "client") {
     const reschedule = ["CONFIRMED", "RESCHEDULED"].includes(booking.status);
+    const hasPendingTimeRequest =
+      booking.status === "PENDING_CONFIRMATION" &&
+      Boolean(booking.requestedStartAt && booking.requestedMembershipId);
+    const selectedPendingTime =
+      hasPendingTimeRequest &&
+      selectedSlot?.startsAt === booking.requestedStartAt &&
+      selectedSlot.membershipId === booking.requestedMembershipId;
     return (
-      <Button
-        className="mt-4 w-full"
-        disabled={!selectedSlot || (reschedule && reason.trim().length < 3)}
-        loading={busy === (reschedule ? "reschedule-request" : "schedule-request")}
-        onClick={() =>
-          selectedSlot &&
-          void runAction(
-            reschedule ? "reschedule-request" : "schedule-request",
-            {
-              lockVersion: booking.lockVersion,
-              membershipId: selectedSlot.membershipId,
-              startsAt: selectedSlot.startsAt,
-              cancellationPolicyAcknowledged: true,
-              ...(reschedule ? { reason } : {}),
-            },
-          )
-        }
-      >
-        {reschedule ? "Request reschedule" : "Request this time"}
-      </Button>
+      <div className="mt-4 grid gap-3">
+        {hasPendingTimeRequest ? (
+          <InlineAlert
+            variant="success"
+            title="Time request sent"
+            description="The professional still needs to confirm this time. Choose a different slot below only if you want to update your request."
+          />
+        ) : null}
+        {actionError ? (
+          <InlineAlert
+            variant="error"
+            title="Time request not sent"
+            description={actionError}
+          />
+        ) : null}
+        <Button
+          className="w-full"
+          disabled={
+            !selectedSlot ||
+            selectedPendingTime ||
+            (reschedule && reason.trim().length < 3)
+          }
+          loading={
+            busy === (reschedule ? "reschedule-request" : "schedule-request")
+          }
+          onClick={() =>
+            selectedSlot &&
+            !selectedPendingTime &&
+            void runAction(
+              reschedule ? "reschedule-request" : "schedule-request",
+              {
+                lockVersion: booking.lockVersion,
+                membershipId: selectedSlot.membershipId,
+                startsAt: selectedSlot.startsAt,
+                cancellationPolicyAcknowledged: true,
+                ...(reschedule ? { reason } : {}),
+              },
+            )
+          }
+        >
+          {selectedPendingTime
+            ? "Time requested"
+            : reschedule
+              ? "Request reschedule"
+              : hasPendingTimeRequest
+                ? "Update time request"
+                : "Request this time"}
+        </Button>
+      </div>
     );
   }
 

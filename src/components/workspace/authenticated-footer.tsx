@@ -1,13 +1,11 @@
 import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
-import type { AuthenticatedShellKind } from "@/components/workspace/workspace-nav";
 import { cn } from "@/lib/utils";
 
 export function AuthenticatedFooter({
   className,
 }: {
-  kind: AuthenticatedShellKind;
   className?: string;
 }) {
   const year = new Date().getFullYear();

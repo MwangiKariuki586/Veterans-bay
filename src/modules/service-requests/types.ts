@@ -23,6 +23,22 @@ export type ServiceRequestSource = (typeof serviceRequestSources)[number];
 export type ServiceRequestStatus = (typeof serviceRequestStatuses)[number];
 export type ServiceRequestUrgency = "FLEXIBLE" | "SOON" | "URGENT";
 export type ServiceRequestContactPreference = "IN_APP" | "PHONE" | "EMAIL";
+export type ClientRequestBucket = "draft" | "active" | "needs-action" | "closed";
+export type ClientRequestSort =
+  | "updated_desc"
+  | "updated_asc"
+  | "category_asc"
+  | "category_desc"
+  | "status_asc"
+  | "status_desc";
+
+export interface ClientRequestSummary {
+  total: number;
+  active: number;
+  needsAction: number;
+  drafts: number;
+  closed: number;
+}
 
 export interface ServiceRequestValues {
   source: ServiceRequestSource;
@@ -84,5 +100,12 @@ export interface ServiceRequestAttachment {
 }
 
 export interface ServiceRequestOptions {
+  categories: string[];
+  professionals: ServiceRequestProfessionalOption[];
+}
+
+export interface ServiceRequestProfessionalOption {
+  slug: string;
+  name: string;
   categories: string[];
 }

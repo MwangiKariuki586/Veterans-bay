@@ -2,9 +2,11 @@
 
 import {
   Bell,
+  ArrowLeftRight,
   CalendarDays,
   ChevronDown,
   Heart,
+  Headphones,
   Menu,
   MessageCircle,
   Search,
@@ -14,7 +16,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Brand } from "@/components/public/brand";
 import { iconButtonClass } from "@/components/public/design";
@@ -37,7 +40,28 @@ import {
   type AuthenticatedShellKind,
 } from "@/components/workspace/workspace-nav";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
+
+export type FocusedHeaderTrailing = "login" | "support";
+
+type SiteHeaderProps =
+  | {
+      variant?: "marketing";
+      marketplace?: boolean;
+    }
+  | {
+      variant: "focused";
+      brandSize?: "default" | "large";
+      className?: string;
+      trailing?: FocusedHeaderTrailing;
+    }
+  | {
+      variant: "workspace";
+      workspaceContext: { kind: AuthenticatedShellKind; label: string };
+    };
+
+function isCurrentDestination(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 function NotificationBell({ authoritativeCount }: { authoritativeCount?: number }) {
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
@@ -169,48 +193,84 @@ function AccountChip({
       <ChevronDown className="size-4 shrink-0" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem asChild><Link href={dashboardHref}><Building2 className="size-4" />Dashboard</Link></DropdownMenuItem>
-        <DropdownMenuItem asChild><Link href={href}><Settings className="size-4" />Switch workspace</Link></DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={dashboardHref}>
+            <Building2 className="size-4" />
+            Dashboard
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={href}>
+            <ArrowLeftRight className="size-4" />
+            Switch workspace
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/account/profile">
+            <Settings className="size-4" />
+            Account settings
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => void signOut()}><LogOut className="size-4" />Sign out</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => void signOut()}>
+          <LogOut className="size-4" />
+          Sign out
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-function GuestActions({ className }: { className?: string }) {
+function GuestActions({
+  className,
+  marketplace,
+  pathname,
+}: {
+  className?: string;
+  marketplace: boolean;
+  pathname: string;
+}) {
+  const showHowItWorks = !isCurrentDestination(pathname, "/how-it-works");
+  const showProfessional = !isCurrentDestination(
+    pathname,
+    "/become-a-professional",
+  );
+
   return (
     <div className={cn("flex items-center justify-end gap-3", className)}>
-      <Link
-        href="/how-it-works"
-        className="hidden text-sm font-semibold text-foreground xl:inline"
-      >
-        How It Works
-      </Link>
-      <Link
-        href="/become-a-professional"
-        className={cn(
-          buttonVariants({ variant: "outline" }),
-          "hidden h-12 rounded-full border-black/8 px-5 text-[0.8rem] lg:inline-flex",
-        )}
-      >
-        Become a Professional
-      </Link>
+      {showHowItWorks ? (
+        <Link
+          href="/how-it-works"
+          className="hidden text-sm font-semibold text-foreground transition-colors hover:text-[#5f7f00] xl:inline"
+        >
+          How It Works
+        </Link>
+      ) : null}
+      {showProfessional ? (
+        <Link
+          href="/become-a-professional"
+          className="hidden text-sm font-semibold text-foreground transition-colors hover:text-[#5f7f00] lg:inline"
+        >
+          Become a Professional
+        </Link>
+      ) : null}
       <Link
         href="/login"
-        className="hidden text-sm font-semibold text-foreground sm:inline"
+        className="hidden text-sm font-semibold text-foreground transition-colors hover:text-[#5f7f00] sm:inline"
       >
         Log In
       </Link>
-      <Link
-        href="/marketplace"
-        className={cn(
-          buttonVariants({ variant: "primary" }),
-          "h-12 rounded-full px-6 text-[0.8rem] shadow-[0_8px_22px_rgba(170,212,26,0.2)]",
-        )}
-      >
-        Find Services
-      </Link>
+      {!marketplace ? (
+        <Link
+          href="/marketplace"
+          className={cn(
+            buttonVariants({ variant: "primary" }),
+            "h-12 rounded-full px-6 text-[0.8rem] shadow-[0_8px_22px_rgba(170,212,26,0.2)]",
+          )}
+        >
+          Find Services
+        </Link>
+      ) : null}
     </div>
   );
 }
@@ -234,16 +294,33 @@ function SignedInActions({
   const dashboardHref = workspaceKind
     ? shellHomeHref[workspaceKind]
     : "/workspace/select";
+  const showWorkspaceMessages =
+    workspaceKind === "client" || workspaceKind === "professional";
+
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
-      <Link
-        href="/messages"
-        className={cn(iconButtonClass, "relative hidden sm:grid")}
-        aria-label="Messages"
-      >
-        <MessageCircle className="size-[1.15rem]" aria-hidden="true" />
-        {utilityBadges?.messages ? <span className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#2f7d18] px-1 type-caption font-semibold leading-none text-white">{utilityBadges.messages > 99 ? "99+" : utilityBadges.messages}</span> : null}
-      </Link>
+      {!workspaceKind ? (
+        <Link
+          href={dashboardHref}
+          className="hidden text-sm font-semibold text-foreground transition-colors hover:text-[#5f7f00] sm:inline"
+        >
+          Dashboard
+        </Link>
+      ) : null}
+      {showWorkspaceMessages ? (
+        <Link
+          href="/messages"
+          className={cn(iconButtonClass, "relative hidden sm:grid")}
+          aria-label="Messages"
+        >
+          <MessageCircle className="size-[1.15rem]" aria-hidden="true" />
+          {utilityBadges?.messages ? (
+            <span className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#2f7d18] px-1 type-caption font-semibold leading-none text-white">
+              {utilityBadges.messages > 99 ? "99+" : utilityBadges.messages}
+            </span>
+          ) : null}
+        </Link>
+      ) : null}
       {workspaceKind === "professional" ? (
         <Link
           href="/professional/calendar"
@@ -252,7 +329,7 @@ function SignedInActions({
         >
           <CalendarDays className="size-[1.15rem]" aria-hidden="true" />
         </Link>
-      ) : workspaceKind !== "admin" ? (
+      ) : workspaceKind === "client" ? (
         <Link
           href="/client/saved"
           className={cn(iconButtonClass, "hidden sm:grid")}
@@ -274,18 +351,143 @@ function SignedInActions({
   );
 }
 
-/**
- * Homepage navbar used across public surfaces.
- * Guest: marketing CTAs. Signed-in: utility icons + Welcome chip.
- */
-export function SiteHeader({
+function MobileNavLink({
+  children,
+  className,
+  href,
+}: {
+  children: ReactNode;
+  className?: string;
+  href: string;
+}) {
+  return (
+    <SheetClose asChild>
+      <Link
+        href={href}
+        className={cn(
+          "flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]",
+          className,
+        )}
+      >
+        {children}
+      </Link>
+    </SheetClose>
+  );
+}
+
+function MobileSignedInNavigation({
+  workspaceKind,
+}: {
+  workspaceKind?: AuthenticatedShellKind;
+}) {
+  const dashboardHref = workspaceKind
+    ? shellHomeHref[workspaceKind]
+    : "/workspace/select";
+
+  return (
+    <>
+      {workspaceKind === "client" || workspaceKind === "professional" ? (
+        <MobileNavLink href="/messages">Messages</MobileNavLink>
+      ) : null}
+      {workspaceKind === "client" ? (
+        <MobileNavLink href="/client/saved">Saved professionals</MobileNavLink>
+      ) : null}
+      {workspaceKind === "professional" ? (
+        <MobileNavLink href="/professional/calendar">Calendar</MobileNavLink>
+      ) : null}
+      <MobileNavLink href="/notifications">Notifications</MobileNavLink>
+      <MobileNavLink href="/account/profile">Account</MobileNavLink>
+      <MobileNavLink href={dashboardHref}>Dashboard</MobileNavLink>
+    </>
+  );
+}
+
+function MobileGuestNavigation({
+  marketplace,
+  pathname,
+}: {
+  marketplace: boolean;
+  pathname: string;
+}) {
+  return (
+    <>
+      {!isCurrentDestination(pathname, "/how-it-works") ? (
+        <MobileNavLink href="/how-it-works">How It Works</MobileNavLink>
+      ) : null}
+      {!isCurrentDestination(pathname, "/become-a-professional") ? (
+        <MobileNavLink href="/become-a-professional">
+          Become a Professional
+        </MobileNavLink>
+      ) : null}
+      <MobileNavLink href="/login">Log In</MobileNavLink>
+      {!marketplace ? (
+        <MobileNavLink
+          href="/marketplace"
+          className={buttonVariants({ className: "mt-2 rounded-full" })}
+        >
+          Find Services
+        </MobileNavLink>
+      ) : null}
+    </>
+  );
+}
+
+function FocusedSiteHeader({
+  brandSize = "default",
+  className,
+  trailing = "support",
+}: {
+  brandSize?: "default" | "large";
+  className?: string;
+  trailing?: FocusedHeaderTrailing;
+}) {
+  return (
+    <header className={cn("flex items-center justify-between gap-5", className)}>
+      <Brand size={brandSize} compact />
+      <nav
+        className="flex items-center gap-4 text-sm"
+        aria-label="Guest navigation"
+      >
+        <Link
+          href="/how-it-works"
+          className="whitespace-nowrap font-semibold text-[#071733] transition-colors hover:text-[#5f7f00]"
+        >
+          How It Works
+        </Link>
+        <span
+          className="hidden h-5 w-px bg-[#d4ddea] sm:block"
+          aria-hidden="true"
+        />
+        {trailing === "login" ? (
+          <Link
+            href="/login"
+            className="whitespace-nowrap font-semibold text-[#071733] transition-colors hover:text-[#5f7f00]"
+          >
+            Log In
+          </Link>
+        ) : (
+          <p className="hidden items-center gap-2 text-[#526580] sm:flex">
+            <Headphones className="size-5 text-[#071733]" aria-hidden="true" />
+            Need help?
+            <Link href="/contact" className="font-semibold text-[#0068e8]">
+              Contact support
+            </Link>
+          </p>
+        )}
+      </nav>
+    </header>
+  );
+}
+
+function AdaptiveSiteHeader({
   workspaceContext,
   marketplace = false,
 }: {
   workspaceContext?: { kind: AuthenticatedShellKind; label: string };
   marketplace?: boolean;
-} = {}) {
+}) {
   const { data: session, isPending } = authClient.useSession();
+  const pathname = usePathname();
   const signedIn = Boolean(session?.user);
   const displayName =
     session?.user?.name?.trim().split(/\s+/)[0] ||
@@ -317,7 +519,11 @@ export function SiteHeader({
           className="hidden lg:flex"
         />
       ) : (
-        <GuestActions className="hidden lg:flex" />
+        <GuestActions
+          className="hidden lg:flex"
+          marketplace={marketplace}
+          pathname={pathname}
+        />
       )}
 
       <div className="flex items-center justify-end gap-2 lg:hidden">
@@ -355,87 +561,24 @@ export function SiteHeader({
               Search services or jump to your destination.
             </SheetDescription>
             <HeaderSearch className="mt-7" />
-            <nav className="mt-7 grid gap-2" aria-label="Mobile navigation">
-              {signedIn ? (
-                <>
-                  <SheetClose asChild>
-                    <Link
-                      href="/messages"
-                      className="flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]"
-                    >
-                      Messages
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link
-                      href="/client/saved"
-                      className="flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]"
-                    >
-                      Saved professionals
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link
-                      href="/notifications"
-                      className="flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]"
-                    >
-                      Notifications
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link
-                      href="/account/profile"
-                      className="flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]"
-                    >
-                      Account
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link
-                      href="/workspace/select"
-                      className="flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]"
-                    >
-                      Dashboard
-                    </Link>
-                  </SheetClose>
-                </>
+            <nav
+              className="mt-7 grid gap-2"
+              aria-busy={isPending}
+              aria-label="Mobile navigation"
+            >
+              {isPending ? (
+                <p className="px-4 py-3 text-sm text-[#68717b]">
+                  Loading account navigation…
+                </p>
+              ) : signedIn ? (
+                <MobileSignedInNavigation
+                  workspaceKind={workspaceContext?.kind}
+                />
               ) : (
-                <>
-                  <SheetClose asChild>
-                    <Link
-                      href="/how-it-works"
-                      className="flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]"
-                    >
-                      How It Works
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link
-                      href="/become-a-professional"
-                      className="flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]"
-                    >
-                      Become a Professional
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link
-                      href="/login"
-                      className="flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]"
-                    >
-                      Log In
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link
-                      href="/marketplace"
-                      className={buttonVariants({
-                        className: "mt-2 rounded-full",
-                      })}
-                    >
-                      Find Services
-                    </Link>
-                  </SheetClose>
-                </>
+                <MobileGuestNavigation
+                  marketplace={marketplace}
+                  pathname={pathname}
+                />
               )}
             </nav>
           </SheetContent>
@@ -445,6 +588,32 @@ export function SiteHeader({
         <HeaderSearch className="col-span-2 mt-1 flex w-full lg:hidden" />
       ) : null}
     </header>
+  );
+}
+
+/**
+ * Shared navigation with explicit marketing, focused-guest, and workspace
+ * variants. Marketing actions are route-aware; workspace actions are
+ * role-aware on desktop and mobile.
+ */
+export function SiteHeader(props: SiteHeaderProps = {}) {
+  if (props.variant === "focused") {
+    return (
+      <FocusedSiteHeader
+        brandSize={props.brandSize}
+        className={props.className}
+        trailing={props.trailing}
+      />
+    );
+  }
+
+  return (
+    <AdaptiveSiteHeader
+      marketplace={props.variant === "marketing" ? props.marketplace : false}
+      workspaceContext={
+        props.variant === "workspace" ? props.workspaceContext : undefined
+      }
+    />
   );
 }
 

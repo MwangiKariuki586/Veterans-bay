@@ -9,6 +9,9 @@ import type {
 } from "./repository";
 import type {
   ClientServiceRequest,
+  ClientRequestBucket,
+  ClientRequestSummary,
+  ClientRequestSort,
   ProfessionalServiceRequest,
   ServiceRequestOptions,
   ServiceRequestStatus,
@@ -28,13 +31,25 @@ export class ServiceRequestsService {
   async listClient(input: {
     authUserId: string;
     status?: ServiceRequestStatus;
+    bucket?: ClientRequestBucket;
+    category?: string;
+    preferredTime?: string;
+    urgency?: ServiceRequestValues["urgency"];
+    search?: string;
+    sort: ClientRequestSort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<ClientServiceRequest>> {
+  }): Promise<PageResult<ClientServiceRequest> & { summary: ClientRequestSummary }> {
     const { profile } = await this.identity.requireActiveAccount(input.authUserId);
     const result = await this.store.listClient({
       clientAccountId: profile.id,
       status: input.status,
+      bucket: input.bucket,
+      category: input.category,
+      preferredTime: input.preferredTime,
+      urgency: input.urgency,
+      search: input.search,
+      sort: input.sort,
       page: input.page,
       pageSize: input.pageSize,
     });
@@ -53,7 +68,11 @@ export class ServiceRequestsService {
 
   async getOptions(authUserId: string): Promise<ServiceRequestOptions> {
     await this.identity.requireActiveAccount(authUserId);
-    return { categories: await this.store.listActiveCategories() };
+    const [categories, professionals] = await Promise.all([
+      this.store.listActiveCategories(),
+      this.store.listRequestProfessionals(),
+    ]);
+    return { categories, professionals };
   }
 
   async createDraft(input: {
@@ -316,12 +335,7 @@ export class ServiceRequestsService {
     if (!request.preferredTime) missing.push("preferredTime");
     if (!request.urgency) missing.push("urgency");
     if (!request.contactPreference) missing.push("contactPreference");
-    if (
-      ["PROFESSIONAL_BOOKING_LINK", "DIRECT_SERVICE_PAGE"].includes(
-        request.source,
-      ) &&
-      !request.organisationId
-    ) {
+    if (!request.organisationId) {
       missing.push("preferredProfessional");
     }
     if (

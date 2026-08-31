@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EngagementConversation } from "./engagement-conversation";
 
@@ -45,6 +45,28 @@ describe("EngagementConversation", () => {
     requestApi.mockReset();
     requestApi.mockResolvedValue(conversation);
     uploadMessageAttachment.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders on insecure origins where crypto.randomUUID is unavailable", async () => {
+    vi.stubGlobal("crypto", {
+      getRandomValues: (bytes: Uint8Array) => {
+        bytes.fill(7);
+        return bytes;
+      },
+    });
+
+    render(
+      <EngagementConversation
+        requestId={conversation.contextId}
+        audience="client"
+      />,
+    );
+
+    expect(await screen.findByText("Conversation & activity")).toBeInTheDocument();
   });
 
   it("distinguishes structured activity from participant messages", async () => {

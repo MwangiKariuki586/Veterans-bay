@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { StatePanel } from "@/components/ui/state-panel";
 import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
 import { Surface } from "@/components/ui/surface";
+import { createClientUuid } from "@/lib/client-uuid";
 import type {
   InvoiceDetail as InvoiceDetailRecord,
   PaymentMethod,
@@ -126,7 +127,7 @@ export function InvoiceDetail({
       "payment",
       () =>
         invoiceAction(invoice.id, "payments", {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: createClientUuid(),
           amountMinor: toMinor(payment.amount),
           currency: invoice.currency,
           method: payment.method,
@@ -313,7 +314,7 @@ export function InvoiceDetail({
                                   `${kind}-${item.id}`,
                                   () =>
                                     adjustPayment(item.id, {
-                                      idempotencyKey: crypto.randomUUID(),
+                                      idempotencyKey: createClientUuid(),
                                       adjustmentType: kind,
                                       amountMinor: available,
                                       reason,

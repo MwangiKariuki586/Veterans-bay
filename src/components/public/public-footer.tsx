@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ArrowRight,
   BadgeCheck,
@@ -17,6 +19,8 @@ import type { ComponentType, SVGProps } from "react";
 
 import { Brand } from "@/components/public/brand";
 import { buttonVariants } from "@/components/ui/button";
+import { AuthenticatedFooter } from "@/components/workspace/authenticated-footer";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 type FooterLink = { href: string; label: string };
@@ -79,7 +83,22 @@ const trustItems: ReadonlyArray<{
 ];
 
 export function PublicFooter({ marketplace = false }: { marketplace?: boolean } = {}) {
+  const { data: session, isPending } = authClient.useSession();
   const year = new Date().getFullYear();
+
+  if (marketplace && isPending) {
+    return (
+      <div
+        className="mt-6 h-[78px] animate-pulse rounded-[22px] border border-black/8 bg-white sm:mt-10"
+        data-testid="marketplace-footer-loading"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if (marketplace && session?.user) {
+    return <AuthenticatedFooter className="mt-6 sm:mt-10" />;
+  }
 
   return (
     <footer className={cn("overflow-hidden border border-white/80 bg-white/95", marketplace ? "mt-6 rounded-2xl shadow-none sm:mt-10" : "mt-16 rounded-[28px] shadow-[0_22px_55px_rgba(20,42,57,0.12)]")}>

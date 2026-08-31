@@ -9,6 +9,7 @@ export interface DomainEventsQueueBinding {
 }
 
 export interface ApiBindings {
+  ADDITIONAL_WEB_ORIGINS?: string;
   APP_ENV: string;
   API_RATE_LIMITER: ApiRateLimiter;
   BETTER_AUTH_SECRET: string;

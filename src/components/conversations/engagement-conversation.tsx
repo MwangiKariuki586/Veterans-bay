@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
+import { createClientUuid } from "@/lib/client-uuid";
 import type { EngagementConversation as Conversation } from "@/modules/conversations/types";
 
 export function EngagementConversation({
@@ -40,7 +41,7 @@ export function EngagementConversation({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<"send" | "upload" | "refresh" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const idempotencyKey = useRef(crypto.randomUUID());
+  const idempotencyKey = useRef(createClientUuid());
   const basePath =
     providedBasePath ??
     (audience === "client"
@@ -126,7 +127,7 @@ export function EngagementConversation({
       setConversation(next);
       setBody("");
       setAttachment(null);
-      idempotencyKey.current = crypto.randomUUID();
+      idempotencyKey.current = createClientUuid();
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "The message could not be sent.",
