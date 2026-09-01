@@ -76,6 +76,22 @@ export const quotationIdSchema = z.uuid();
 
 export const quotationListQuerySchema = z.object({
   status: z.enum(quotationStatuses).optional(),
+  bucket: z
+    .enum(["awaiting-decision", "accepted", "in-revision", "closed"])
+    .optional(),
+  category: z.string().trim().min(1).max(120).optional(),
+  search: z.string().trim().min(1).max(120).optional(),
+  validity: z.enum(["valid", "expiring", "expired"]).optional(),
+  sort: z
+    .enum([
+      "updated_desc",
+      "updated_asc",
+      "total_desc",
+      "total_asc",
+      "valid_until_desc",
+      "valid_until_asc",
+    ])
+    .default("updated_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(10),
 });

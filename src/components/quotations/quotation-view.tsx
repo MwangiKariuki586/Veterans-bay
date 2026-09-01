@@ -45,7 +45,7 @@ export function QuotationVersionView({
           <tbody>
             {version.lineItems.map((item) => (
               <tr key={item.id} className="border-b border-black/6">
-                <td className="px-1 py-4 font-semibold">{item.description}</td>
+                <td className="px-1 py-4 font-normal">{item.description}</td>
                 <td className="px-3 py-4 text-[#68717b]">
                   {item.category.toLowerCase()}
                 </td>

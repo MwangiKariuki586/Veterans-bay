@@ -5,6 +5,10 @@ import { IdentityService } from "../identity/service";
 import { calculateQuotationTotals } from "./calculations";
 import type { QuotationsStore } from "./repository";
 import type {
+  ClientQuotationBucket,
+  ClientQuotationSort,
+  ClientQuotationSummary,
+  ClientQuotationValidity,
   QuotationComparison,
   QuotationDetail,
   QuotationDraftValues,
@@ -34,15 +38,20 @@ export class QuotationsService {
   async listClient(input: {
     authUserId: string;
     status?: QuotationStatus;
+    bucket?: ClientQuotationBucket;
+    category?: string;
+    search?: string;
+    validity?: ClientQuotationValidity;
+    sort: ClientQuotationSort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<QuotationSummary>> {
+  }): Promise<PageResult<QuotationSummary> & { summary: ClientQuotationSummary; categories: string[] }> {
     const { profile } = await this.identity.requireActiveAccount(input.authUserId);
+    const { authUserId: _authUserId, ...query } = input;
+    void _authUserId;
     return this.store.listClient({
       clientAccountId: profile.id,
-      status: input.status,
-      page: input.page,
-      pageSize: input.pageSize,
+      ...query,
     });
   }
 

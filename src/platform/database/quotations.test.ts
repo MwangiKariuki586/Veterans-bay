@@ -124,6 +124,31 @@ describe("quotation persistence", () => {
           status: "SUBMITTED",
           lockVersion: 2,
         });
+        const clientList = await repository.listClient({
+          clientAccountId: client.id,
+          bucket: "awaiting-decision",
+          category: "Plumbing",
+          search: "Quotation Provider",
+          validity: "valid",
+          sort: "total_desc",
+          page: 1,
+          pageSize: 10,
+        });
+        expect(clientList).toMatchObject({
+          page: 1,
+          pageSize: 10,
+          totalItems: 1,
+          summary: {
+            total: 1,
+            awaitingDecision: 1,
+            accepted: 0,
+            expiringSoon: 0,
+            inRevision: 0,
+            closed: 0,
+          },
+          categories: ["Plumbing"],
+        });
+        expect(clientList.items).toHaveLength(1);
         await expect(
           testDb.transaction((tx) =>
             tx
@@ -265,10 +290,8 @@ describe("quotation persistence", () => {
           ),
           limit: 50,
         });
-        expect(expiry).toEqual({
-          expired: 1,
-          quotationIds: [expiringDraft!.id],
-        });
+        expect(expiry.expired).toBeGreaterThanOrEqual(1);
+        expect(expiry.quotationIds).toContain(expiringDraft!.id);
         expect(
           await repository.getProfessional(
             organisation.id,

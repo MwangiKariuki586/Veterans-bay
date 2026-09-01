@@ -2,7 +2,6 @@
 
 import {
   ArrowLeft,
-  CheckCircle2,
   Download,
   GitCompareArrows,
   Pencil,
@@ -15,7 +14,6 @@ import { EngagementConversation } from "@/components/conversations/engagement-co
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
-import { StatePanel } from "@/components/ui/state-panel";
 import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
 import { Surface } from "@/components/ui/surface";
 import type {
@@ -28,6 +26,7 @@ import {
   formatQuotationMoney,
   QuotationVersionView,
 } from "./quotation-view";
+import { ClientQuotationDetail } from "./client-quotation-detail";
 
 export function QuotationDetail({
   audience,
@@ -36,6 +35,15 @@ export function QuotationDetail({
   audience: "client" | "professional";
   quotationId: string;
 }) {
+  if (audience === "client") {
+    return <ClientQuotationDetail quotationId={quotationId} />;
+  }
+
+  return <ProfessionalQuotationDetail quotationId={quotationId} />;
+}
+
+function ProfessionalQuotationDetail({ quotationId }: { quotationId: string }) {
+  const audience = "professional" as const;
   const [quotation, setQuotation] =
     useState<QuotationDetailContract | null>(null);
   const [selectedVersionNumber, setSelectedVersionNumber] =
@@ -118,8 +126,7 @@ export function QuotationDetail({
     );
   }
 
-  const backPath =
-    audience === "client" ? "/client/quotations" : "/professional/quotations";
+  const backPath = "/professional/quotations";
 
   return (
     <div>
@@ -312,47 +319,6 @@ export function QuotationDetail({
                   />
                 </dl>
               </Surface>
-
-              {audience === "client" &&
-              ["SUBMITTED", "VIEWED"].includes(quotation.status) ? (
-                <Surface className="p-5 shadow-none">
-                  <h2 className="font-semibold">Your decision</h2>
-                  <p className="mt-2 text-sm leading-6 text-[#68717b]">
-                    Structured acceptance preserves the exact version and creates
-                    the booking foundation.
-                  </p>
-                  <textarea
-                    value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                    rows={4}
-                    placeholder="Explain a revision request or decline reason."
-                    className="mt-4 w-full rounded-xl border border-black/10 p-3 text-sm"
-                  />
-                  <div className="mt-4 grid gap-2">
-                    <Button
-                      loading={busy}
-                      onClick={() => void runAction("accept")}
-                    >
-                      <CheckCircle2 className="size-4" /> Accept current version
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={busy || note.trim().length < 3}
-                      onClick={() => void runAction("request-revision")}
-                    >
-                      Request revision
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="border-danger/30 text-danger"
-                      disabled={busy}
-                      onClick={() => void runAction("decline")}
-                    >
-                      Decline
-                    </Button>
-                  </div>
-                </Surface>
-              ) : null}
 
               <Surface className="p-5 shadow-none">
                 <h2 className="font-semibold">Version history</h2>

@@ -4,8 +4,14 @@ import {
   count,
   desc,
   eq,
+  gt,
+  ilike,
   inArray,
+  isNotNull,
+  lt,
   lte,
+  ne,
+  or,
   sql,
 } from "drizzle-orm";
 
@@ -33,11 +39,16 @@ import type { PageResult } from "../../platform/http/pagination";
 import { buildPageResult, paginationOffset } from "../../platform/http/pagination";
 import type { QuotationTotals } from "./calculations";
 import type {
+  ClientQuotationBucket,
+  ClientQuotationSort,
+  ClientQuotationSummary,
+  ClientQuotationValidity,
   QuotationDetail,
   QuotationDraftValues,
   QuotationStatus,
   QuotationSummary,
 } from "./types";
+import { quotationStatuses } from "./types";
 import { recordBookingChange } from "../bookings/repository";
 import { ensureRegisteredCustomer } from "../customers/repository";
 
@@ -56,9 +67,14 @@ export interface QuotationsStore {
   listClient(input: {
     clientAccountId: string;
     status?: QuotationStatus;
+    bucket?: ClientQuotationBucket;
+    category?: string;
+    search?: string;
+    validity?: ClientQuotationValidity;
+    sort: ClientQuotationSort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<QuotationSummary>>;
+  }): Promise<PageResult<QuotationSummary> & { summary: ClientQuotationSummary; categories: string[] }>;
   getProfessional(
     organisationId: string,
     quotationId: string,
@@ -137,13 +153,175 @@ export class QuotationsRepository implements QuotationsStore {
   async listClient(input: {
     clientAccountId: string;
     status?: QuotationStatus;
+    bucket?: ClientQuotationBucket;
+    category?: string;
+    search?: string;
+    validity?: ClientQuotationValidity;
+    sort: ClientQuotationSort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<QuotationSummary>> {
-    return this.list({
-      scope: eq(quotations.clientAccountId, input.clientAccountId),
-      ...input,
-    });
+  }): Promise<PageResult<QuotationSummary> & { summary: ClientQuotationSummary; categories: string[] }> {
+    const bucketStatuses: Record<ClientQuotationBucket, QuotationStatus[]> = {
+      "awaiting-decision": ["SUBMITTED", "VIEWED"],
+      accepted: ["ACCEPTED"],
+      "in-revision": ["REVISION_REQUESTED"],
+      closed: ["DECLINED", "REPLACED", "EXPIRED", "CANCELLED"],
+    };
+    const now = new Date();
+    const expiringAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1_000);
+    const validityFilter = input.validity === "valid"
+      ? gt(quotationVersions.validUntil, now)
+      : input.validity === "expiring"
+        ? and(
+            inArray(quotations.status, bucketStatuses["awaiting-decision"]),
+            gt(quotationVersions.validUntil, now),
+            lte(quotationVersions.validUntil, expiringAt),
+          )
+        : input.validity === "expired"
+          ? or(
+              eq(quotations.status, "EXPIRED"),
+              lt(quotationVersions.validUntil, now),
+            )
+          : undefined;
+    const awaitingDecisionFilter = and(
+      inArray(quotations.status, bucketStatuses["awaiting-decision"]),
+      gt(quotationVersions.validUntil, now),
+    )!;
+    const bucketFilter = input.bucket === "awaiting-decision"
+      ? awaitingDecisionFilter
+      : input.bucket === "closed"
+        ? or(
+            inArray(quotations.status, bucketStatuses.closed),
+            and(
+              inArray(quotations.status, bucketStatuses["awaiting-decision"]),
+              lte(quotationVersions.validUntil, now),
+            ),
+          )!
+        : input.bucket
+          ? inArray(quotations.status, bucketStatuses[input.bucket])
+          : undefined;
+    const filters = [
+      eq(quotations.clientAccountId, input.clientAccountId),
+      ne(quotations.status, "DRAFT"),
+      ...(input.status ? [eq(quotations.status, input.status)] : []),
+      ...(bucketFilter ? [bucketFilter] : []),
+      ...(input.category ? [eq(serviceRequests.category, input.category)] : []),
+      ...(input.search
+        ? [
+            or(
+              ilike(serviceRequests.category, `%${input.search}%`),
+              ilike(organisations.name, `%${input.search}%`),
+            )!,
+          ]
+        : []),
+      ...(validityFilter ? [validityFilter] : []),
+    ];
+    const orderBy = {
+      updated_desc: [desc(quotations.updatedAt), desc(quotations.id)],
+      updated_asc: [asc(quotations.updatedAt), asc(quotations.id)],
+      total_desc: [desc(quotationVersions.totalMinor), desc(quotations.updatedAt)],
+      total_asc: [asc(quotationVersions.totalMinor), desc(quotations.updatedAt)],
+      valid_until_desc: [desc(quotationVersions.validUntil), desc(quotations.updatedAt)],
+      valid_until_asc: [asc(quotationVersions.validUntil), desc(quotations.updatedAt)],
+    }[input.sort];
+    const joined = () => this.db
+      .select(summarySelection)
+      .from(quotations)
+      .innerJoin(
+        quotationVersions,
+        and(
+          eq(quotationVersions.quotationId, quotations.id),
+          eq(quotationVersions.versionNumber, quotations.currentVersionNumber),
+        ),
+      )
+      .innerJoin(serviceRequests, eq(serviceRequests.id, quotations.requestId))
+      .innerJoin(organisations, eq(organisations.id, quotations.organisationId))
+      .innerJoin(accountProfiles, eq(accountProfiles.id, quotations.clientAccountId));
+    const [rows, [{ totalItems }], statusTotals, [{ expiringSoon }], [{ expiredAwaiting }], categoryRows] = await Promise.all([
+      joined()
+        .where(and(...filters))
+        .orderBy(...orderBy)
+        .limit(input.pageSize)
+        .offset(paginationOffset(input)),
+      this.db
+        .select({ totalItems: count() })
+        .from(quotations)
+        .innerJoin(
+          quotationVersions,
+          and(
+            eq(quotationVersions.quotationId, quotations.id),
+            eq(quotationVersions.versionNumber, quotations.currentVersionNumber),
+          ),
+        )
+        .innerJoin(serviceRequests, eq(serviceRequests.id, quotations.requestId))
+        .innerJoin(organisations, eq(organisations.id, quotations.organisationId))
+        .where(and(...filters)),
+      this.db
+        .select({ status: quotations.status, total: count() })
+        .from(quotations)
+        .where(and(
+          eq(quotations.clientAccountId, input.clientAccountId),
+          ne(quotations.status, "DRAFT"),
+        ))
+        .groupBy(quotations.status),
+      this.db
+        .select({ expiringSoon: count() })
+        .from(quotations)
+        .innerJoin(
+          quotationVersions,
+          and(
+            eq(quotationVersions.quotationId, quotations.id),
+            eq(quotationVersions.versionNumber, quotations.currentVersionNumber),
+          ),
+        )
+        .where(and(
+          eq(quotations.clientAccountId, input.clientAccountId),
+          inArray(quotations.status, bucketStatuses["awaiting-decision"]),
+          gt(quotationVersions.validUntil, now),
+          lte(quotationVersions.validUntil, expiringAt),
+        )),
+      this.db
+        .select({ expiredAwaiting: count() })
+        .from(quotations)
+        .innerJoin(
+          quotationVersions,
+          and(
+            eq(quotationVersions.quotationId, quotations.id),
+            eq(quotationVersions.versionNumber, quotations.currentVersionNumber),
+          ),
+        )
+        .where(and(
+          eq(quotations.clientAccountId, input.clientAccountId),
+          inArray(quotations.status, bucketStatuses["awaiting-decision"]),
+          lte(quotationVersions.validUntil, now),
+        )),
+      this.db
+        .select({ category: serviceRequests.category })
+        .from(quotations)
+        .innerJoin(serviceRequests, eq(serviceRequests.id, quotations.requestId))
+        .where(and(
+          eq(quotations.clientAccountId, input.clientAccountId),
+          ne(quotations.status, "DRAFT"),
+          isNotNull(serviceRequests.category),
+        ))
+        .groupBy(serviceRequests.category)
+        .orderBy(asc(serviceRequests.category)),
+    ]);
+    const totals = new Map(statusTotals.map((row) => [row.status, row.total]));
+    const sum = (statuses: readonly QuotationStatus[]) =>
+      statuses.reduce((result, status) => result + (totals.get(status) ?? 0), 0);
+    return {
+      ...buildPageResult(rows.map(mapSummary), totalItems, input),
+      summary: {
+        total: sum(quotationStatuses),
+        awaitingDecision: sum(bucketStatuses["awaiting-decision"]) - expiredAwaiting,
+        accepted: sum(bucketStatuses.accepted),
+        expiringSoon,
+        inRevision: sum(bucketStatuses["in-revision"]),
+        closed: sum(bucketStatuses.closed) + expiredAwaiting,
+      },
+      categories: categoryRows.flatMap((row) => row.category ? [row.category] : []),
+    };
   }
 
   async getProfessional(
@@ -162,7 +340,10 @@ export class QuotationsRepository implements QuotationsStore {
   ): Promise<QuotationDetail | null> {
     return this.detail(
       quotationId,
-      eq(quotations.clientAccountId, clientAccountId),
+      and(
+        eq(quotations.clientAccountId, clientAccountId),
+        ne(quotations.status, "DRAFT"),
+      )!,
     );
   }
 

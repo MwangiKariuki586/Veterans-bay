@@ -16,6 +16,7 @@ import {
 import type { ApiAppEnvironment } from "../../workers/api/types";
 import { IdentityRepository } from "../identity/repository";
 import { QuotationsRepository } from "./repository";
+import { createQuotationPdf } from "./quotation-pdf";
 import {
   createQuotationBodySchema,
   quotationActionBodySchema,
@@ -27,6 +28,7 @@ import {
 } from "./schemas";
 import { QuotationsService } from "./service";
 import type {
+  ClientQuotationSummary,
   QuotationComparison,
   QuotationDetail,
   QuotationSummary,
@@ -311,7 +313,10 @@ export function createQuotationRoutes() {
         authUserId: authUserId(context),
         ...query,
       });
-      return context.json<ApiSuccessBody<PageResult<QuotationSummary>>>({
+      return context.json<ApiSuccessBody<PageResult<QuotationSummary> & {
+        summary: ClientQuotationSummary;
+        categories: string[];
+      }>>({
         data,
         requestId: context.get("requestId"),
       });
@@ -455,33 +460,13 @@ function downloadableQuotation(
     (item) => item.versionNumber === quotation.currentVersionNumber,
   );
   if (!version) throw new Error("Quotation current-version invariant violated.");
-  const body = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Quotation ${escapeHtml(quotation.id)}</title>
-<style>body{font:16px/1.5 system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 24px;color:#10202c}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #dce3e8;text-align:left}.amount{text-align:right}h1{margin-bottom:4px}.muted{color:#62717c}</style></head>
-<body><h1>Quotation v${version.versionNumber}</h1><p class="muted">${escapeHtml(quotation.providerName)} for ${escapeHtml(quotation.clientName)}</p>
-<p><strong>Scope</strong><br>${escapeHtml(version.scope)}</p>
-<table><thead><tr><th>Item</th><th>Category</th><th>Qty</th><th class="amount">Amount</th></tr></thead><tbody>
-${version.lineItems.map((item) => `<tr><td>${escapeHtml(item.description)}</td><td>${escapeHtml(item.category)}</td><td>${item.quantity}</td><td class="amount">${formatMoney(item.totalMinor, version.currency)}</td></tr>`).join("")}
-</tbody></table><p><strong>Total: ${formatMoney(version.totalMinor, version.currency)}</strong></p>
-<h2>Terms</h2><p><strong>Exclusions</strong><br>${escapeHtml(version.exclusions)}</p><p><strong>Warranty</strong><br>${escapeHtml(version.warrantyTerms)}</p><p><strong>Payment</strong><br>${escapeHtml(version.paymentTerms)}</p></body></html>`;
+  const body = createQuotationPdf(quotation);
   return context.body(body, 200, {
-    "Content-Disposition": `attachment; filename="quotation-${quotation.id}-v${version.versionNumber}.html"`,
-    "Content-Type": "text/html; charset=utf-8",
+    "Accept-Ranges": "none",
+    "Cache-Control": "private, no-store",
+    "Content-Disposition": `attachment; filename="quotation-${quotation.id}-v${version.versionNumber}.pdf"`,
+    "Content-Length": String(body.byteLength),
+    "Content-Type": "application/pdf",
+    "X-Content-Type-Options": "nosniff",
   });
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function formatMoney(amountMinor: number, currency: string) {
-  return new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency,
-  }).format(amountMinor / 100);
 }

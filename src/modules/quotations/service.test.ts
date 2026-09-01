@@ -157,6 +157,48 @@ function store(overrides: Partial<QuotationsStore> = {}): QuotationsStore {
 }
 
 describe("QuotationsService", () => {
+  it("scopes client quotation list filters to the authenticated account", async () => {
+    const listClient = vi.fn().mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 10,
+      totalItems: 0,
+      totalPages: 0,
+      summary: {
+        total: 0,
+        awaitingDecision: 0,
+        accepted: 0,
+        expiringSoon: 0,
+        inRevision: 0,
+        closed: 0,
+      },
+      categories: [],
+    });
+    const service = new QuotationsService(store({ listClient }), identityStore());
+
+    await service.listClient({
+      authUserId: "auth-client",
+      bucket: "awaiting-decision",
+      category: "Plumbing",
+      search: "Local Flow",
+      validity: "expiring",
+      sort: "valid_until_asc",
+      page: 2,
+      pageSize: 10,
+    });
+
+    expect(listClient).toHaveBeenCalledWith({
+      clientAccountId,
+      bucket: "awaiting-decision",
+      category: "Plumbing",
+      search: "Local Flow",
+      validity: "expiring",
+      sort: "valid_until_asc",
+      page: 2,
+      pageSize: 10,
+    });
+  });
+
   it("passes server-calculated totals into draft persistence", async () => {
     const repository = store();
     const service = new QuotationsService(repository, identityStore());

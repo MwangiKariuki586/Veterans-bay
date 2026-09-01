@@ -12,6 +12,31 @@ export const quotationStatuses = [
 
 export type QuotationStatus = (typeof quotationStatuses)[number];
 
+export type ClientQuotationBucket =
+  | "awaiting-decision"
+  | "accepted"
+  | "in-revision"
+  | "closed";
+
+export type ClientQuotationValidity = "valid" | "expiring" | "expired";
+
+export type ClientQuotationSort =
+  | "updated_desc"
+  | "updated_asc"
+  | "total_desc"
+  | "total_asc"
+  | "valid_until_desc"
+  | "valid_until_asc";
+
+export interface ClientQuotationSummary {
+  total: number;
+  awaitingDecision: number;
+  accepted: number;
+  expiringSoon: number;
+  inRevision: number;
+  closed: number;
+}
+
 export const quotationLineItemCategories = [
   "LABOUR",
   "MATERIAL",
