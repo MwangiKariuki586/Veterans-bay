@@ -1,7 +1,5 @@
-import { JobList } from "@/components/jobs/job-list";
+import { redirect } from "next/navigation";
 
 export default function ClientJobsPage() {
-  return (
-    <JobList audience="client" />
-  );
+  redirect("/client/bookings?stage=active");
 }

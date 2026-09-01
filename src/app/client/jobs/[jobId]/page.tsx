@@ -1,4 +1,4 @@
-import { JobDetail } from "@/components/jobs/job-detail";
+import { LegacyClientJobRedirect } from "@/components/jobs/legacy-client-job-redirect";
 
 export default async function ClientJobDetailPage({
   params,
@@ -7,6 +7,6 @@ export default async function ClientJobDetailPage({
 }) {
   const { jobId } = await params;
   return (
-    <JobDetail audience="client" jobId={jobId} />
+    <LegacyClientJobRedirect jobId={jobId} />
   );
 }

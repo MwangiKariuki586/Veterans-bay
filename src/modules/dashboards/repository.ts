@@ -60,7 +60,7 @@ export class DashboardsRepository {
       `),
       this.db.execute(sql`
         select id, service_name as title, status, updated_at as "updatedAt",
-          '/client/jobs/' || id::text as "actionTarget"
+          '/client/bookings/' || booking_id::text || '#service-progress' as "actionTarget"
         from jobs
         where client_account_id = ${accountId}
         order by updated_at desc, id desc
@@ -215,7 +215,7 @@ export class DashboardsRepository {
         order by due_at asc nulls last, created_at desc limit 1
       `),
       this.db.execute(sql`
-        select id, service_name as "serviceName"
+        select id, booking_id as "bookingId", service_name as "serviceName"
         from jobs
         where client_account_id = ${accountId} and status = 'AWAITING_CLIENT_CONFIRMATION'
         order by updated_at desc limit 1
@@ -286,7 +286,7 @@ export class DashboardsRepository {
         title: `Confirm completion for ${String(jobRow.serviceName).toLowerCase()}`,
         description: `Job #${String(jobRow.id).slice(0, 8).toUpperCase()} is awaiting your confirmation.`,
         actionLabel: "Review job",
-        href: `/client/jobs/${String(jobRow.id)}`,
+        href: `/client/bookings/${String(jobRow.bookingId)}#service-progress`,
         tone: "green",
       });
     }

@@ -11,7 +11,10 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { requestApi, uploadMessageAttachment } from "@/components/service-requests/request-api";
+import {
+  requestApi,
+  uploadMessageAttachment,
+} from "@/components/service-requests/request-api";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { StatePanel } from "@/components/ui/state-panel";
@@ -25,12 +28,14 @@ export function EngagementConversation({
   basePath: providedBasePath,
   contextLabel = "request",
   allowAttachments = true,
+  compact = false,
 }: {
   requestId?: string;
   audience: "client" | "professional";
   basePath?: string;
   contextLabel?: string;
   allowAttachments?: boolean;
+  compact?: boolean;
 }) {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [body, setBody] = useState("");
@@ -130,7 +135,9 @@ export function EngagementConversation({
       idempotencyKey.current = createClientUuid();
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "The message could not be sent.",
+        cause instanceof Error
+          ? cause.message
+          : "The message could not be sent.",
       );
     } finally {
       setBusy(null);
@@ -164,20 +171,42 @@ export function EngagementConversation({
   }
 
   return (
-    <Surface className="overflow-hidden p-0 shadow-none">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/8 px-5 py-4 sm:px-6">
+    <Surface className="overflow-hidden rounded-[14px] border-black/8 p-0 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 border-b border-black/8 ${compact ? "px-4 py-3.5 sm:px-5" : "px-5 py-4 sm:px-6"}`}
+      >
         <div>
           <div className="flex items-center gap-2">
-            <MessageCircle className="size-5 text-[#5f8d11]" />
-            <h2 className="font-semibold">Conversation &amp; activity</h2>
+            <MessageCircle
+              className={
+                compact ? "size-4 text-[#5f8d11]" : "size-5 text-[#5f8d11]"
+              }
+            />
+            <h2
+              className={
+                compact
+                  ? "text-[0.76rem] font-semibold text-[#0b1e2e]"
+                  : "font-semibold"
+              }
+            >
+              Conversation &amp; activity
+            </h2>
             {conversation?.unreadCount ? (
               <span className="rounded-full bg-[#b9eb35] px-2 py-0.5 text-xs font-semibold">
                 {conversation.unreadCount} unread
               </span>
             ) : null}
           </div>
-          <p className="mt-1 text-xs text-[#68717b]">
-            Messages refresh every 10 seconds. Structured actions remain separate.
+          <p
+            className={
+              compact
+                ? "mt-1 text-[0.68rem] text-[#68717b]"
+                : "mt-1 text-xs text-[#68717b]"
+            }
+          >
+            {compact
+              ? "Message your professional about this service."
+              : "Messages refresh every 10 seconds. Structured actions remain separate."}
           </p>
         </div>
         <Button
@@ -203,17 +232,39 @@ export function EngagementConversation({
       ) : null}
 
       <div
-        className="max-h-[34rem] min-h-64 space-y-4 overflow-y-auto bg-[#f7f9fa] px-4 py-5 sm:px-6"
+        className={`${compact ? "max-h-[24rem] min-h-36 px-4 py-4 sm:px-5" : "max-h-[34rem] min-h-64 px-4 py-5 sm:px-6"} space-y-4 overflow-y-auto bg-[#f7f9fa]`}
         role="log"
         aria-live="polite"
         aria-label="Conversation timeline"
       >
         {!conversation?.items.length ? (
-          <div className="grid min-h-52 place-items-center text-center">
+          <div
+            className={`grid place-items-center text-center ${compact ? "min-h-28" : "min-h-52"}`}
+          >
             <div>
-              <MessageCircle className="mx-auto size-8 text-[#8b949d]" />
-              <p className="mt-3 font-semibold">No messages yet</p>
-              <p className="mt-1 max-w-sm text-sm text-[#68717b]">
+              <MessageCircle
+                className={
+                  compact
+                    ? "mx-auto size-6 text-[#98a2aa]"
+                    : "mx-auto size-8 text-[#8b949d]"
+                }
+              />
+              <p
+                className={
+                  compact
+                    ? "mt-2 text-[0.76rem] font-semibold"
+                    : "mt-3 font-semibold"
+                }
+              >
+                No messages yet
+              </p>
+              <p
+                className={
+                  compact
+                    ? "mt-1 max-w-sm text-[0.72rem] text-[#68717b]"
+                    : "mt-1 max-w-sm text-sm text-[#68717b]"
+                }
+              >
                 Send the first message to keep service details attached to this
                 {` ${contextLabel}.`}
               </p>
@@ -262,7 +313,8 @@ export function EngagementConversation({
                           className="flex w-full items-center gap-2 rounded-xl border border-black/8 bg-white/70 px-3 py-2 text-left text-xs font-semibold hover:bg-white"
                         >
                           <FileText className="size-4" />
-                          {file.mimeType} · {(file.sizeBytes / 1024).toFixed(0)} KB
+                          {file.mimeType} · {(file.sizeBytes / 1024).toFixed(0)}{" "}
+                          KB
                         </button>
                       ))}
                     </div>
@@ -280,7 +332,9 @@ export function EngagementConversation({
         )}
       </div>
 
-      <div className="border-t border-black/8 bg-white p-4 sm:p-5">
+      <div
+        className={`border-t border-black/8 bg-white ${compact ? "p-4" : "p-4 sm:p-5"}`}
+      >
         <label htmlFor={`${audience}-conversation-message`} className="sr-only">
           Message
         </label>
@@ -288,10 +342,10 @@ export function EngagementConversation({
           id={`${audience}-conversation-message`}
           value={body}
           onChange={(event) => setBody(event.target.value)}
-          rows={3}
+          rows={compact ? 2 : 3}
           maxLength={4_000}
           placeholder={`Write a message about this ${contextLabel}…`}
-          className="w-full resize-none rounded-2xl border border-black/10 bg-white p-3 text-sm leading-6 outline-none focus:border-[#5f8d11]"
+          className={`w-full resize-none rounded-xl border border-black/10 bg-white p-3 font-normal leading-5 outline-none focus:border-[#5f8d11] ${compact ? "text-[0.76rem]" : "text-sm"}`}
         />
         {allowAttachments && attachment ? (
           <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-[#f2f5f6] px-3 py-2 text-xs">

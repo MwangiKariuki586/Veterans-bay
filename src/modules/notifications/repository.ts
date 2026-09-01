@@ -415,13 +415,15 @@ async function resolveNotificationDrafts(
     const jobId =
       typeof event.payload.jobId === "string" ? event.payload.jobId : null;
     if (!recipientAccountId || !jobId) return [];
+    const actionTarget = await clientJobTarget(tx, jobId);
+    if (!actionTarget) return [];
     const client = await activeClientDraft(tx, {
       event,
       clientAccountId: recipientAccountId,
       organisationId: event.organisationId ?? null,
       title: "Dispute decision recorded",
       body: "A platform administrator recorded a decision. Open the job for the current status.",
-      actionTarget: `/client/jobs/${jobId}`,
+      actionTarget,
     });
     return client ? [client] : [];
   }
@@ -571,6 +573,7 @@ async function reviewDrafts(tx: Tx, event: DomainEventEnvelope) {
     const [job] = await tx
       .select({
         id: jobs.id,
+        bookingId: jobs.bookingId,
         organisationId: jobs.organisationId,
         clientAccountId: jobs.clientAccountId,
       })
@@ -584,18 +587,20 @@ async function reviewDrafts(tx: Tx, event: DomainEventEnvelope) {
       organisationId: job.organisationId,
       title: "How did the service go?",
       body: "Your completed job is ready for a verified review.",
-      actionTarget: `/client/jobs/${job.id}`,
+      actionTarget: clientBookingTarget(job.bookingId),
     });
     return client ? [client] : [];
   }
-  const [review] = await tx
-    .select({
-      id: reviews.id,
-      jobId: reviews.jobId,
+    const [review] = await tx
+      .select({
+        id: reviews.id,
+        jobId: reviews.jobId,
+        bookingId: jobs.bookingId,
       organisationId: reviews.organisationId,
       clientAccountId: reviews.clientAccountId,
     })
-    .from(reviews)
+      .from(reviews)
+      .innerJoin(jobs, eq(jobs.id, reviews.jobId))
     .where(eq(reviews.id, event.aggregateId))
     .limit(1);
   if (!review) return [];
@@ -606,7 +611,7 @@ async function reviewDrafts(tx: Tx, event: DomainEventEnvelope) {
       organisationId: review.organisationId,
       title: "Professional responded to your review",
       body: "A public response was added to your verified review.",
-      actionTarget: `/client/jobs/${review.jobId}`,
+      actionTarget: clientBookingTarget(review.bookingId),
     });
     return client ? [client] : [];
   }
@@ -617,7 +622,7 @@ async function reviewDrafts(tx: Tx, event: DomainEventEnvelope) {
       organisationId: review.organisationId,
       title: "Review moderation decision",
       body: "A platform administrator completed a review decision. The original review record remains preserved.",
-      actionTarget: `/client/jobs/${review.jobId}`,
+      actionTarget: clientBookingTarget(review.bookingId),
     });
     const professional = await professionalDrafts(tx, {
       event,
@@ -696,6 +701,19 @@ async function warrantyDrafts(tx: Tx, event: DomainEventEnvelope) {
   return client ? [client] : [];
 }
 
+function clientBookingTarget(bookingId: string) {
+  return `/client/bookings/${bookingId}#service-progress`;
+}
+
+async function clientJobTarget(tx: Tx, jobId: string) {
+  const [job] = await tx
+    .select({ bookingId: jobs.bookingId })
+    .from(jobs)
+    .where(eq(jobs.id, jobId))
+    .limit(1);
+  return job ? clientBookingTarget(job.bookingId) : null;
+}
+
 async function jobDrafts(
   tx: Tx,
   event: DomainEventEnvelope,
@@ -706,6 +724,7 @@ async function jobDrafts(
       clientAccountId: jobs.clientAccountId,
       organisationId: jobs.organisationId,
       serviceName: jobs.serviceName,
+      bookingId: jobs.bookingId,
     })
     .from(jobs)
     .where(eq(jobs.id, jobId))
@@ -726,7 +745,7 @@ async function jobDrafts(
       organisationId: job.organisationId,
       title: "Team assigned",
       body: `The team for your ${job.serviceName} job has been updated.`,
-      actionTarget: `/client/jobs/${jobId}`,
+      actionTarget: clientBookingTarget(job.bookingId),
     });
     return client ? [...professional, client] : professional;
   }
@@ -749,7 +768,7 @@ async function jobDrafts(
     organisationId: job.organisationId,
     title: jobClientTitle(event.eventType),
     body: `Your ${job.serviceName} job has new activity.`,
-    actionTarget: `/client/jobs/${jobId}`,
+    actionTarget: clientBookingTarget(job.bookingId),
   });
   return client ? [client] : [];
 }
@@ -1065,7 +1084,7 @@ async function activeClientDraft(
 }
 
 function safeActionTarget(target: string): string | null {
-  return /^(?:\/(?:client|professional)\/(?:requests|enquiries|quotations|bookings|jobs|warranties|invoices|customers)\/[0-9a-f-]{36}|\/professional\/reviews|\/client\/bookings)$/.test(target)
+  return /^(?:\/(?:client|professional)\/(?:requests|enquiries|quotations|bookings|jobs|warranties|invoices|customers)\/[0-9a-f-]{36}(?:#service-progress)?|\/professional\/reviews|\/client\/bookings)$/.test(target)
     ? target
     : null;
 }

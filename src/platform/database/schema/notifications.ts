@@ -55,7 +55,7 @@ export const notifications = pgTable(
     check(
       "notifications_action_target_check",
       sql`${table.actionTarget} is null
-        or (${table.actionTarget} ~ '^/[a-z0-9/_?=&.%:-]+$'
+        or (${table.actionTarget} ~ '^/[a-z0-9/_?=&.%:#-]+$'
           and ${table.actionTarget} not like '//%'
           and char_length(${table.actionTarget}) <= 500)`,
     ),

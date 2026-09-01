@@ -200,7 +200,7 @@ export function ClientDashboard() {
             label="Active jobs"
             value={data.summary.activeJobs}
             hint={data.summary.activeJobs ? "In progress" : "No active jobs"}
-            href="/client/jobs"
+            href="/client/bookings?stage=active"
             action="View jobs"
           />
           <WorkspaceMetricCard
@@ -360,7 +360,7 @@ function ActionCentreCard({
       <div className="flex items-center justify-between">
         <h2 className="type-section-title">Action centre</h2>
         <Link
-          href="/client/jobs"
+          href="/client/bookings?stage=active"
           className="type-caption font-medium text-info hover:underline"
         >
           View all

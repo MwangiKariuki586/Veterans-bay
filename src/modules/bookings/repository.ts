@@ -9,6 +9,7 @@ import {
   ilike,
   inArray,
   isNotNull,
+  isNull,
   lt,
   lte,
   ne,
@@ -68,6 +69,8 @@ import type {
   ProfessionalCreateBookingInput,
 } from "./types";
 
+class NoShowJobConflict extends Error {}
+
 const clientProfile = alias(accountProfiles, "booking_client_profile");
 const assignedProfile = alias(accountProfiles, "booking_assigned_profile");
 const createdByProfile = alias(accountProfiles, "booking_created_by_profile");
@@ -126,6 +129,7 @@ export class BookingsRepository {
     clientAccountId: string;
     status?: BookingStatus;
     bucket?: import("./types").BookingBucket;
+    stage?: import("./types").ClientBookingStage;
     origin?: import("./types").BookingOrigin;
     search?: string;
     sort?: import("./types").BookingSort;
@@ -1196,69 +1200,87 @@ export class BookingsRepository {
     });
   }
 
-  terminalTransition(input: {
+  async terminalTransition(input: {
     bookingId: string;
     organisationId: string;
     actorAccountId: string;
     expectedLockVersion: number;
-    action: "COMPLETED" | "NO_SHOW";
+    action: "NO_SHOW";
     note?: string;
     correlationId?: string;
     now?: Date;
   }): Promise<boolean> {
-    return this.db.transaction(async (tx) => {
-      const now = input.now ?? new Date();
-      const [changed] = await tx
-        .update(bookings)
-        .set({
-          status: input.action,
-          ...(input.action === "COMPLETED"
-            ? { completedAt: now }
-            : { noShowAt: now }),
-          lockVersion: sql`${bookings.lockVersion} + 1`,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(bookings.id, input.bookingId),
-            eq(bookings.organisationId, input.organisationId),
-            eq(bookings.lockVersion, input.expectedLockVersion),
-            inArray(bookings.status, ["CONFIRMED", "RESCHEDULED"]),
-            lte(bookings.endsAt, now),
-          ),
-        )
-        .returning({
-          organisationId: bookings.organisationId,
-          fromStatus: bookings.status,
-          startsAt: bookings.startsAt,
-          endsAt: bookings.endsAt,
-          membershipId: bookings.assignedMembershipId,
-        });
-      if (!changed) return false;
-      await tx
-        .update(bookingReservations)
-        .set({ status: "RELEASED", releasedAt: now, updatedAt: now })
-        .where(
-          and(
-            eq(bookingReservations.bookingId, input.bookingId),
-            eq(bookingReservations.status, "ACTIVE"),
-          ),
+    try {
+      return await this.db.transaction(async (tx) => {
+        const now = input.now ?? new Date();
+        const eligibility = and(
+          eq(bookings.id, input.bookingId),
+          eq(bookings.organisationId, input.organisationId),
+          eq(bookings.lockVersion, input.expectedLockVersion),
+          inArray(bookings.status, ["CONFIRMED", "RESCHEDULED"]),
+          lte(bookings.endsAt, now),
         );
-      await recordBookingChange(tx, {
-        bookingId: input.bookingId,
-        organisationId: changed.organisationId,
-        actorAccountId: input.actorAccountId,
-        action: input.action,
-        fromStatus: changed.fromStatus,
-        toStatus: input.action,
-        previousStartsAt: changed.startsAt,
-        previousEndsAt: changed.endsAt,
-        membershipId: changed.membershipId,
-        note: input.note,
-        correlationId: input.correlationId,
+        const [current] = await tx
+          .select({
+            organisationId: bookings.organisationId,
+            status: bookings.status,
+            startsAt: bookings.startsAt,
+            endsAt: bookings.endsAt,
+            membershipId: bookings.assignedMembershipId,
+          })
+          .from(bookings)
+          .where(eligibility)
+          .limit(1);
+        if (!current) return false;
+        const [changed] = await tx
+          .update(bookings)
+          .set({
+            status: "NO_SHOW",
+            noShowAt: now,
+            lockVersion: sql`${bookings.lockVersion} + 1`,
+            updatedAt: now,
+          })
+          .where(eligibility)
+          .returning({ id: bookings.id });
+        if (!changed) return false;
+        if (
+          !(await cancelJobForBooking(tx, {
+            bookingId: input.bookingId,
+            actorAccountId: input.actorAccountId,
+            reason: input.note ?? "Client did not attend.",
+            correlationId: input.correlationId,
+          }))
+        ) {
+          throw new NoShowJobConflict();
+        }
+        await tx
+          .update(bookingReservations)
+          .set({ status: "RELEASED", releasedAt: now, updatedAt: now })
+          .where(
+            and(
+              eq(bookingReservations.bookingId, input.bookingId),
+              eq(bookingReservations.status, "ACTIVE"),
+            ),
+          );
+        await recordBookingChange(tx, {
+          bookingId: input.bookingId,
+          organisationId: current.organisationId,
+          actorAccountId: input.actorAccountId,
+          action: "NO_SHOW",
+          fromStatus: current.status,
+          toStatus: "NO_SHOW",
+          previousStartsAt: current.startsAt,
+          previousEndsAt: current.endsAt,
+          membershipId: current.membershipId,
+          note: input.note,
+          correlationId: input.correlationId,
+        });
+        return true;
       });
-      return true;
-    });
+    } catch (error) {
+      if (error instanceof NoShowJobConflict) return false;
+      throw error;
+    }
   }
 
   private async createRepeat(input: {
@@ -1362,6 +1384,7 @@ export class BookingsRepository {
     scope: SQL<unknown>;
     status?: BookingStatus;
     bucket?: import("./types").BookingBucket;
+    stage?: import("./types").ClientBookingStage;
     origin?: import("./types").BookingOrigin;
     search?: string;
     sort?: import("./types").BookingSort;
@@ -1380,6 +1403,34 @@ export class BookingsRepository {
     };
     const searchPattern = input.search?.trim() ? `%${input.search.trim()}%` : null;
     const bucketFilter = input.bucket ? inArray(bookings.status, bucketStatuses[input.bucket]) : undefined;
+    const stageFilter = (() => {
+      switch (input.stage) {
+        case "pending":
+          return inArray(bookings.status, bucketStatuses.pending);
+        case "upcoming":
+          return and(
+            inArray(bookings.status, bucketStatuses.scheduled),
+            or(
+              isNull(jobs.id),
+              inArray(jobs.status, ["CREATED", "SCHEDULED", "TEAM_ASSIGNED"]),
+            ),
+          );
+        case "active":
+          return inArray(jobs.status, [
+            "EN_ROUTE",
+            "IN_PROGRESS",
+            "ON_HOLD",
+            "AWAITING_CLIENT_CONFIRMATION",
+            "RETURN_VISIT_REQUIRED",
+            "DISPUTED",
+          ]);
+        case "past":
+          return inArray(bookings.status, bucketStatuses.closed);
+        case "all":
+        default:
+          return undefined;
+      }
+    })();
     const originFilter = input.origin ? eq(bookings.origin, input.origin as BookingStatus) : undefined;
     const searchFilter = searchPattern
       ? or(
@@ -1411,6 +1462,7 @@ export class BookingsRepository {
       input.scope,
       ...(input.status ? [eq(bookings.status, input.status)] : []),
       ...(bucketFilter ? [bucketFilter] : []),
+      ...(stageFilter ? [stageFilter] : []),
       ...(originFilter ? [originFilter] : []),
       ...(searchFilter ? [searchFilter] : []),
       ...(input.from ? [gte(bookings.endsAt, input.from)] : []),
@@ -1419,7 +1471,7 @@ export class BookingsRepository {
 
     const summaryBase = input.scope;
 
-    const [rows, totals, statusTotals, originRows] = await Promise.all([
+    const [rows, totals, statusTotals, stageTotals, originRows] = await Promise.all([
       this.db
         .select(summarySelection)
         .from(bookings)
@@ -1434,12 +1486,21 @@ export class BookingsRepository {
         .orderBy(...(orderBy as unknown as [SQL<unknown>, SQL<unknown>]))
         .limit(input.pageSize)
         .offset(paginationOffset(input)),
-      this.db.select({ totalItems: count() }).from(bookings).leftJoin(organisations, eq(organisations.id, bookings.organisationId)).leftJoin(clientProfile, eq(clientProfile.id, bookings.clientAccountId)).leftJoin(serviceRequests, eq(serviceRequests.id, bookings.requestId)).leftJoin(professionalServices, eq(professionalServices.id, bookings.professionalServiceId)).where(filter),
+      this.db.select({ totalItems: count() }).from(bookings).leftJoin(organisations, eq(organisations.id, bookings.organisationId)).leftJoin(clientProfile, eq(clientProfile.id, bookings.clientAccountId)).leftJoin(serviceRequests, eq(serviceRequests.id, bookings.requestId)).leftJoin(professionalServices, eq(professionalServices.id, bookings.professionalServiceId)).leftJoin(jobs, eq(jobs.bookingId, bookings.id)).where(filter),
       this.db
         .select({ status: bookings.status, total: count() })
         .from(bookings)
         .where(summaryBase)
         .groupBy(bookings.status),
+      this.db
+        .select({
+          upcoming: sql<number>`count(*) filter (where ${bookings.status} in ('CONFIRMED', 'RESCHEDULED') and (${jobs.id} is null or ${jobs.status} in ('CREATED', 'SCHEDULED', 'TEAM_ASSIGNED')))::int`,
+          active: sql<number>`count(*) filter (where ${jobs.status} in ('EN_ROUTE', 'IN_PROGRESS', 'ON_HOLD', 'AWAITING_CLIENT_CONFIRMATION', 'RETURN_VISIT_REQUIRED', 'DISPUTED'))::int`,
+          past: sql<number>`count(*) filter (where ${bookings.status} in ('CANCELLED', 'COMPLETED', 'NO_SHOW'))::int`,
+        })
+        .from(bookings)
+        .leftJoin(jobs, eq(jobs.bookingId, bookings.id))
+        .where(summaryBase),
       this.db
         .select({ origin: bookings.origin })
         .from(bookings)
@@ -1460,7 +1521,16 @@ export class BookingsRepository {
 
     return {
       ...buildPageResult(rows.map(mapSummary), totals[0]?.totalItems ?? 0, input),
-      summary: { total, pending, scheduled, needsAction, closed },
+      summary: {
+        total,
+        pending,
+        scheduled,
+        needsAction,
+        closed,
+        upcoming: stageTotals[0]?.upcoming ?? 0,
+        active: stageTotals[0]?.active ?? 0,
+        past: stageTotals[0]?.past ?? 0,
+      },
       origins: originRows.flatMap((row) => (row.origin ? [row.origin] : [])),
     };
   }
@@ -1479,6 +1549,7 @@ export class BookingsRepository {
         serviceSlug: professionalServices.slug,
         assignmentName: assignedProfile.displayName,
         jobId: jobs.id,
+        jobStatus: jobs.status,
       })
       .from(bookings)
       .innerJoin(organisations, eq(organisations.id, bookings.organisationId))
@@ -1591,6 +1662,7 @@ const summarySelection = {
   updatedAt: bookings.updatedAt,
   professionalServiceId: bookings.professionalServiceId,
   jobId: jobs.id,
+  jobStatus: jobs.status,
 };
 
 function mapSummary(row: {
@@ -1612,11 +1684,13 @@ function mapSummary(row: {
   updatedAt: Date;
   professionalServiceId: string | null;
   jobId: string | null;
+  jobStatus: string | null;
 }): BookingSummary {
   return {
     ...row,
     origin: row.origin as BookingOrigin,
     status: row.status as BookingStatus,
+    jobStatus: row.jobStatus as import("../jobs/types").JobStatus | null,
     startsAt: iso(row.startsAt),
     endsAt: iso(row.endsAt),
     requestedStartAt: iso(row.requestedStartAt),

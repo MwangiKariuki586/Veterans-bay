@@ -40,7 +40,10 @@ import { warranties } from "../../platform/database/schema/warranties";
 import { deriveWarrantyCoverage } from "../../platform/warranties/coverage";
 import { professionalServices } from "../../platform/database/schema/professional-services";
 import { organisationMemberships } from "../../platform/database/schema/roles";
-import { bookingReservations } from "../../platform/database/schema/scheduling";
+import {
+  bookingHistory,
+  bookingReservations,
+} from "../../platform/database/schema/scheduling";
 import { serviceRequests } from "../../platform/database/schema/service-requests";
 import {
   buildPageResult,
@@ -837,8 +840,12 @@ export class JobsRepository {
   }): Promise<"updated" | "not_found" | "invalid"> {
     return this.db.transaction(async (tx) => {
       const [job] = await tx
-        .select()
+        .select({
+          ...getTableColumns(jobs),
+          bookingStatus: bookings.status,
+        })
         .from(jobs)
+        .innerJoin(bookings, eq(bookings.id, jobs.bookingId))
         .where(
           and(
             eq(jobs.id, input.jobId),
@@ -864,6 +871,12 @@ export class JobsRepository {
         .limit(1);
       if (pendingVariation) return "invalid";
       const confirmed = input.response.startsWith("CONFIRM");
+      if (
+        confirmed &&
+        !["CONFIRMED", "RESCHEDULED"].includes(job.bookingStatus)
+      ) {
+        return "invalid";
+      }
       const unresolved = input.response === "UNRESOLVED";
       const nextStatus: JobStatus = confirmed
         ? "COMPLETED"
@@ -890,33 +903,71 @@ export class JobsRepository {
         actorAccountId: input.clientAccountId,
         comments: input.comments,
       });
+      const transitionAt = new Date();
+      const completedAt = confirmed ? transitionAt : null;
       await tx
         .update(jobs)
         .set({
           status: nextStatus,
-          completedAt: confirmed ? new Date() : null,
+          completedAt,
           lockVersion: sql`${jobs.lockVersion} + 1`,
-          updatedAt: new Date(),
+          updatedAt: transitionAt,
         })
         .where(eq(jobs.id, input.jobId));
       if (confirmed) {
-        const completedAt = new Date();
-        await tx
+        const completionTime = completedAt!;
+        const [completedBooking] = await tx
           .update(bookings)
           .set({
             status: "COMPLETED",
+            completedAt: completionTime,
             lockVersion: sql`${bookings.lockVersion} + 1`,
-            updatedAt: new Date(),
+            updatedAt: completionTime,
           })
           .where(
             and(
               eq(bookings.id, job.bookingId),
               inArray(bookings.status, ["CONFIRMED", "RESCHEDULED"]),
             ),
+          )
+          .returning({
+            startsAt: bookings.startsAt,
+            endsAt: bookings.endsAt,
+            membershipId: bookings.assignedMembershipId,
+          });
+        if (!completedBooking) {
+          throw new Error("The linked booking changed during job completion.");
+        }
+        await tx
+          .update(bookingReservations)
+          .set({
+            status: "RELEASED",
+            releasedAt: completionTime,
+            updatedAt: completionTime,
+          })
+          .where(
+            and(
+              eq(bookingReservations.bookingId, job.bookingId),
+              eq(bookingReservations.status, "ACTIVE"),
+            ),
           );
+        await tx.insert(bookingHistory).values({
+          bookingId: job.bookingId,
+          actorAccountId: input.clientAccountId,
+          action: "COMPLETED",
+          fromStatus: job.bookingStatus,
+          toStatus: "COMPLETED",
+          previousStartsAt: completedBooking.startsAt,
+          previousEndsAt: completedBooking.endsAt,
+          startsAt: completedBooking.startsAt,
+          endsAt: completedBooking.endsAt,
+          membershipId: completedBooking.membershipId,
+          note: input.comments,
+          createdAt: completionTime,
+        });
         const coverage = deriveWarrantyCoverage(
           job.warrantyTermsSnapshot,
-          completedAt,
+          completionTime,
         );
         if (coverage) {
           const [warranty] = await tx
@@ -966,7 +1017,7 @@ export class JobsRepository {
               organisationId: job.organisationId,
               clientAccountId: job.clientAccountId,
               reviewDeadline: new Date(
-                completedAt.getTime() + 30 * 86_400_000,
+                completionTime.getTime() + 30 * 86_400_000,
               ).toISOString(),
             },
           },

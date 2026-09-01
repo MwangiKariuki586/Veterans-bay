@@ -42,7 +42,7 @@ const mockData: ClientDashboardData = {
   actionCentre: [
     { id: "1", title: "Review 3 quotations", description: "New quotes received for your plumbing repair.", actionLabel: "Review now", href: "/client/quotations", tone: "purple" },
     { id: "2", title: "Invoice INV-1048 is ready", description: "Total amount KSh 4,850. Payment due.", actionLabel: "View invoice", href: "/client/invoices/1", tone: "blue" },
-    { id: "3", title: "Confirm completion for plumbing repair", description: "Job #JOB-2315 is awaiting your confirmation.", actionLabel: "Review job", href: "/client/jobs/1", tone: "green" },
+    { id: "3", title: "Confirm completion for plumbing repair", description: "Job #JOB-2315 is awaiting your confirmation.", actionLabel: "Review job", href: "/client/bookings/1#service-progress", tone: "green" },
     { id: "4", title: "Warranty expiring soon", description: "AC Maintenance warranty expires in 18 days.", actionLabel: "View warranty", href: "/client/warranties/1", tone: "orange" },
   ],
   spending: {

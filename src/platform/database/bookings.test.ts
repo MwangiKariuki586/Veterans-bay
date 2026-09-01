@@ -6,6 +6,7 @@ import type { Database } from "./client";
 import { accountProfiles } from "./schema/account-profiles";
 import { bookings, paymentRequirements } from "./schema/commercial";
 import { customerRecords } from "./schema/customers";
+import { jobs } from "./schema/fulfilment";
 import { organisations } from "./schema/organisations";
 import { notifications } from "./schema/notifications";
 import { outboxEvents } from "./schema/outbox-events";
@@ -227,6 +228,92 @@ describe("booking persistence", () => {
     });
   });
 
+  it("records no-show only while the linked job is still pre-start", async () => {
+    await withTestDatabase(async ({ db }) => {
+      await withRolledBackTransaction(db, async (testDb) => {
+        const fixture = await seedSchedulingFixture(testDb, crypto.randomUUID());
+        const repository = new BookingsRepository(testDb);
+        await repository.replaceAvailability({
+          organisationId: fixture.organisationId,
+          actorAccountId: fixture.ownerId,
+          membershipId: fixture.membershipId,
+          timezone: "UTC",
+          rules: allDayRules(),
+        });
+        const startsAt = futureUtcTime(5, 8);
+        const bookingId = await repository.createClient({
+          clientAccountId: fixture.clientId,
+          actorAccountId: fixture.clientId,
+          values: {
+            origin: "DIRECT_SERVICE",
+            professionalSlug: fixture.professionalSlug,
+            serviceSlug: fixture.serviceSlug,
+            membershipId: fixture.membershipId,
+            requestedStartAt: startsAt.toISOString(),
+            timezone: "UTC",
+            cancellationPolicyAcknowledged: true,
+          },
+        });
+        await repository.schedule({
+          bookingId: bookingId!,
+          organisationId: fixture.organisationId,
+          actorAccountId: fixture.ownerId,
+          expectedLockVersion: 1,
+          membershipId: fixture.membershipId,
+          startsAt,
+          endsAt: addMinutes(startsAt, 60),
+          reschedule: false,
+        });
+
+        await expect(
+          repository.terminalTransition({
+            bookingId: bookingId!,
+            organisationId: fixture.organisationId,
+            actorAccountId: fixture.ownerId,
+            expectedLockVersion: 1,
+            action: "NO_SHOW",
+            now: addMinutes(startsAt, 61),
+          }),
+        ).resolves.toBe(false);
+        const [beforeNoShowBooking, beforeNoShowJob] = await Promise.all([
+          testDb
+            .select({ status: bookings.status })
+            .from(bookings)
+            .where(eq(bookings.id, bookingId!))
+            .then((rows) => rows[0]),
+          testDb
+            .select({ status: jobs.status })
+            .from(jobs)
+            .where(eq(jobs.bookingId, bookingId!))
+            .then((rows) => rows[0]),
+        ]);
+        expect(beforeNoShowBooking.status).toBe("CONFIRMED");
+        expect(beforeNoShowJob.status).not.toBe("CANCELLED");
+
+        await expect(
+          repository.terminalTransition({
+            bookingId: bookingId!,
+            organisationId: fixture.organisationId,
+            actorAccountId: fixture.ownerId,
+            expectedLockVersion: 2,
+            action: "NO_SHOW",
+            note: "Client did not attend.",
+            now: addMinutes(startsAt, 61),
+          }),
+        ).resolves.toBe(true);
+
+        const [booking, job, reservation] = await Promise.all([
+          testDb.select().from(bookings).where(eq(bookings.id, bookingId!)).then((rows) => rows[0]),
+          testDb.select().from(jobs).where(eq(jobs.bookingId, bookingId!)).then((rows) => rows[0]),
+          testDb.select().from(bookingReservations).where(eq(bookingReservations.bookingId, bookingId!)).then((rows) => rows[0]),
+        ]);
+        expect(booking.status).toBe("NO_SHOW");
+        expect(job.status).toBe("CANCELLED");
+        expect(reservation.status).toBe("RELEASED");
+      });
+    });
+  });
+
   it("creates repeat, approved-assessment, and professional-customer origins from eligible records", async () => {
     await withTestDatabase(async ({ db }) => {
       await withRolledBackTransaction(db, async (testDb) => {
@@ -266,14 +353,15 @@ describe("booking persistence", () => {
           endsAt: addMinutes(initialStart, 60),
           reschedule: false,
         });
-        await repository.terminalTransition({
-          bookingId: sourceBookingId!,
-          organisationId: fixture.organisationId,
-          actorAccountId: fixture.ownerId,
-          expectedLockVersion: 2,
-          action: "COMPLETED",
-          now: addMinutes(initialStart, 61),
-        });
+        const completedAt = addMinutes(initialStart, 61);
+        await testDb
+          .update(jobs)
+          .set({ status: "COMPLETED", completedAt })
+          .where(eq(jobs.bookingId, sourceBookingId!));
+        await testDb
+          .update(bookings)
+          .set({ status: "COMPLETED", completedAt })
+          .where(eq(bookings.id, sourceBookingId!));
         await testDb
           .update(professionalServices)
           .set({ priceMinor: 275000, estimatedDurationMinutes: 90 })

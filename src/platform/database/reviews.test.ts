@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { ReviewsRepository } from "../../modules/reviews/repository";
@@ -45,13 +45,27 @@ describe("review and reputation persistence", () => {
           timelinessRating: 3,
           professionalismRating: 5,
           valueRating: 4,
-          feedback: "Clear communication and a solid repair.",
+          feedback: "",
         });
         expect(reviewId).toBeTruthy();
+        const [ratingOnlyReview] = await testDb
+          .select({
+            feedback: reviews.feedback,
+            overallRating: reviews.overallRating,
+          })
+          .from(reviews)
+          .where(eq(reviews.id, reviewId!));
+        expect(ratingOnlyReview.feedback).toBe("");
+        expect(ratingOnlyReview.overallRating).toBe(4.2);
         const [submittedEvent] = await testDb
           .select()
           .from(outboxEvents)
-          .where(eq(outboxEvents.eventType, "review.submitted"));
+          .where(
+            and(
+              eq(outboxEvents.eventType, "review.submitted"),
+              eq(outboxEvents.aggregateId, reviewId!),
+            ),
+          );
         const notificationEvent = {
           eventId: submittedEvent.id,
           eventType: submittedEvent.eventType,

@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { bookingOrigins, bookingStatuses } from "./types";
+import {
+  bookingOrigins,
+  bookingStatuses,
+  clientBookingStages,
+} from "./types";
 
 const uuidSchema = z.string().uuid();
 const dateTimeSchema = z.string().datetime({ offset: true });
@@ -19,6 +23,7 @@ export const bookingListQuerySchema = z.object({
   bucket: z
     .enum(["pending", "scheduled", "needs-action", "closed"])
     .optional(),
+  stage: z.enum(clientBookingStages).optional(),
   origin: z.enum(bookingOrigins).optional(),
   search: z.string().trim().max(120).optional(),
   sort: z

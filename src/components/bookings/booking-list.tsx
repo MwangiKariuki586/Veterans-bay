@@ -35,7 +35,8 @@ import { StatePanel } from "@/components/ui/state-panel";
 import { WorkspaceMetricCard } from "@/components/workspace/workspace-metric-card";
 import { useWorkspaceContentReady } from "@/components/workspace/workspace-chrome";
 import { cn } from "@/lib/utils";
-import type { BookingBucket, BookingSort, BookingStatus } from "@/modules/bookings/types";
+import type { BookingBucket, BookingSort, BookingStatus, ClientBookingStage } from "@/modules/bookings/types";
+import type { JobStatus } from "@/modules/jobs/types";
 import { bookingAction, getBooking, listBookingsPage, type BookingListQuery, type BookingPage } from "./booking-api";
 import type { BookingDetail, BookingSummary } from "@/modules/bookings/types";
 
@@ -51,6 +52,7 @@ const defaultQuery: BookingListQuery = {
   page: 1,
   pageSize: 10,
   bucket: "all",
+  stage: "all",
   status: "",
   origin: "",
   search: "",
@@ -66,6 +68,20 @@ const statusMeta: Record<BookingStatus, { label: string; variant: StatusVariant 
   CANCELLED: { label: "Cancelled", variant: "neutral" },
   COMPLETED: { label: "Completed", variant: "success" },
   NO_SHOW: { label: "No show", variant: "danger" },
+};
+
+const jobStatusMeta: Record<JobStatus, { label: string; variant: StatusVariant }> = {
+  CREATED: { label: "Preparing service", variant: "neutral" },
+  SCHEDULED: { label: "Scheduled", variant: "info" },
+  TEAM_ASSIGNED: { label: "Professional assigned", variant: "trust" },
+  EN_ROUTE: { label: "Professional en route", variant: "info" },
+  IN_PROGRESS: { label: "Service in progress", variant: "warning" },
+  ON_HOLD: { label: "Service on hold", variant: "warning" },
+  AWAITING_CLIENT_CONFIRMATION: { label: "Confirm completion", variant: "warning" },
+  COMPLETED: { label: "Completed", variant: "success" },
+  RETURN_VISIT_REQUIRED: { label: "Return visit required", variant: "warning" },
+  CANCELLED: { label: "Cancelled", variant: "neutral" },
+  DISPUTED: { label: "Under review", variant: "danger" },
 };
 
 const bucketStatuses: Record<BookingBucket, BookingStatus[]> = {
@@ -85,6 +101,18 @@ const tabs: Array<{
   { value: "scheduled", label: "Scheduled", count: "scheduled" },
   { value: "needs-action", label: "Needs action", count: "needsAction" },
   { value: "closed", label: "Closed", count: "closed" },
+];
+
+const clientTabs: Array<{
+  value: ClientBookingStage;
+  label: string;
+  count?: "pending" | "upcoming" | "active" | "past";
+}> = [
+  { value: "all", label: "All" },
+  { value: "pending", label: "Pending", count: "pending" },
+  { value: "upcoming", label: "Upcoming", count: "upcoming" },
+  { value: "active", label: "In service", count: "active" },
+  { value: "past", label: "Past", count: "past" },
 ];
 
 export function BookingList({ audience }: { audience: "client" | "professional" }) {
@@ -195,7 +223,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
       {
         id: "status",
         header: "Status",
-        cell: ({ row }) => <BookingStatusBadge status={row.original.status} />,
+        cell: ({ row }) => <BookingStatusBadge status={row.original.status} jobStatus={row.original.jobStatus} />,
       },
       {
         id: "schedule",
@@ -244,7 +272,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
           </h1>
           <p className="mt-1.5 max-w-2xl text-[0.78rem] text-muted-foreground">
             {audience === "client"
-              ? "Choose times, follow confirmations, and manage schedule changes."
+              ? "Choose times, track active service work, and keep completion records together."
               : "Confirm eligible times, coordinate assignments, and preserve every schedule change."}
           </p>
         </div>
@@ -294,32 +322,38 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
             <WorkspaceMetricCard
               icon={CalendarCheck2}
               tone="blue"
-              label="Scheduled"
-              value={result.summary.scheduled}
+              label={audience === "client" ? "Upcoming" : "Scheduled"}
+              value={audience === "client" ? result.summary.upcoming : result.summary.scheduled}
               hint="Confirmed upcoming"
-              href={`/${audience}/bookings?bucket=scheduled`}
-              action="View scheduled"
+              href={`/${audience}/bookings?${audience === "client" ? "stage=upcoming" : "bucket=scheduled"}`}
+              action="View upcoming"
             />
             <WorkspaceMetricCard
               icon={CheckCircle2}
               tone="purple"
-              label="Closed"
-              value={result.summary.closed}
-              hint={result.summary.closed ? "Completed or cancelled" : "No closed bookings"}
-              href={`/${audience}/bookings?bucket=closed`}
-              action="View closed"
+              label={audience === "client" ? "In service" : "Closed"}
+              value={audience === "client" ? result.summary.active : result.summary.closed}
+              hint={audience === "client" ? "Track current work" : result.summary.closed ? "Completed or cancelled" : "No closed bookings"}
+              href={`/${audience}/bookings?${audience === "client" ? "stage=active" : "bucket=closed"}`}
+              action={audience === "client" ? "Track service" : "View closed"}
             />
           </section>
 
           <nav className="mt-3 flex gap-1 overflow-x-auto border-b border-black/6" aria-label="Booking status views">
-            {tabs.map((tab) => {
-              const active = queryState.bucket === tab.value;
+            {(audience === "client" ? clientTabs : tabs).map((tab) => {
+              const active = audience === "client" ? queryState.stage === tab.value : queryState.bucket === tab.value;
               const count = tab.count ? result.summary[tab.count] : null;
               return (
                 <button
                   key={tab.value}
                   type="button"
-                  onClick={() => updateParams({ bucket: tab.value as BookingListQuery["bucket"], status: "" })}
+                  onClick={() =>
+                    updateParams(
+                      audience === "client"
+                        ? { stage: tab.value as ClientBookingStage, bucket: "all", status: "" }
+                        : { bucket: tab.value as BookingListQuery["bucket"], stage: "all", status: "" },
+                    )
+                  }
                   className={cn(
                     "inline-flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-4 text-[0.72rem] font-medium transition",
                     active ? "border-[#83b72c] text-[#426d08]" : "border-transparent text-[#536170] hover:text-foreground",
@@ -350,7 +384,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
                   placeholder="Search bookings..."
                 />
               </label>
-              <FilterSelect label="Status" value={queryState.status} onChange={(status) => updateParams({ status, bucket: "all" })}>
+              <FilterSelect label="Status" value={queryState.status} onChange={(status) => updateParams({ status, bucket: "all", stage: "all" })}>
                 <option value="">Status</option>
                 {Object.entries(statusMeta).map(([value, meta]) => (
                   <option key={value} value={value}>
@@ -508,8 +542,10 @@ function CounterpartyCell({ booking, audience }: { booking: BookingSummary; audi
   );
 }
 
-function BookingStatusBadge({ status }: { status: BookingStatus }) {
-  const meta = statusMeta[status];
+function BookingStatusBadge({ status, jobStatus }: { status: BookingStatus; jobStatus?: JobStatus | null }) {
+  const meta = jobStatus && !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(status)
+    ? jobStatusMeta[jobStatus]
+    : statusMeta[status];
   return (
     <Badge variant={meta.variant} className="min-h-6 whitespace-nowrap px-2.5 py-0.5 text-[0.62rem] font-medium">
       {meta.label}
@@ -607,7 +643,7 @@ function BookingMobileCard({
     <article className="rounded-[14px] border border-black/8 bg-white p-4 shadow-[0_3px_12px_rgba(15,31,43,0.03)]">
       <div className="flex items-start justify-between gap-3">
         <BookingIdentity booking={booking} />
-        <BookingStatusBadge status={booking.status} />
+        <BookingStatusBadge status={booking.status} jobStatus={booking.jobStatus} />
       </div>
       <div className="mt-4 grid grid-cols-2 gap-4 border-t border-black/6 pt-3 text-xs">
         <div>
@@ -658,6 +694,9 @@ function bookingDrawerPrimary(summary: BookingSummary, audience: "client" | "pro
   const closed = ["CANCELLED", "COMPLETED", "NO_SHOW"].includes(summary.status);
   if (closed) {
     if (audience === "client") {
+      if (summary.jobId) {
+        return { label: "View service record", href: `/client/bookings/${summary.id}#service-progress` };
+      }
       if (summary.serviceSlug) return { label: "Book again", href: `/services/${summary.serviceSlug}` };
       if (summary.providerSlug) return { label: "Book again", href: `/professionals/${summary.providerSlug}` };
       return { label: "Book again", href: `/client/bookings/new?sourceBookingId=${summary.id}` };
@@ -680,7 +719,9 @@ function bookingDrawerPrimary(summary: BookingSummary, audience: "client" | "pro
   }
   if (["CONFIRMED", "RESCHEDULED"].includes(summary.status)) {
     return audience === "client"
-      ? { label: "Request new time", href: `/${audience}/bookings/${summary.id}` }
+      ? summary.jobId && summary.jobStatus && !["CREATED", "SCHEDULED", "TEAM_ASSIGNED"].includes(summary.jobStatus)
+        ? { label: "Track service", href: `/client/bookings/${summary.id}#service-progress` }
+        : { label: "Request new time", href: `/${audience}/bookings/${summary.id}` }
       : summary.jobId
         ? { label: "View job", href: `/${audience}/jobs/${summary.jobId}` }
         : { label: "View booking", href: `/${audience}/bookings/${summary.id}` };
@@ -778,7 +819,7 @@ function BookingDetailDrawer({
               <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-xs font-medium text-muted-foreground">Status</span>
-                  <BookingStatusBadge status={summary.status} />
+                  <BookingStatusBadge status={summary.status} jobStatus={summary.jobStatus} />
                 </div>
                 {isPendingDeposit ? (
                   <InlineAlert variant="warning" title="Deposit required before confirmation" description="The booking can collect a requested time, but confirmation remains blocked until the deposit is satisfied or waived." />
@@ -978,6 +1019,7 @@ function queryFromParams(searchParams: URLSearchParams): BookingListQuery {
     page: Math.max(1, Number(searchParams.get("page")) || 1),
     pageSize: [10, 20, 50].includes(pageSize) ? pageSize : 10,
     bucket: (searchParams.get("bucket") ?? "all") as BookingListQuery["bucket"],
+    stage: (searchParams.get("stage") ?? "all") as ClientBookingStage,
     status: searchParams.get("status") ?? "",
     origin: searchParams.get("origin") ?? "",
     search: searchParams.get("search") ?? "",
@@ -990,6 +1032,7 @@ function queryString(state: BookingListQuery, bookingId?: string) {
   if (state.page > 1) params.set("page", String(state.page));
   if (state.pageSize !== 10) params.set("pageSize", String(state.pageSize));
   if (state.bucket !== "all") params.set("bucket", state.bucket);
+  if (state.stage !== "all") params.set("stage", state.stage);
   if (state.status) params.set("status", state.status);
   if (state.origin) params.set("origin", state.origin);
   if (state.search) params.set("search", state.search);
@@ -1006,6 +1049,7 @@ function filterCachedBookings(items: BookingSummary[], query: BookingListQuery) 
   const search = query.search.toLocaleLowerCase();
   return items.filter((booking) => {
     if (query.bucket !== "all" && !bucketStatuses[query.bucket].includes(booking.status)) return false;
+    if (query.stage !== "all" && !bookingMatchesStage(booking, query.stage)) return false;
     if (query.status && booking.status !== query.status) return false;
     if (query.origin && booking.origin !== query.origin) return false;
     if (!search) return true;
@@ -1016,6 +1060,18 @@ function filterCachedBookings(items: BookingSummary[], query: BookingListQuery) 
       booking.origin.toLocaleLowerCase().includes(search)
     );
   });
+}
+
+function bookingMatchesStage(booking: BookingSummary, stage: Exclude<ClientBookingStage, "all">) {
+  if (stage === "pending") return ["PENDING_CONFIRMATION", "PENDING_DEPOSIT"].includes(booking.status);
+  if (stage === "upcoming") {
+    return ["CONFIRMED", "RESCHEDULED"].includes(booking.status) &&
+      (!booking.jobStatus || ["CREATED", "SCHEDULED", "TEAM_ASSIGNED"].includes(booking.jobStatus));
+  }
+  if (stage === "active") {
+    return Boolean(booking.jobStatus && ["EN_ROUTE", "IN_PROGRESS", "ON_HOLD", "AWAITING_CLIENT_CONFIRMATION", "RETURN_VISIT_REQUIRED", "DISPUTED"].includes(booking.jobStatus));
+  }
+  return ["CANCELLED", "COMPLETED", "NO_SHOW"].includes(booking.status);
 }
 
 function formatMoney(amountMinor: number, currency: string) {

@@ -54,6 +54,7 @@ export class BookingsService {
     authUserId: string;
     status?: BookingStatus;
     bucket?: import("./types").BookingBucket;
+    stage?: import("./types").ClientBookingStage;
     origin?: import("./types").BookingOrigin;
     search?: string;
     sort?: import("./types").BookingSort;
@@ -67,6 +68,7 @@ export class BookingsService {
       clientAccountId: account.id,
       status: input.status,
       bucket: input.bucket,
+      stage: input.stage,
       origin: input.origin,
       search: input.search,
       sort: input.sort,
@@ -433,7 +435,7 @@ export class BookingsService {
     actorAccountId: string;
     bookingId: string;
     expectedLockVersion: number;
-    action: "COMPLETED" | "NO_SHOW";
+    action: "NO_SHOW";
     note?: string;
     correlationId?: string;
   }): Promise<BookingDetail> {

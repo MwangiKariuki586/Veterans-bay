@@ -3,6 +3,7 @@ import type {
   AvailabilityConfiguration,
   BookingBucket,
   BookingDetail,
+  ClientBookingStage,
   BookingSlot,
   BookingSort,
   BookingStatus,
@@ -53,6 +54,7 @@ export type BookingListQuery = {
   page: number;
   pageSize: number;
   bucket: "all" | BookingBucket;
+  stage: ClientBookingStage;
   status: string;
   origin: string;
   search: string;
@@ -75,6 +77,9 @@ export function listBookingsPage(
     sort: query.sort,
   });
   if (query.bucket !== "all") params.set("bucket", query.bucket);
+  if (audience === "client" && query.stage !== "all") {
+    params.set("stage", query.stage);
+  }
   if (query.status) params.set("status", query.status);
   if (query.origin) params.set("origin", query.origin);
   if (query.search) params.set("search", query.search);

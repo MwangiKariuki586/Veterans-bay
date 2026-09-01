@@ -149,9 +149,7 @@ describe("job workspace", () => {
       return jsonResponse({ data: detail });
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(
-      <JobDetailView audience="professional" jobId={ids.job} />,
-    );
+    render(<JobDetailView audience="professional" jobId={ids.job} />);
 
     expect(
       await screen.findByRole("heading", {
@@ -246,28 +244,23 @@ describe("job workspace", () => {
         name: "Electrical safety inspection",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Evidence stage" })).toHaveValue(
-      "COMPLETION",
-    );
+    expect(
+      screen.getByRole("combobox", { name: "Evidence stage" }),
+    ).toHaveValue("COMPLETION");
 
-    fireEvent.change(
-      screen.getByLabelText("Add photo or PDF evidence"),
-      {
-        target: {
-          files: [
-            new File(["preview completion"], "completion.png", {
-              type: "image/png",
-            }),
-          ],
-        },
+    fireEvent.change(screen.getByLabelText("Add photo or PDF evidence"), {
+      target: {
+        files: [
+          new File(["preview completion"], "completion.png", {
+            type: "image/png",
+          }),
+        ],
       },
-    );
+    });
 
     await waitFor(() => {
       const evidenceRequest = fetchMock.mock.calls.find(([input]) =>
-        String(input).endsWith(
-          `/api/v1/professional/jobs/${ids.job}/evidence`,
-        ),
+        String(input).endsWith(`/api/v1/professional/jobs/${ids.job}/evidence`),
       );
       expect(evidenceRequest).toBeDefined();
       expect(
@@ -316,6 +309,152 @@ describe("job workspace", () => {
     expect(
       screen.queryByRole("button", { name: /start work/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("embeds client service progress without duplicate booking content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input).endsWith("/conversation")
+          ? jsonResponse({
+              data: {
+                conversationId: detail.conversationId,
+                contextType: "JOB",
+                contextId: ids.job,
+                unreadCount: 0,
+                items: [],
+                refreshedAt: "2026-07-28T08:00:00.000Z",
+              },
+            })
+          : jsonResponse({ data: detail }),
+      ),
+    );
+
+    render(<JobDetailView audience="client" jobId={ids.job} embedded />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Service progress" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Assigned professional")).toBeInTheDocument();
+    expect(screen.getByText("Latest activity")).toBeInTheDocument();
+    expect(screen.getByText("Service checklist")).toBeInTheDocument();
+    expect(screen.getByText("Your service team is ready")).toBeInTheDocument();
+    expect(screen.queryByText("Work evidence")).not.toBeInTheDocument();
+    expect(screen.queryByText("Additional work")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Electrical safety inspection" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Commercial record")).not.toBeInTheDocument();
+    expect(screen.queryByText("Scope and checklist")).not.toBeInTheDocument();
+  });
+
+  it("reduces completed embedded fulfilment to the modern verified review", async () => {
+    const completed: JobDetail = {
+      ...detail,
+      status: "COMPLETED",
+      completedAt: "2026-08-01T09:20:00.000Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (!String(input).endsWith("/review")) {
+          return jsonResponse({ data: completed });
+        }
+        if (init?.method === "POST") {
+          return jsonResponse({
+            data: {
+              eligible: false,
+              deadline: "2026-08-31T09:20:00.000Z",
+              reason: "A review has already been submitted.",
+              review: {
+                id: "review-current",
+                jobId: ids.job,
+                serviceName: detail.serviceName,
+                providerName: detail.providerName,
+                clientName: detail.clientName,
+                overallRating: 4.6,
+                serviceQualityRating: 3,
+                communicationRating: 5,
+                timelinessRating: 5,
+                professionalismRating: 5,
+                valueRating: 5,
+                feedback: "",
+                status: "PUBLISHED",
+                submittedAt: "2026-08-01T09:25:00.000Z",
+                response: null,
+              },
+              otherReviews: [
+                {
+                  id: "review-other",
+                  clientName: "Peter Mwangi",
+                  overallRating: 4.2,
+                  feedback:
+                    "The team communicated clearly and arrived on time.",
+                  submittedAt: "2026-07-20T10:00:00.000Z",
+                  response: null,
+                },
+              ],
+            },
+          });
+        }
+        return jsonResponse({
+          data: {
+            eligible: true,
+            deadline: "2026-08-31T09:20:00.000Z",
+            reason: null,
+            review: null,
+            otherReviews: [],
+          },
+        });
+      }),
+    );
+
+    render(<JobDetailView audience="client" jobId={ids.job} embedded />);
+
+    expect(
+      await screen.findByRole("heading", { name: "How did everything go?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(
+        "5.0 out of 5 stars, calculated from category ratings",
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Service quality: 3 out of 5",
+      }),
+    );
+    expect(
+      screen.getByText((_, element) => element?.textContent === "4.6/5"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Publish review" }));
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        `/api/v1/client/jobs/${ids.job}/review`,
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining('"serviceQualityRating":3'),
+        }),
+      ),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      `/api/v1/client/jobs/${ids.job}/review`,
+      expect.objectContaining({
+        body: expect.stringContaining('"feedback":""'),
+      }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "What other clients say" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Peter Mwangi")).toBeInTheDocument();
+    expect(
+      screen.getByText("The team communicated clearly and arrived on time."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Service progress")).not.toBeInTheDocument();
+    expect(screen.queryByText("Service checklist")).not.toBeInTheDocument();
+    expect(screen.queryByText("Work evidence")).not.toBeInTheDocument();
+    expect(screen.queryByText("Assigned team")).not.toBeInTheDocument();
+    expect(screen.queryByText("Fulfilment timeline")).not.toBeInTheDocument();
   });
 });
 

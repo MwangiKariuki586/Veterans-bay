@@ -23,6 +23,7 @@ export interface ReviewEligibility {
   deadline: string | null;
   reason: string | null;
   review: ReviewItem | null;
+  otherReviews: PublicReview[];
 }
 
 export interface ReputationProjection {

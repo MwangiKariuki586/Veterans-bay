@@ -53,6 +53,7 @@ export class ReviewsRepository {
         deadline: null,
         reason: "Job not found.",
         review: null,
+        otherReviews: [],
       };
     const existing = await this.findByJob(jobId);
     const deadline = row.job.completedAt
@@ -65,6 +66,11 @@ export class ReviewsRepository {
       !!deadline &&
       deadline >= new Date() &&
       !existing;
+    const otherReviews = existing
+      ? (await this.listPublic(row.job.organisationId))
+          .filter((review) => review.id !== existing.id)
+          .slice(0, 6)
+      : [];
     return {
       eligible,
       deadline: deadline?.toISOString() ?? null,
@@ -78,6 +84,7 @@ export class ReviewsRepository {
       review: existing
         ? toReview(existing, row.providerName, row.clientName)
         : null,
+      otherReviews,
     };
   }
 
@@ -114,7 +121,7 @@ export class ReviewsRepository {
           jobId: job.id,
           organisationId: job.organisationId,
           clientAccountId: input.clientAccountId,
-          overallRating: input.overallRating,
+          overallRating: derivedOverallRating(input),
           serviceQualityRating: input.serviceQualityRating,
           communicationRating: input.communicationRating,
           timelinessRating: input.timelinessRating,
@@ -620,6 +627,26 @@ function event(
       clientAccountId: job.clientAccountId,
     },
   };
+}
+
+function derivedOverallRating(input: {
+  serviceQualityRating: number;
+  communicationRating: number;
+  timelinessRating: number;
+  professionalismRating: number;
+  valueRating: number;
+}) {
+  return (
+    Math.round(
+      ((input.serviceQualityRating +
+        input.communicationRating +
+        input.timelinessRating +
+        input.professionalismRating +
+        input.valueRating) /
+        5) *
+        10,
+    ) / 10
+  );
 }
 
 function toReview(

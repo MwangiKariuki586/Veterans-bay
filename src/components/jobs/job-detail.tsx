@@ -52,9 +52,13 @@ type TeamMember = {
 export function JobDetail({
   audience,
   jobId,
+  embedded = false,
+  onChanged,
 }: {
   audience: "client" | "professional";
   jobId: string;
+  embedded?: boolean;
+  onChanged?: () => void | Promise<void>;
 }) {
   const [job, setJob] = useState<JobDetailRecord | null>(null);
   const [team, setTeam] = useState<TeamMember[]>([]);
@@ -86,7 +90,9 @@ export function JobDetail({
     if (audience === "professional") {
       void jobApi<{ members: TeamMember[] }>("/api/v1/professional/team")
         .then((result) =>
-          setTeam(result.members.filter((member) => member.status === "active")),
+          setTeam(
+            result.members.filter((member) => member.status === "active"),
+          ),
         )
         .catch(() => undefined);
     }
@@ -99,6 +105,7 @@ export function JobDetail({
     try {
       const next = await action();
       setJob(next);
+      await onChanged?.();
       toast.success("Job updated.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Job action failed.");
@@ -128,32 +135,74 @@ export function JobDetail({
       }),
     );
 
-  return (
-    <div>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariant(job.status)}>
-              {job.status.replaceAll("_", " ")}
-            </Badge>
-            <span className="text-xs text-[#7a838c]">
-              Job {job.id.slice(0, 8)}
-            </span>
-          </div>
-          <h1 className="mt-3 text-3xl font-semibold tracking-title">
-            {job.serviceName}
-          </h1>
-          <p className="mt-2 text-sm text-[#68717b]">
-            {audience === "client" ? job.providerName : job.clientName}
-          </p>
-        </div>
-        <Link
-          href={`/${audience}/bookings/${job.bookingId}`}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          <CalendarDays className="size-4" /> Booking
-        </Link>
+  if (embedded && audience === "client" && job.status === "COMPLETED") {
+    return (
+      <div id="service-progress" className="mt-6 scroll-mt-24">
+        <ReviewJobPanel jobId={job.id} />
       </div>
+    );
+  }
+
+  if (embedded && audience === "client") {
+    return (
+      <div id="service-progress" className="mt-6 scroll-mt-24">
+        {error ? (
+          <InlineAlert
+            className="mb-4"
+            variant="error"
+            title="Service progress needs attention"
+            description={error}
+          />
+        ) : null}
+        <ClientActions job={job} busy={busy} run={run} />
+        <ClientEmbeddedProgress job={job} busy={busy} run={run} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      id={embedded ? "service-progress" : undefined}
+      className={embedded ? "mt-6 scroll-mt-24" : undefined}
+    >
+      {embedded ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold text-[#6b9f16]">Fulfilment</p>
+            <h2 className="mt-1 text-xl font-semibold tracking-title">
+              Service progress
+            </h2>
+          </div>
+          <Badge variant={statusVariant(job.status)}>
+            {job.status.replaceAll("_", " ")}
+          </Badge>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={statusVariant(job.status)}>
+                {job.status.replaceAll("_", " ")}
+              </Badge>
+              <span className="text-xs text-[#7a838c]">
+                Job {job.id.slice(0, 8)}
+              </span>
+            </div>
+            <h1 className="mt-3 text-3xl font-semibold tracking-title">
+              {job.serviceName}
+            </h1>
+            <p className="mt-2 text-sm text-[#68717b]">
+              {audience === "client" ? job.providerName : job.clientName}
+            </p>
+          </div>
+          <Link
+            href={`/${audience}/bookings/${job.bookingId}`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <CalendarDays className="size-4" /> Booking
+          </Link>
+        </div>
+      )}
 
       {error ? (
         <InlineAlert
@@ -165,11 +214,7 @@ export function JobDetail({
       ) : null}
 
       {audience === "professional" ? (
-        <ProfessionalActions
-          job={job}
-          busy={busy}
-          onAction={action}
-        />
+        <ProfessionalActions job={job} busy={busy} onAction={action} />
       ) : (
         <ClientActions job={job} busy={busy} run={run} />
       )}
@@ -182,15 +227,21 @@ export function JobDetail({
           <Surface className="p-5 shadow-none sm:p-6">
             <div className="flex items-center gap-2">
               <ClipboardCheck className="size-5 text-[#5f8d11]" />
-              <h2 className="text-lg font-semibold">Scope and checklist</h2>
+              <h2 className="text-lg font-semibold">
+                {embedded ? "Service checklist" : "Scope and checklist"}
+              </h2>
             </div>
-            <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#46515b]">
-              {job.scopeSnapshot}
-            </p>
-            {job.exclusionsSnapshot ? (
-              <p className="mt-3 text-xs leading-5 text-[#7a838c]">
-                Exclusions: {job.exclusionsSnapshot}
-              </p>
+            {!embedded ? (
+              <>
+                <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#46515b]">
+                  {job.scopeSnapshot}
+                </p>
+                {job.exclusionsSnapshot ? (
+                  <p className="mt-3 text-xs leading-5 text-[#7a838c]">
+                    Exclusions: {job.exclusionsSnapshot}
+                  </p>
+                ) : null}
+              </>
             ) : null}
             <div className="mt-5 divide-y divide-black/6 border-y border-black/6">
               {job.checklist.map((item) => (
@@ -205,7 +256,9 @@ export function JobDetail({
                     disabled={
                       audience === "client" ||
                       busy === `checklist-${item.id}` ||
-                      ["COMPLETED", "CANCELLED", "DISPUTED"].includes(job.status)
+                      ["COMPLETED", "CANCELLED", "DISPUTED"].includes(
+                        job.status,
+                      )
                     }
                     onChange={(event) =>
                       void run(`checklist-${item.id}`, () =>
@@ -238,6 +291,35 @@ export function JobDetail({
               ))}
             </div>
           </Surface>
+
+          {job.updates.length ? (
+            <Surface className="p-5 shadow-none sm:p-6">
+              <div className="flex items-center gap-2">
+                <MessageSquareText className="size-5 text-[#5f8d11]" />
+                <h2 className="text-lg font-semibold">Progress updates</h2>
+              </div>
+              <div className="mt-4 grid gap-3">
+                {job.updates.map((update) => (
+                  <article
+                    key={update.id}
+                    className="rounded-2xl border border-black/6 bg-[#f8faf8] px-4 py-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-[#5f8d11]">
+                        {update.updateType.replaceAll("_", " ")}
+                      </p>
+                      <time className="text-xs text-[#7a838c]">
+                        {new Date(update.createdAt).toLocaleString()}
+                      </time>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#46515b]">
+                      {update.content}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </Surface>
+          ) : null}
 
           {audience === "professional" &&
           !["COMPLETED", "CANCELLED", "DISPUTED"].includes(job.status) ? (
@@ -315,83 +397,82 @@ export function JobDetail({
         </div>
 
         <div className="grid content-start gap-5">
-          <Surface className="p-5 shadow-none">
-            <div className="flex items-center gap-2">
-              <CircleDollarSign className="size-5 text-[#5f8d11]" />
-              <h2 className="font-semibold">Commercial record</h2>
-            </div>
-            <p className="mt-4 text-2xl font-semibold">
-              {formatMoney(job.totalMinor, job.currency)}
-            </p>
-            <div className="mt-4 grid gap-2 text-sm text-[#68717b]">
-              <div className="flex justify-between gap-4">
-                <span>Accepted booking</span>
-                <span>{formatMoney(job.baseTotalMinor, job.currency)}</span>
+          {!embedded ? (
+            <Surface className="p-5 shadow-none">
+              <div className="flex items-center gap-2">
+                <CircleDollarSign className="size-5 text-[#5f8d11]" />
+                <h2 className="font-semibold">Commercial record</h2>
               </div>
-              <div className="flex justify-between gap-4">
-                <span>Approved variations</span>
-                <span>
-                  {formatMoney(
-                    job.approvedVariationTotalMinor,
-                    job.currency,
-                  )}
-                </span>
+              <p className="mt-4 text-2xl font-semibold">
+                {formatMoney(job.totalMinor, job.currency)}
+              </p>
+              <div className="mt-4 grid gap-2 text-sm text-[#68717b]">
+                <div className="flex justify-between gap-4">
+                  <span>Accepted booking</span>
+                  <span>{formatMoney(job.baseTotalMinor, job.currency)}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span>Approved variations</span>
+                  <span>
+                    {formatMoney(job.approvedVariationTotalMinor, job.currency)}
+                  </span>
+                </div>
               </div>
-            </div>
-            {audience === "professional" && job.status === "COMPLETED" ? (
-              <div className="mt-5 grid gap-2">
-                <Button
-                  className="w-full"
-                  loading={busy === "invoice"}
-                  onClick={() => {
-                    setBusy("invoice");
-                    setError(null);
-                    void createInvoiceFromJob(job.id)
-                      .then((invoice) => {
-                        window.location.assign(
-                          `/professional/invoices/${invoice.id}`,
-                        );
-                      })
-                      .catch((cause: unknown) =>
-                        setError(
-                          cause instanceof Error
-                            ? cause.message
-                            : "Invoice creation failed.",
-                        ),
-                      )
-                      .finally(() => setBusy(null));
-                  }}
-                >
-                  Create or open invoice
-                </Button>
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  loading={busy === "warranty"}
-                  onClick={() => {
-                    setBusy("warranty");
-                    setError(null);
-                    void ensureWarrantyFromJob(job.id)
-                      .then((warranty) => {
-                        window.location.assign(
-                          `/professional/warranties/${warranty.id}`,
-                        );
-                      })
-                      .catch((cause: unknown) =>
-                        setError(
-                          cause instanceof Error
-                            ? cause.message
-                            : "Warranty creation failed.",
-                        ),
-                      )
-                      .finally(() => setBusy(null));
-                  }}
-                >
-                  Create or open warranty
-                </Button>
-              </div>
-            ) : null}
-          </Surface>
+              {audience === "professional" && job.status === "COMPLETED" ? (
+                <div className="mt-5 grid gap-2">
+                  <Button
+                    className="w-full"
+                    loading={busy === "invoice"}
+                    onClick={() => {
+                      setBusy("invoice");
+                      setError(null);
+                      void createInvoiceFromJob(job.id)
+                        .then((invoice) => {
+                          window.location.assign(
+                            `/professional/invoices/${invoice.id}`,
+                          );
+                        })
+                        .catch((cause: unknown) =>
+                          setError(
+                            cause instanceof Error
+                              ? cause.message
+                              : "Invoice creation failed.",
+                          ),
+                        )
+                        .finally(() => setBusy(null));
+                    }}
+                  >
+                    Create or open invoice
+                  </Button>
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    loading={busy === "warranty"}
+                    onClick={() => {
+                      setBusy("warranty");
+                      setError(null);
+                      void ensureWarrantyFromJob(job.id)
+                        .then((warranty) => {
+                          window.location.assign(
+                            `/professional/warranties/${warranty.id}`,
+                          );
+                        })
+                        .catch((cause: unknown) =>
+                          setError(
+                            cause instanceof Error
+                              ? cause.message
+                              : "Warranty creation failed.",
+                          ),
+                        )
+                        .finally(() => setBusy(null));
+                    }}
+                  >
+                    Create or open warranty
+                  </Button>
+                </div>
+              ) : null}
+            </Surface>
+          ) : null}
 
           <Surface className="p-5 shadow-none">
             <div className="flex items-center gap-2">
@@ -421,7 +502,8 @@ export function JobDetail({
                                   method: "DELETE",
                                   body: JSON.stringify({
                                     lockVersion: job.lockVersion,
-                                    reason: "Assignment updated from job detail.",
+                                    reason:
+                                      "Assignment updated from job detail.",
                                   }),
                                 },
                               ),
@@ -464,11 +546,7 @@ export function JobDetail({
                     </option>
                   ))}
                 </select>
-                <Button
-                  type="submit"
-                  size="sm"
-                  loading={busy === "assign"}
-                >
+                <Button type="submit" size="sm" loading={busy === "assign"}>
                   Assign
                 </Button>
               </form>
@@ -591,10 +669,7 @@ function ClientActions({
 }: {
   job: JobDetailRecord;
   busy: string | null;
-  run: (
-    key: string,
-    action: () => Promise<JobDetailRecord>,
-  ) => Promise<void>;
+  run: (key: string, action: () => Promise<JobDetailRecord>) => Promise<void>;
 }) {
   if (job.status !== "AWAITING_CLIENT_CONFIRMATION") return null;
   return (
@@ -653,6 +728,314 @@ function ClientActions({
   );
 }
 
+function ClientEmbeddedProgress({
+  job,
+  busy,
+  run,
+}: {
+  job: JobDetailRecord;
+  busy: string | null;
+  run: (key: string, action: () => Promise<JobDetailRecord>) => Promise<void>;
+}) {
+  const assignments = job.assignments.filter((item) => item.active);
+  const status = clientProgressStatus(job);
+  const completedChecklistItems = job.checklist.filter(
+    (item) => item.completed,
+  ).length;
+
+  return (
+    <div className="grid gap-4">
+      <Surface className="overflow-hidden rounded-[14px] border-black/8 bg-white p-0 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-black/7 px-4 py-4 sm:px-5">
+          <div>
+            <h2 className="text-[0.84rem] font-semibold text-[#0b1e2e]">
+              Service progress
+            </h2>
+            <p className="mt-1.5 text-[0.78rem] font-medium text-[#507d0d]">
+              {status.title}
+            </p>
+            <p className="mt-1 max-w-2xl text-[0.74rem] leading-5 text-[#5f6c76]">
+              {status.description}
+            </p>
+          </div>
+          <Badge variant={statusVariant(job.status)}>
+            {job.status.replaceAll("_", " ")}
+          </Badge>
+        </div>
+
+        <div className="grid md:grid-cols-2 md:divide-x md:divide-black/7">
+          <section
+            className="px-4 py-4 sm:px-5"
+            aria-labelledby="assigned-professionals-heading"
+          >
+            <div className="flex items-center gap-2">
+              <UserRoundPlus
+                className="size-4 text-[#6b9f16]"
+                aria-hidden="true"
+              />
+              <h3
+                id="assigned-professionals-heading"
+                className="text-[0.76rem] font-semibold text-[#0b1e2e]"
+              >
+                Assigned professional{assignments.length === 1 ? "" : "s"}
+              </h3>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {assignments.length ? (
+                assignments.map((item) => (
+                  <div
+                    key={item.id}
+                    className="inline-flex items-center gap-2.5 rounded-full border border-black/7 bg-[#f7f9f6] py-1.5 pl-1.5 pr-3"
+                  >
+                    <span
+                      className="grid size-7 place-items-center rounded-full bg-[#e8f2d7] text-[0.68rem] font-semibold text-[#527d0d]"
+                      aria-hidden="true"
+                    >
+                      {initials(item.displayName)}
+                    </span>
+                    <span className="text-[0.74rem] font-medium text-[#21313e]">
+                      {item.displayName}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[0.74rem] text-[#6f7d87]">
+                  Assignment is being finalised.
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section
+            className="border-t border-black/7 px-4 py-4 sm:px-5 md:border-t-0"
+            aria-labelledby="latest-activity-heading"
+          >
+            <div className="flex items-center gap-2">
+              <History className="size-4 text-[#6b9f16]" aria-hidden="true" />
+              <h3
+                id="latest-activity-heading"
+                className="text-[0.76rem] font-semibold text-[#0b1e2e]"
+              >
+                Latest activity
+              </h3>
+            </div>
+            {job.history.length ? (
+              <div className="mt-3 flex items-start gap-3">
+                <span
+                  className="mt-1.5 size-2 shrink-0 rounded-full bg-[#95bf24]"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="text-[0.74rem] font-medium text-[#2d3d49]">
+                    {job.history[0].action.replaceAll("_", " ")}
+                  </p>
+                  <time
+                    className="mt-0.5 block text-[0.68rem] text-[#7a858e]"
+                    dateTime={job.history[0].createdAt}
+                  >
+                    {new Date(job.history[0].createdAt).toLocaleString()}
+                  </time>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-3 text-[0.74rem] leading-5 text-[#6f7d87]">
+                New service updates will appear here as work progresses.
+              </p>
+            )}
+          </section>
+        </div>
+
+        {job.updates.length ? (
+          <section
+            className="border-t border-black/7 px-4 py-4 sm:px-5"
+            aria-labelledby="client-progress-updates-heading"
+          >
+            <h3
+              id="client-progress-updates-heading"
+              className="text-[0.76rem] font-semibold text-[#0b1e2e]"
+            >
+              Progress updates
+            </h3>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {job.updates.slice(0, 4).map((update) => (
+                <article
+                  key={update.id}
+                  className="rounded-xl bg-[#f7f9f6] px-3.5 py-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.06em] text-[#648f1b]">
+                      {update.updateType.replaceAll("_", " ")}
+                    </p>
+                    <time
+                      className="text-[0.66rem] text-[#84909a]"
+                      dateTime={update.createdAt}
+                    >
+                      {new Date(update.createdAt).toLocaleDateString()}
+                    </time>
+                  </div>
+                  <p className="mt-1.5 text-[0.74rem] leading-5 text-[#4f5d68]">
+                    {update.content}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {job.checklist.length ? (
+          <section
+            className="border-t border-black/7 px-4 py-4 sm:px-5"
+            aria-labelledby="client-service-checklist-heading"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ClipboardCheck
+                  className="size-4 text-[#6b9f16]"
+                  aria-hidden="true"
+                />
+                <h3
+                  id="client-service-checklist-heading"
+                  className="text-[0.76rem] font-semibold text-[#0b1e2e]"
+                >
+                  Service checklist
+                </h3>
+              </div>
+              <span className="text-[0.68rem] text-[#7a858e]">
+                {completedChecklistItems} of {job.checklist.length} complete
+              </span>
+            </div>
+            <div className="mt-3 grid gap-x-5 gap-y-2 sm:grid-cols-2">
+              {job.checklist.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex min-h-8 items-start gap-2 text-[0.74rem] text-[#44525d]"
+                >
+                  <CheckCircle2
+                    className={`mt-0.5 size-4 shrink-0 ${item.completed ? "fill-[#edf6dc] text-[#6b9f16]" : "text-[#b7c0c6]"}`}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {item.label}
+                    {item.resultNote ? (
+                      <span className="mt-0.5 block text-[0.68rem] text-[#7a858e]">
+                        {item.resultNote}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </Surface>
+
+      {job.evidence.length ? (
+        <EvidenceSection job={job} audience="client" busy={busy} run={run} />
+      ) : null}
+
+      <EngagementConversation
+        audience="client"
+        basePath={`/api/v1/client/jobs/${job.id}/conversation`}
+        contextLabel="job"
+        allowAttachments={false}
+        compact
+      />
+
+      {job.variations.length ? (
+        <VariationSection
+          job={job}
+          audience="client"
+          busy={busy}
+          variation={{
+            description: "",
+            reason: "",
+            amount: "",
+            scheduleImpactMinutes: "",
+          }}
+          setVariation={() => undefined}
+          run={run}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function clientProgressStatus(job: JobDetailRecord) {
+  const professional = job.assignments.find((item) => item.active)?.displayName;
+  switch (job.status) {
+    case "CREATED":
+    case "SCHEDULED":
+      return {
+        title: "Your service is scheduled",
+        description:
+          "We’ll show your assigned professional and live updates here as the visit approaches.",
+      };
+    case "TEAM_ASSIGNED":
+      return {
+        title: "Your service team is ready",
+        description: professional
+          ? `${professional} is assigned to this booking. You’ll see travel and work updates here.`
+          : "Your professional is assigned. You’ll see travel and work updates here.",
+      };
+    case "EN_ROUTE":
+      return {
+        title: "Your professional is on the way",
+        description:
+          "Follow arrival updates here and use the conversation if you need to share access details.",
+      };
+    case "IN_PROGRESS":
+      return {
+        title: "Work is in progress",
+        description:
+          "Checklist results, progress notes, and service evidence will appear here as they are recorded.",
+      };
+    case "ON_HOLD":
+      return {
+        title: "Work is temporarily on hold",
+        description:
+          "Check the latest update or message your professional for the next step.",
+      };
+    case "AWAITING_CLIENT_CONFIRMATION":
+      return {
+        title: "The work is ready for your review",
+        description:
+          "Review the service evidence and respond to the completion request above.",
+      };
+    case "RETURN_VISIT_REQUIRED":
+      return {
+        title: "A return visit is required",
+        description:
+          "The revised visit details and any supporting updates will appear here.",
+      };
+    case "DISPUTED":
+      return {
+        title: "This service needs resolution",
+        description:
+          "Keep relevant messages and evidence together here while the issue is reviewed.",
+      };
+    case "CANCELLED":
+      return {
+        title: "This service was cancelled",
+        description:
+          "The service activity remains available here for your records.",
+      };
+    default:
+      return {
+        title: "Service progress",
+        description: "Operational updates for this booking will appear here.",
+      };
+  }
+}
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
 function EvidenceSection({
   job,
   audience,
@@ -662,10 +1045,7 @@ function EvidenceSection({
   job: JobDetailRecord;
   audience: "client" | "professional";
   busy: string | null;
-  run: (
-    key: string,
-    action: () => Promise<JobDetailRecord>,
-  ) => Promise<void>;
+  run: (key: string, action: () => Promise<JobDetailRecord>) => Promise<void>;
 }) {
   type EvidenceType = Exclude<
     JobDetailRecord["evidence"][number]["evidenceType"],
@@ -767,14 +1147,9 @@ function EvidenceSection({
 
 function defaultEvidenceType(
   job: JobDetailRecord,
-): Exclude<
-  JobDetailRecord["evidence"][number]["evidenceType"],
-  "VARIATION"
-> {
+): Exclude<JobDetailRecord["evidence"][number]["evidenceType"], "VARIATION"> {
   if (
-    ["CREATED", "SCHEDULED", "TEAM_ASSIGNED", "EN_ROUTE"].includes(
-      job.status,
-    )
+    ["CREATED", "SCHEDULED", "TEAM_ASSIGNED", "EN_ROUTE"].includes(job.status)
   ) {
     return "BEFORE";
   }
@@ -813,10 +1188,7 @@ function VariationSection({
       scheduleImpactMinutes: string;
     }>
   >;
-  run: (
-    key: string,
-    action: () => Promise<JobDetailRecord>,
-  ) => Promise<void>;
+  run: (key: string, action: () => Promise<JobDetailRecord>) => Promise<void>;
 }) {
   const activeJob = [
     "EN_ROUTE",
@@ -942,7 +1314,10 @@ function VariationSection({
         )}
       </div>
       {audience === "professional" && activeJob ? (
-        <form className="mt-5 grid gap-3 border-t border-black/6 pt-5" onSubmit={create}>
+        <form
+          className="mt-5 grid gap-3 border-t border-black/6 pt-5"
+          onSubmit={create}
+        >
           <h3 className="font-semibold">Draft a variation</h3>
           <Input
             aria-label="Additional work description"
@@ -1012,9 +1387,11 @@ function statusVariant(status: JobDetailRecord["status"]) {
   if (status === "COMPLETED") return "trust" as const;
   if (["CANCELLED", "DISPUTED"].includes(status)) return "danger" as const;
   if (
-    ["ON_HOLD", "RETURN_VISIT_REQUIRED", "AWAITING_CLIENT_CONFIRMATION"].includes(
-      status,
-    )
+    [
+      "ON_HOLD",
+      "RETURN_VISIT_REQUIRED",
+      "AWAITING_CLIENT_CONFIRMATION",
+    ].includes(status)
   ) {
     return "warning" as const;
   }

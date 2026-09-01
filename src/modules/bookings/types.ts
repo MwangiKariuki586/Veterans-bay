@@ -27,6 +27,16 @@ export type BookingBucket =
   | "needs-action"
   | "closed";
 
+export const clientBookingStages = [
+  "all",
+  "pending",
+  "upcoming",
+  "active",
+  "past",
+] as const;
+
+export type ClientBookingStage = (typeof clientBookingStages)[number];
+
 export type BookingSort =
   | "updated_desc"
   | "updated_asc"
@@ -41,6 +51,9 @@ export interface BookingSummaryStats {
   scheduled: number;
   needsAction: number;
   closed: number;
+  upcoming: number;
+  active: number;
+  past: number;
 }
 
 export interface BookingSummary {
@@ -62,6 +75,7 @@ export interface BookingSummary {
   updatedAt: string;
   professionalServiceId: string | null;
   jobId: string | null;
+  jobStatus: import("../jobs/types").JobStatus | null;
 }
 
 export interface BookingHistoryItem {

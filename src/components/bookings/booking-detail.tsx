@@ -26,6 +26,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { JobDetail } from "@/components/jobs/job-detail";
 import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
 import {
   Sheet,
@@ -168,6 +169,12 @@ export function BookingDetail({
   }
 
   const isScheduled = ["CONFIRMED", "RESCHEDULED"].includes(booking.status);
+  const executionStarted = Boolean(
+    booking.jobStatus &&
+      !["CREATED", "SCHEDULED", "TEAM_ASSIGNED", "CANCELLED"].includes(
+        booking.jobStatus,
+      ),
+  );
   const isCompleted = booking.status === "COMPLETED";
   const isCancelled = ["CANCELLED", "NO_SHOW"].includes(booking.status);
   const isPending = ["PENDING_CONFIRMATION", "PENDING_DEPOSIT"].includes(
@@ -309,6 +316,9 @@ export function BookingDetail({
         : { label: "View booking", href: `/${audience}/bookings/${booking.id}`, variant: "outline" as const };
     }
     if (["CONFIRMED", "RESCHEDULED"].includes(booking.status)) {
+      if (audience === "client" && booking.jobId && executionStarted) {
+        return { label: "Track service", href: "#service-progress", variant: "primary" as const };
+      }
       return audience === "client"
         ? { label: "Request new time", onClick: () => setRescheduleOpen(true), variant: "primary" as const }
         : booking.jobId
@@ -763,7 +773,7 @@ export function BookingDetail({
                 variant="outline"
                 className="justify-center gap-2 rounded-full"
                 onClick={() => setRescheduleOpen(true)}
-                disabled={isCancelled || isCompleted}
+                disabled={isCancelled || isCompleted || executionStarted}
               >
                 <CalendarCheck className="size-4" /> Reschedule booking
               </Button>
@@ -777,7 +787,7 @@ export function BookingDetail({
                 <MessageCircle className="size-4" /> Contact{" "}
                 {audience === "client" ? "professional" : "client"}
               </Link>
-              {!isCancelled && !isCompleted ? (
+              {!isCancelled && !isCompleted && !executionStarted ? (
                 <Button
                   variant="outline"
                   className="justify-center gap-2 rounded-full border-danger/20 text-danger hover:bg-danger/5"
@@ -788,7 +798,8 @@ export function BookingDetail({
               ) : null}
             </div>
             {audience === "professional" &&
-            ["CONFIRMED", "RESCHEDULED"].includes(booking.status) ? (
+            ["CONFIRMED", "RESCHEDULED"].includes(booking.status) &&
+            !executionStarted ? (
               <div className="mt-4 border-t border-black/8 pt-4">
                 <p className="text-[0.72rem] font-semibold text-[#0b1e2e]">
                   Service outcome
@@ -797,18 +808,6 @@ export function BookingDetail({
                   Record the outcome only after the scheduled window has ended.
                 </p>
                 <div className="mt-3 grid gap-2">
-                  <Button
-                    loading={busy === "complete"}
-                    onClick={() =>
-                      void runAction("complete", {
-                        lockVersion: booking.lockVersion,
-                        note: "Service fulfilment completed.",
-                      })
-                    }
-                    className="rounded-full"
-                  >
-                    Mark completed
-                  </Button>
                   <Button
                     variant="outline"
                     loading={busy === "no-show"}
@@ -874,6 +873,15 @@ export function BookingDetail({
           </section>
         </aside>
       </div>
+
+      {audience === "client" && booking.jobId ? (
+        <JobDetail
+          audience="client"
+          jobId={booking.jobId}
+          embedded
+          onChanged={async () => setBooking(await getBooking("client", booking.id))}
+        />
+      ) : null}
 
       {/* Cancel modal */}
       <Sheet open={cancelOpen} onOpenChange={setCancelOpen}>

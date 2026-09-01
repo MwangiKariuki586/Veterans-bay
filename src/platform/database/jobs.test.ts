@@ -20,6 +20,7 @@ import { organisations } from "./schema/organisations";
 import { outboxEvents } from "./schema/outbox-events";
 import { professionalServices } from "./schema/professional-services";
 import { organisationMemberships, roles } from "./schema/roles";
+import { bookingHistory, bookingReservations } from "./schema/scheduling";
 import { warranties } from "./schema/warranties";
 import {
   withRolledBackTransaction,
@@ -406,10 +407,27 @@ describe("job fulfilment persistence", () => {
         });
         expect(final?.completionResponses).toHaveLength(2);
         const [completedBooking] = await testDb
-          .select({ status: bookings.status })
+          .select({ status: bookings.status, completedAt: bookings.completedAt })
           .from(bookings)
           .where(eq(bookings.id, fixture.bookingId));
         expect(completedBooking.status).toBe("COMPLETED");
+        expect(completedBooking.completedAt?.toISOString()).toBe(final?.completedAt);
+        const [reservation] = await testDb
+          .select({ status: bookingReservations.status })
+          .from(bookingReservations)
+          .where(eq(bookingReservations.bookingId, fixture.bookingId));
+        expect(reservation.status).toBe("RELEASED");
+        expect(
+          await testDb
+            .select()
+            .from(bookingHistory)
+            .where(
+              and(
+                eq(bookingHistory.bookingId, fixture.bookingId),
+                eq(bookingHistory.action, "COMPLETED"),
+              ),
+            ),
+        ).toHaveLength(1);
         expect(
           await testDb
             .select()
@@ -483,7 +501,7 @@ describe("job fulfilment persistence", () => {
         });
         expect(clientNotifications.items[0]).toMatchObject({
           sourceEventType: "job.awaiting_confirmation",
-          actionTarget: `/client/jobs/${jobId}`,
+          actionTarget: `/client/bookings/${fixture.bookingId}#service-progress`,
         });
       });
     });
@@ -610,6 +628,13 @@ async function seedJobFixture(db: Database, marker: string) {
       paymentTerms: "Payment is recorded after client confirmation.",
     })
     .returning();
+  await db.insert(bookingReservations).values({
+    bookingId: booking.id,
+    organisationId: organisation.id,
+    membershipId: ownerMembership.id,
+    startsAt,
+    endsAt,
+  });
   return {
     clientId: client.id,
     otherClientId: otherClient.id,

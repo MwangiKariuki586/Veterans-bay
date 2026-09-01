@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 
 import { createDatabaseClient } from "../../platform/database/client";
+import { AppError } from "../../platform/errors/app-error";
 import type { ApiSuccessBody } from "../../platform/http/contracts";
 import {
   parseJsonBody,
@@ -96,7 +97,8 @@ export function createBookingRoutes() {
 
   routes.get("/v1/professional/bookings", ...professionalRead, async (context) => {
     const selection = organisationSelection(context);
-    const query = parseQuery(bookingListQuerySchema, context.req.url);
+    const query = { ...parseQuery(bookingListQuerySchema, context.req.url) };
+    delete query.stage;
     const { client, service } = createService(
       context.get("environment").DATABASE_URL,
     );
@@ -254,38 +256,51 @@ export function createBookingRoutes() {
     },
   );
 
-  for (const action of ["complete", "no-show"] as const) {
-    routes.post(
-      `/v1/professional/bookings/:bookingId/${action}`,
-      ...professionalManage,
-      async (context) => {
-        const values = await parseJsonBody(
-          bookingActionBodySchema,
-          context.req.raw,
-        );
-        const selection = organisationSelection(context);
-        const { client, service } = createService(
-          context.get("environment").DATABASE_URL,
-        );
-        try {
-          const data = await service.terminalTransition({
-            ...selection,
-            bookingId: id(context.req.param("bookingId")),
-            expectedLockVersion: values.lockVersion,
-            action: action === "complete" ? "COMPLETED" : "NO_SHOW",
-            note: values.note,
-            correlationId: context.get("requestId"),
-          });
-          return context.json<ApiSuccessBody<BookingDetail>>({
-            data,
-            requestId: context.get("requestId"),
-          });
-        } finally {
-          await client.close();
-        }
-      },
-    );
-  }
+  routes.post(
+    "/v1/professional/bookings/:bookingId/complete",
+    ...professionalManage,
+    async (context) => {
+      await parseJsonBody(bookingActionBodySchema, context.req.raw);
+      id(context.req.param("bookingId"));
+      throw new AppError({
+        code: "BOOKING_COMPLETION_REQUIRES_JOB",
+        message:
+          "Complete the linked job and obtain the client's confirmation instead.",
+        status: 409,
+      });
+    },
+  );
+
+  routes.post(
+    "/v1/professional/bookings/:bookingId/no-show",
+    ...professionalManage,
+    async (context) => {
+      const values = await parseJsonBody(
+        bookingActionBodySchema,
+        context.req.raw,
+      );
+      const selection = organisationSelection(context);
+      const { client, service } = createService(
+        context.get("environment").DATABASE_URL,
+      );
+      try {
+        const data = await service.terminalTransition({
+          ...selection,
+          bookingId: id(context.req.param("bookingId")),
+          expectedLockVersion: values.lockVersion,
+          action: "NO_SHOW",
+          note: values.note,
+          correlationId: context.get("requestId"),
+        });
+        return context.json<ApiSuccessBody<BookingDetail>>({
+          data,
+          requestId: context.get("requestId"),
+        });
+      } finally {
+        await client.close();
+      }
+    },
+  );
 
   routes.get(
     "/v1/professional/calendar",
