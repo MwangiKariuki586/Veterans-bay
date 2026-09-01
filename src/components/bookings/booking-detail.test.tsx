@@ -77,6 +77,8 @@ describe("client booking schedule feedback", () => {
   it("acknowledges an existing request and enables only an intentional update", async () => {
     render(<BookingDetail audience="client" bookingId={bookingId} />);
 
+    await screen.findByRole("heading", { name: "Bathroom Sanitisation" });
+    fireEvent.click(screen.getByRole("button", { name: /Reschedule booking/i }));
     expect(await screen.findByText("Time request sent")).toBeInTheDocument();
     const radios = await screen.findAllByRole("radio");
     expect(
@@ -99,6 +101,8 @@ describe("client booking schedule feedback", () => {
     );
     render(<BookingDetail audience="client" bookingId={bookingId} />);
 
+    await screen.findByRole("heading", { name: "Bathroom Sanitisation" });
+    fireEvent.click(screen.getByRole("button", { name: /Reschedule booking/i }));
     await screen.findByText("Time request sent");
     const radios = await screen.findAllByRole("radio");
     fireEvent.click(radios[1]);

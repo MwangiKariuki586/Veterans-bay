@@ -16,6 +16,21 @@ export const bookingIdSchema = uuidSchema;
 
 export const bookingListQuerySchema = z.object({
   status: z.enum(bookingStatuses).optional(),
+  bucket: z
+    .enum(["pending", "scheduled", "needs-action", "closed"])
+    .optional(),
+  origin: z.enum(bookingOrigins).optional(),
+  search: z.string().trim().max(120).optional(),
+  sort: z
+    .enum([
+      "updated_desc",
+      "updated_asc",
+      "starts_desc",
+      "starts_asc",
+      "total_desc",
+      "total_asc",
+    ])
+    .default("updated_desc"),
   from: dateTimeSchema.optional(),
   to: dateTimeSchema.optional(),
   page: z.coerce.number().int().min(1).default(1),

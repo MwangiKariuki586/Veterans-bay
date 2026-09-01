@@ -1,10 +1,13 @@
 import type { PageResult } from "@/platform/http/pagination";
 import type {
   AvailabilityConfiguration,
+  BookingBucket,
   BookingDetail,
   BookingSlot,
+  BookingSort,
   BookingStatus,
   BookingSummary,
+  BookingSummaryStats,
   CalendarEntry,
 } from "@/modules/bookings/types";
 
@@ -46,12 +49,46 @@ export function listBookings(
   );
 }
 
+export type BookingListQuery = {
+  page: number;
+  pageSize: number;
+  bucket: "all" | BookingBucket;
+  status: string;
+  origin: string;
+  search: string;
+  sort: BookingSort;
+};
+
+export type BookingPage = PageResult<BookingSummary> & {
+  summary: BookingSummaryStats;
+  origins: string[];
+};
+
+export function listBookingsPage(
+  audience: "client" | "professional",
+  query: BookingListQuery,
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams({
+    page: String(query.page),
+    pageSize: String(query.pageSize),
+    sort: query.sort,
+  });
+  if (query.bucket !== "all") params.set("bucket", query.bucket);
+  if (query.status) params.set("status", query.status);
+  if (query.origin) params.set("origin", query.origin);
+  if (query.search) params.set("search", query.search);
+  return bookingApi<BookingPage>(`/api/v1/${audience}/bookings?${params.toString()}`, { signal });
+}
+
 export function getBooking(
   audience: "client" | "professional",
   bookingId: string,
+  signal?: AbortSignal,
 ) {
   return bookingApi<BookingDetail>(
     `/api/v1/${audience}/bookings/${bookingId}`,
+    signal ? { signal } : undefined,
   );
 }
 

@@ -34,11 +34,15 @@ export class BookingsService {
   listProfessional(input: {
     organisationId: string;
     status?: BookingStatus;
+    bucket?: import("./types").BookingBucket;
+    origin?: import("./types").BookingOrigin;
+    search?: string;
+    sort?: import("./types").BookingSort;
     from?: string;
     to?: string;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<BookingSummary>> {
+  }): Promise<PageResult<BookingSummary> & { summary: import("./types").BookingSummaryStats; origins: string[] }> {
     return this.store.listProfessional({
       ...input,
       from: input.from ? new Date(input.from) : undefined,
@@ -49,15 +53,23 @@ export class BookingsService {
   async listClient(input: {
     authUserId: string;
     status?: BookingStatus;
+    bucket?: import("./types").BookingBucket;
+    origin?: import("./types").BookingOrigin;
+    search?: string;
+    sort?: import("./types").BookingSort;
     from?: string;
     to?: string;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<BookingSummary>> {
+  }): Promise<PageResult<BookingSummary> & { summary: import("./types").BookingSummaryStats; origins: string[] }> {
     const account = await this.activeAccount(input.authUserId);
     return this.store.listClient({
       clientAccountId: account.id,
       status: input.status,
+      bucket: input.bucket,
+      origin: input.origin,
+      search: input.search,
+      sort: input.sort,
       from: input.from ? new Date(input.from) : undefined,
       to: input.to ? new Date(input.to) : undefined,
       page: input.page,

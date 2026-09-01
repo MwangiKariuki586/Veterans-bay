@@ -6,11 +6,13 @@ import {
   eq,
   getTableColumns,
   gte,
+  ilike,
   inArray,
   isNotNull,
   lt,
   lte,
   ne,
+  or,
   sql,
   type SQL,
 } from "drizzle-orm";
@@ -22,6 +24,7 @@ import {
   bookings,
   paymentRequirements,
 } from "../../platform/database/schema/commercial";
+import { jobs } from "../../platform/database/schema/fulfilment";
 import {
   engagementActivities,
   engagementConversations,
@@ -104,6 +107,10 @@ export class BookingsRepository {
   listProfessional(input: {
     organisationId: string;
     status?: BookingStatus;
+    bucket?: import("./types").BookingBucket;
+    origin?: import("./types").BookingOrigin;
+    search?: string;
+    sort?: import("./types").BookingSort;
     from?: Date;
     to?: Date;
     page: number;
@@ -118,6 +125,10 @@ export class BookingsRepository {
   listClient(input: {
     clientAccountId: string;
     status?: BookingStatus;
+    bucket?: import("./types").BookingBucket;
+    origin?: import("./types").BookingOrigin;
+    search?: string;
+    sort?: import("./types").BookingSort;
     from?: Date;
     to?: Date;
     page: number;
@@ -1350,56 +1361,108 @@ export class BookingsRepository {
   private async list(input: {
     scope: SQL<unknown>;
     status?: BookingStatus;
+    bucket?: import("./types").BookingBucket;
+    origin?: import("./types").BookingOrigin;
+    search?: string;
+    sort?: import("./types").BookingSort;
     from?: Date;
     to?: Date;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<BookingSummary>> {
+  }): Promise<
+    PageResult<BookingSummary> & { summary: import("./types").BookingSummaryStats; origins: string[] }
+  > {
+    const bucketStatuses: Record<import("./types").BookingBucket, BookingStatus[]> = {
+      pending: ["PENDING_CONFIRMATION", "PENDING_DEPOSIT"],
+      scheduled: ["CONFIRMED", "RESCHEDULED"],
+      "needs-action": ["RESCHEDULE_REQUESTED"],
+      closed: ["CANCELLED", "COMPLETED", "NO_SHOW"],
+    };
+    const searchPattern = input.search?.trim() ? `%${input.search.trim()}%` : null;
+    const bucketFilter = input.bucket ? inArray(bookings.status, bucketStatuses[input.bucket]) : undefined;
+    const originFilter = input.origin ? eq(bookings.origin, input.origin as BookingStatus) : undefined;
+    const searchFilter = searchPattern
+      ? or(
+          ilike(sql`coalesce(${professionalServices.name}, ${serviceRequests.category}, 'Service booking')`, searchPattern),
+          ilike(organisations.name, searchPattern),
+          ilike(clientProfile.displayName, searchPattern),
+        )!
+      : undefined;
+
+    const orderBy = (() => {
+      switch (input.sort) {
+        case "updated_asc":
+          return [asc(bookings.updatedAt), asc(bookings.id)] as const;
+        case "starts_desc":
+          return [desc(bookings.startsAt), desc(bookings.updatedAt)] as const;
+        case "starts_asc":
+          return [asc(bookings.startsAt), asc(bookings.updatedAt)] as const;
+        case "total_desc":
+          return [desc(bookings.totalMinor), desc(bookings.updatedAt)] as const;
+        case "total_asc":
+          return [asc(bookings.totalMinor), asc(bookings.updatedAt)] as const;
+        case "updated_desc":
+        default:
+          return [desc(bookings.updatedAt), desc(bookings.id)] as const;
+      }
+    })();
+
     const filter = and(
       input.scope,
       ...(input.status ? [eq(bookings.status, input.status)] : []),
+      ...(bucketFilter ? [bucketFilter] : []),
+      ...(originFilter ? [originFilter] : []),
+      ...(searchFilter ? [searchFilter] : []),
       ...(input.from ? [gte(bookings.endsAt, input.from)] : []),
       ...(input.to ? [lte(bookings.startsAt, input.to)] : []),
     );
-    const [rows, totals] = await Promise.all([
+
+    const summaryBase = input.scope;
+
+    const [rows, totals, statusTotals, originRows] = await Promise.all([
       this.db
         .select(summarySelection)
         .from(bookings)
-        .innerJoin(
-          organisations,
-          eq(organisations.id, bookings.organisationId),
-        )
-        .innerJoin(
-          clientProfile,
-          eq(clientProfile.id, bookings.clientAccountId),
-        )
-        .leftJoin(
-          serviceRequests,
-          eq(serviceRequests.id, bookings.requestId),
-        )
-        .leftJoin(
-          professionalServices,
-          eq(professionalServices.id, bookings.professionalServiceId),
-        )
-        .leftJoin(
-          organisationMemberships,
-          eq(organisationMemberships.id, bookings.assignedMembershipId),
-        )
-        .leftJoin(
-          assignedProfile,
-          eq(assignedProfile.id, organisationMemberships.accountProfileId),
-        )
+        .innerJoin(organisations, eq(organisations.id, bookings.organisationId))
+        .innerJoin(clientProfile, eq(clientProfile.id, bookings.clientAccountId))
+        .leftJoin(serviceRequests, eq(serviceRequests.id, bookings.requestId))
+        .leftJoin(professionalServices, eq(professionalServices.id, bookings.professionalServiceId))
+        .leftJoin(organisationMemberships, eq(organisationMemberships.id, bookings.assignedMembershipId))
+        .leftJoin(assignedProfile, eq(assignedProfile.id, organisationMemberships.accountProfileId))
+        .leftJoin(jobs, eq(jobs.bookingId, bookings.id))
         .where(filter)
-        .orderBy(desc(bookings.updatedAt), desc(bookings.id))
+        .orderBy(...(orderBy as unknown as [SQL<unknown>, SQL<unknown>]))
         .limit(input.pageSize)
         .offset(paginationOffset(input)),
-      this.db.select({ totalItems: count() }).from(bookings).where(filter),
+      this.db.select({ totalItems: count() }).from(bookings).leftJoin(organisations, eq(organisations.id, bookings.organisationId)).leftJoin(clientProfile, eq(clientProfile.id, bookings.clientAccountId)).leftJoin(serviceRequests, eq(serviceRequests.id, bookings.requestId)).leftJoin(professionalServices, eq(professionalServices.id, bookings.professionalServiceId)).where(filter),
+      this.db
+        .select({ status: bookings.status, total: count() })
+        .from(bookings)
+        .where(summaryBase)
+        .groupBy(bookings.status),
+      this.db
+        .select({ origin: bookings.origin })
+        .from(bookings)
+        .where(summaryBase)
+        .groupBy(bookings.origin)
+        .orderBy(asc(bookings.origin)),
     ]);
-    return buildPageResult(
-      rows.map(mapSummary),
-      totals[0]?.totalItems ?? 0,
-      input,
-    );
+
+    const totalsMap = new Map(statusTotals.map((row) => [row.status, row.total]));
+    const sum = (statuses: readonly BookingStatus[]) =>
+      statuses.reduce((result, status) => result + (totalsMap.get(status) ?? 0), 0);
+
+    const pending = sum(bucketStatuses.pending);
+    const scheduled = sum(bucketStatuses.scheduled);
+    const needsAction = sum(bucketStatuses["needs-action"]);
+    const closed = sum(bucketStatuses.closed);
+    const total = pending + scheduled + needsAction + closed;
+
+    return {
+      ...buildPageResult(rows.map(mapSummary), totals[0]?.totalItems ?? 0, input),
+      summary: { total, pending, scheduled, needsAction, closed },
+      origins: originRows.flatMap((row) => (row.origin ? [row.origin] : [])),
+    };
   }
 
   private async detail(
@@ -1410,9 +1473,12 @@ export class BookingsRepository {
       .select({
         ...getTableColumns(bookings),
         providerName: organisations.name,
+        providerSlug: organisations.slug,
         clientName: clientProfile.displayName,
         serviceName: sql<string>`coalesce(${professionalServices.name}, ${serviceRequests.category}, 'Service booking')`,
+        serviceSlug: professionalServices.slug,
         assignmentName: assignedProfile.displayName,
+        jobId: jobs.id,
       })
       .from(bookings)
       .innerJoin(organisations, eq(organisations.id, bookings.organisationId))
@@ -1437,6 +1503,7 @@ export class BookingsRepository {
         createdByProfile,
         eq(createdByProfile.id, bookings.createdByAccountId),
       )
+      .leftJoin(jobs, eq(jobs.bookingId, bookings.id))
       .where(and(eq(bookings.id, bookingId), scope))
       .limit(1);
     if (!row) return null;
@@ -1510,7 +1577,9 @@ const summarySelection = {
   origin: bookings.origin,
   status: bookings.status,
   serviceName: sql<string>`coalesce(${professionalServices.name}, ${serviceRequests.category}, 'Service booking')`,
+  serviceSlug: professionalServices.slug,
   providerName: organisations.name,
+  providerSlug: organisations.slug,
   clientName: clientProfile.displayName,
   startsAt: bookings.startsAt,
   endsAt: bookings.endsAt,
@@ -1520,6 +1589,8 @@ const summarySelection = {
   currency: bookings.currency,
   assignmentName: assignedProfile.displayName,
   updatedAt: bookings.updatedAt,
+  professionalServiceId: bookings.professionalServiceId,
+  jobId: jobs.id,
 };
 
 function mapSummary(row: {
@@ -1527,7 +1598,9 @@ function mapSummary(row: {
   origin: string;
   status: string;
   serviceName: string;
+  serviceSlug: string | null;
   providerName: string;
+  providerSlug: string | null;
   clientName: string;
   startsAt: Date | null;
   endsAt: Date | null;
@@ -1537,6 +1610,8 @@ function mapSummary(row: {
   currency: string;
   assignmentName: string | null;
   updatedAt: Date;
+  professionalServiceId: string | null;
+  jobId: string | null;
 }): BookingSummary {
   return {
     ...row,

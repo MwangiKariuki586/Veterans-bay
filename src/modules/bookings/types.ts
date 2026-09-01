@@ -21,12 +21,36 @@ export const bookingOrigins = [
 
 export type BookingOrigin = (typeof bookingOrigins)[number];
 
+export type BookingBucket =
+  | "pending"
+  | "scheduled"
+  | "needs-action"
+  | "closed";
+
+export type BookingSort =
+  | "updated_desc"
+  | "updated_asc"
+  | "starts_desc"
+  | "starts_asc"
+  | "total_desc"
+  | "total_asc";
+
+export interface BookingSummaryStats {
+  total: number;
+  pending: number;
+  scheduled: number;
+  needsAction: number;
+  closed: number;
+}
+
 export interface BookingSummary {
   id: string;
   origin: BookingOrigin;
   status: BookingStatus;
   serviceName: string;
+  serviceSlug: string | null;
   providerName: string;
+  providerSlug: string | null;
   clientName: string;
   startsAt: string | null;
   endsAt: string | null;
@@ -36,6 +60,8 @@ export interface BookingSummary {
   currency: string;
   assignmentName: string | null;
   updatedAt: string;
+  professionalServiceId: string | null;
+  jobId: string | null;
 }
 
 export interface BookingHistoryItem {

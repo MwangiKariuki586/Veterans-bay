@@ -105,7 +105,7 @@ export function createBookingRoutes() {
         organisationId: selection.organisationId,
         ...query,
       });
-      return context.json<ApiSuccessBody<PageResult<BookingSummary>>>({
+      return context.json<ApiSuccessBody<PageResult<BookingSummary> & { summary: import("./types").BookingSummaryStats; origins: string[] }>>({
         data,
         requestId: context.get("requestId"),
       });
@@ -446,7 +446,7 @@ export function createBookingRoutes() {
         authUserId: authUserId(context),
         ...query,
       });
-      return context.json<ApiSuccessBody<PageResult<BookingSummary>>>({
+      return context.json<ApiSuccessBody<PageResult<BookingSummary> & { summary: import("./types").BookingSummaryStats; origins: string[] }>>({
         data,
         requestId: context.get("requestId"),
       });
