@@ -8,10 +8,12 @@ import {
   type ReactNode,
   useContext,
   useEffect,
+  useLayoutEffect,
+  useRef,
   useState,
 } from "react";
 
-import { pageBackdropClass } from "@/components/public/design";
+import { pageBackdropSurfaceClass } from "@/components/public/design";
 import { SiteHeader } from "@/components/public/site-header";
 import { AuthenticatedFooter } from "@/components/workspace/authenticated-footer";
 import {
@@ -86,6 +88,8 @@ export function AuthenticatedShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const scrollContainerRef = useRef<HTMLElement>(null);
+  const previousPathnameRef = useRef(pathname);
   const { data: session, isPending } = authClient.useSession();
   const cachedLabel = cachedLabelFor(kind);
   const [workspaceLabel, setWorkspaceLabel] = useState<string>(
@@ -95,6 +99,34 @@ export function AuthenticatedShell({
   const [workspaceRevision, setWorkspaceRevision] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const sessionUserId = session?.user.id;
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const previousRootOverflow = root.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+
+    root.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    root.scrollTop = 0;
+    body.scrollTop = 0;
+
+    return () => {
+      root.style.overflow = previousRootOverflow;
+      body.style.overflow = previousBodyOverflow;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (previousPathnameRef.current === pathname) return;
+
+    previousPathnameRef.current = pathname;
+    if (!window.location.hash && scrollContainerRef.current) {
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (isPending) {
@@ -201,7 +233,10 @@ export function AuthenticatedShell({
           workspaceLabel={workspaceLabel}
           className="hidden min-h-0 overflow-hidden rounded-none border-y-0 border-l-0 shadow-none lg:flex"
         />
-        <main className="min-h-0 min-w-0 overflow-x-clip overflow-y-auto bg-[#f8fafb] p-3 sm:p-5 lg:p-6">
+        <main
+          ref={scrollContainerRef}
+          className="min-h-0 min-w-0 overflow-x-clip overflow-y-auto bg-[#f8fafb] p-3 sm:p-5 lg:p-6"
+        >
           {error ? (
             <InlineAlert
               variant="error"
@@ -249,7 +284,7 @@ export function AuthenticatedShell({
   );
 
   return (
-    <div className={`${pageBackdropClass} h-dvh max-h-dvh overflow-hidden`}>
+    <div className={`${pageBackdropSurfaceClass} fixed inset-0 overflow-hidden`}>
       <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col overflow-hidden bg-white">
         {content}
       </div>

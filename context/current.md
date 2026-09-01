@@ -24,7 +24,9 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
-`IN PROGRESS` — Reworking the unresolved active client Service progress state. The client-only embedded view is being consolidated around one operational summary, content-backed detail sections, and a compact conversation state while preserving every active action and the professional Jobs workflow.
+`IN PROGRESS` — The authenticated workspace no longer leaves a large document tail, but Firefox confirmation shows the shell can retain an approximately header-height root scroll offset. The shared shell is being extended to lock and reset root document scrolling for its full mounted lifetime, while retaining the nested workspace pane as the only vertical scroller.
+
+`VERIFICATION PENDING` — The unresolved active client Service progress state now uses a dedicated embedded composition instead of the professional job-detail card stack. Assignment, current status, and latest activity form one compact operational summary; updates and checklist results render inside it only when populated; empty evidence and additional-work sections are omitted; and the empty conversation state is substantially shorter. Completion actions, variation responses, evidence access, messaging, and professional Jobs remain intact. Six focused job UI tests, changed-file lint, typecheck, the 82-route production build, and whitespace checks pass. Fresh authenticated desktop/mobile visual comparison remains blocked because no controllable browser surface is available.
 
 `COMPLETE` — The verified-review form and submitted-review states now use the same compact typography hierarchy as Booking progress, Booking details, and Service & scope: 0.84rem section headings, 0.72–0.76rem labels and supporting copy, medium-weight form labels, and a quieter action label. The calculated overall score remains selectively larger for scanability. Six focused UI tests, changed-file lint, typecheck, and whitespace checks pass.
 

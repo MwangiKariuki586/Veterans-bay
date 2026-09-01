@@ -12,9 +12,12 @@ export const iconButtonClass =
 export const pillChromeClass =
   "inline-flex items-center gap-3 rounded-full border border-black/8 bg-white";
 
-/** Page backdrop used by the homepage and secondary shells. */
-export const pageBackdropClass =
-  "min-h-screen bg-[radial-gradient(circle_at_top,#fff_0%,#eef3f6_66%,#e7edf0_100%)]";
+/** Shared background treatment used by full-page and viewport-locked shells. */
+export const pageBackdropSurfaceClass =
+  "bg-[radial-gradient(circle_at_top,#fff_0%,#eef3f6_66%,#e7edf0_100%)]";
+
+/** Page backdrop used by the homepage and secondary document-flow shells. */
+export const pageBackdropClass = `min-h-screen ${pageBackdropSurfaceClass}`;
 
 export function pageFrameClass(className?: string) {
   return cn("mx-auto w-full max-w-[1340px] px-4 py-6 sm:px-6 lg:px-[26px] lg:py-8", className);

@@ -70,6 +70,8 @@ describe("authenticated shell", () => {
     mocks.currentWorkspace.mockReset();
     mocks.listWorkspaces.mockReset();
     mocks.selectWorkspace.mockReset();
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   });
 
   it("pins the shared footer after short workspace content", () => {
@@ -89,6 +91,88 @@ describe("authenticated shell", () => {
     );
     expect(footer).toHaveClass("mt-auto");
     expect(screen.getByText("Short page content")).toBeInTheDocument();
+
+    const main = screen.getByRole("main");
+    const viewportShell = main.parentElement?.parentElement?.parentElement;
+    expect(viewportShell).toHaveClass("fixed", "inset-0", "overflow-hidden");
+    expect(viewportShell).not.toHaveClass("min-h-screen");
+  });
+
+  it("locks root document scrolling while the workspace shell is mounted", () => {
+    document.documentElement.style.overflow = "auto";
+    document.body.style.overflow = "visible";
+    document.documentElement.scrollTop = 92;
+    document.body.scrollTop = 92;
+
+    const { unmount } = render(
+      <AuthenticatedShell kind="client" hideIntro>
+        <section>Requests</section>
+      </AuthenticatedShell>,
+    );
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.documentElement.scrollTop).toBe(0);
+    expect(document.body.scrollTop).toBe(0);
+
+    unmount();
+
+    expect(document.documentElement.style.overflow).toBe("auto");
+    expect(document.body.style.overflow).toBe("visible");
+  });
+
+  it("resets the shared workspace scroll pane only when the pathname changes", () => {
+    const { rerender } = render(
+      <AuthenticatedShell kind="client" hideIntro>
+        <section>Booking list</section>
+      </AuthenticatedShell>,
+    );
+    const main = screen.getByRole("main");
+    main.scrollTop = 640;
+    document.documentElement.scrollTop = 72;
+    document.body.scrollTop = 72;
+
+    window.history.replaceState({}, "", "/?status=confirmed");
+    rerender(
+      <AuthenticatedShell kind="client" hideIntro>
+        <section>Filtered booking list</section>
+      </AuthenticatedShell>,
+    );
+
+    expect(main.scrollTop).toBe(640);
+    expect(document.documentElement.scrollTop).toBe(72);
+    expect(document.body.scrollTop).toBe(72);
+
+    mocks.pathname = "/client/bookings/booking-1";
+    rerender(
+      <AuthenticatedShell kind="client" hideIntro>
+        <section>Booking details</section>
+      </AuthenticatedShell>,
+    );
+
+    expect(main.scrollTop).toBe(0);
+    expect(document.documentElement.scrollTop).toBe(0);
+    expect(document.body.scrollTop).toBe(0);
+  });
+
+  it("leaves cross-route hash navigation to the browser", () => {
+    const { rerender } = render(
+      <AuthenticatedShell kind="client" hideIntro>
+        <section>Booking list</section>
+      </AuthenticatedShell>,
+    );
+    const main = screen.getByRole("main");
+    main.scrollTop = 320;
+
+    window.history.replaceState({}, "", "/#service-progress");
+    mocks.pathname = "/client/bookings/booking-1";
+    rerender(
+      <AuthenticatedShell kind="client" hideIntro>
+        <section id="service-progress">Service progress</section>
+      </AuthenticatedShell>,
+    );
+
+    expect(main.scrollTop).toBe(320);
   });
 
   it("preserves the protected path and query when sign in is required", async () => {
