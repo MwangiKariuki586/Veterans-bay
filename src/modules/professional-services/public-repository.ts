@@ -28,6 +28,7 @@ export interface PublicProfessionalRecord {
   verificationStatus: string;
   logoPublicId: string | null;
   experienceStartedYear?: number | null;
+  organisationCreatedAt?: Date | null;
 }
 
 export type PublicServiceRecord = typeof professionalServices.$inferSelect;
@@ -77,6 +78,7 @@ const professionalSelection = {
   verificationStatus: professionalProfiles.verificationStatus,
   logoPublicId: fileAssets.cloudinaryPublicId,
   experienceStartedYear: professionalProfiles.experienceStartedYear,
+  organisationCreatedAt: organisations.createdAt,
 };
 
 export class PublicCatalogueRepository implements PublicCatalogueStore {

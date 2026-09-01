@@ -116,6 +116,7 @@ export interface PublicProfessionalProfile {
   completedJobs: number;
   responseIndicator: string | null;
   experienceYears?: number | null;
+  organisationCreatedAt?: string | null;
   reviews?: Array<{
     id: string;
     clientName: string;
@@ -137,4 +138,12 @@ export interface PublicServiceDetail extends PublicServiceCard {
     PublicProfessionalProfile,
     "categories" | "portfolio" | "services"
   >;
+  reviews?: Array<{
+    id: string;
+    clientName: string;
+    overallRating: number;
+    feedback: string;
+    submittedAt: string;
+    response: { body: string; createdAt: string } | null;
+  }>;
 }

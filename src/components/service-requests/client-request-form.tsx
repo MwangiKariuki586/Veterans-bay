@@ -470,6 +470,10 @@ export function ClientRequestForm({
                 className="mt-2 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#5f8d11]"
               >
                 <option value="">Choose a category</option>
+                {form.category &&
+                !categories.includes(form.category) ? (
+                  <option value={form.category}>{form.category}</option>
+                ) : null}
                 {categories.map((category) => (
                   <option key={category}>{category}</option>
                 ))}

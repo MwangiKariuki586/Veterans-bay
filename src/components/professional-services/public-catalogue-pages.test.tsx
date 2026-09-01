@@ -76,7 +76,8 @@ describe("public catalogue pages", () => {
 
     render(<PublicServicePage slug={service.slug} />);
     expect(await screen.findByRole("heading", { name: service.name })).toBeInTheDocument();
-    expect(screen.getByText("Custom quote")).toBeInTheDocument();
+    expect(screen.getAllByText("Custom quote").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Custom quote")[0]).toBeInTheDocument();
     expect(screen.queryByText(/KSh\s*0/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View professional profile" })).toHaveAttribute(
       "href",

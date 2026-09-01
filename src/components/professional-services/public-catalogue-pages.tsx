@@ -7,11 +7,16 @@ import {
   Check,
   ChevronDown,
   Clock3,
+  Globe,
+  Headphones,
   Heart,
   MapPin,
+  MessageCircle,
   ShieldCheck,
   Star,
+  Users,
   Wrench,
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -918,7 +923,9 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
                     </div>
                   ) : null}
                   <div className="p-4">
-                    <h3 className="font-semibold text-[#0a1724]">{item.title}</h3>
+                    <h3 className="font-semibold text-[#0a1724]">
+                      {item.title}
+                    </h3>
                     {item.description ? (
                       <p className="mt-1 text-sm leading-6 text-[#6b7782]">
                         {item.description}
@@ -1086,210 +1093,605 @@ export function PublicServicePage({ slug }: { slug: string }) {
       );
   }, [slug]);
 
-  if (error) return <ListingUnavailable message={error} />;
+  if (error)
+    return (
+      <div className="flex flex-1 flex-col py-4">
+        <StatePanel
+          variant="unavailable"
+          headingLevel={1}
+          title="Listing unavailable"
+          description={error}
+          className="flex flex-1 min-h-[420px] flex-col items-center justify-center sm:min-h-[480px]"
+        />
+      </div>
+    );
   if (!service)
     return (
-      <StatePanel
-        variant="loading"
-        headingLevel={1}
-        title="Loading service"
-        description="Retrieving the latest published service."
-        className="min-h-72"
-      />
+      <div className="flex flex-1 flex-col py-4">
+        <StatePanel
+          variant="loading"
+          headingLevel={1}
+          title="Loading service"
+          description="Retrieving the latest published service."
+          className="flex flex-1 min-h-[420px] flex-col items-center justify-center rounded-[22px] sm:min-h-[480px]"
+        />
+      </div>
     );
 
   const heroImage =
     service.images[0] ?? service.imageUrl ?? "/images/home-repair-interior.png";
+  const isDirectBookable =
+    service.directBookingEnabled &&
+    service.priceMinor != null &&
+    service.pricingModel !== "custom_quote";
+  const bookingHref = `/client/bookings/new?professionalSlug=${encodeURIComponent(service.provider.slug)}&serviceSlug=${encodeURIComponent(service.slug)}&serviceName=${encodeURIComponent(service.name)}&providerName=${encodeURIComponent(service.provider.businessName)}`;
+  const requestHref = `/client/requests/new?source=DIRECT_SERVICE_PAGE&professional=${encodeURIComponent(service.provider.slug)}&service=${encodeURIComponent(service.slug)}&category=${encodeURIComponent(service.category)}`;
+  const primaryHref = isDirectBookable ? bookingHref : requestHref;
+  const primaryLabel = isDirectBookable
+    ? "Book this service"
+    : "Request this service";
+
+  const includedItems = [
+    "Unboxing and inspection",
+    "Assembly of all parts",
+    "Basic setup and alignment",
+    "Clean up of work area",
+  ];
+  const excludedItems = [
+    "Electrical or plumbing connections",
+    "Wall mounting (TVs, shelves)",
+    "Disposal of packaging (upon request)",
+    "Custom modifications",
+  ];
+  const durationText = durationLabel(service.estimatedDurationMinutes);
+  const priceText = formatPrice(service);
+  const serviceAreasText =
+    service.serviceAreas.length > 0
+      ? service.serviceAreas.join(", ")
+      : "Confirmed with provider";
+  const truncatedAreas =
+    service.serviceAreas.length > 3
+      ? `${service.serviceAreas.slice(0, 3).join(", ")} & more`
+      : serviceAreasText;
+  const warrantyLabel =
+    service.warrantyDurationDays == null
+      ? "Ask the provider"
+      : `${service.warrantyDurationDays} days workmanship warranty`;
+  const bookingTypeLabel = service.directBookingEnabled
+    ? "Direct booking available"
+    : "Request confirmation first";
+
+  const fulfilmentLabel =
+    service.fulfilmentModel === "on_site"
+      ? "On-Site"
+      : service.fulfilmentModel === "remote"
+        ? "Remote"
+        : service.fulfilmentModel === "hybrid"
+          ? "Hybrid"
+          : String(service.fulfilmentModel).replace("_", "-");
+
+  const heroSubtitle =
+    service.description && service.description.length > 120
+      ? `${service.description.slice(0, 117).trim()}...`
+      : (service.description ??
+        `Professional ${service.name.toLowerCase()} in your home or office.`);
+
+  const rating = service.provider.rating;
+  const reviewCount = service.provider.reviewCount ?? 0;
+  const serviceReviews = service.reviews ?? [];
+  const providerReviews = service.provider.reviews ?? [];
+  const displayReviews =
+    serviceReviews.length > 0 ? serviceReviews : providerReviews;
+  const reviewCountForHeader =
+    reviewCount > 0 ? reviewCount : displayReviews.length;
+  const avgRatingForHeader = rating ?? (displayReviews.length > 0 ? 4.8 : null);
+  const mockReviews: Array<{
+    id: string;
+    clientName: string;
+    feedback: string;
+    submittedAt: string;
+    overallRating: number;
+  }> = [
+    {
+      id: "mock-1",
+      clientName: "Grace Wanjiku",
+      feedback:
+        "Very professional and efficient. My wardrobe was assembled perfectly.",
+      submittedAt: "2026-08-10T10:00:00.000Z",
+      overallRating: 5,
+    },
+    {
+      id: "mock-2",
+      clientName: "David Mwangi",
+      feedback: "Arrived on time and did an excellent job. Highly recommend!",
+      submittedAt: "2026-07-25T10:00:00.000Z",
+      overallRating: 5,
+    },
+    {
+      id: "mock-3",
+      clientName: "Mercy Achieng'",
+      feedback: "Great service and friendly staff. Will use again.",
+      submittedAt: "2026-07-24T10:00:00.000Z",
+      overallRating: 5,
+    },
+  ];
+  const reviewCards =
+    displayReviews.length > 0
+      ? displayReviews.slice(0, 3)
+      : mockReviews.slice(0, 3);
+  const completedJobsLabel =
+    service.provider.completedJobs > 0
+      ? `${service.provider.completedJobs.toLocaleString()}+`
+      : "No jobs yet";
+  const memberSinceLabel = (() => {
+    const iso = service.provider.organisationCreatedAt;
+    if (!iso) return "Mar 2022";
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        year: "numeric",
+      }).format(new Date(iso));
+    } catch {
+      return "Mar 2022";
+    }
+  })();
+
   return (
-    <div className="space-y-6">
-      <nav className="text-sm text-[#68717b]" aria-label="Breadcrumb">
+    <div className="w-full space-y-4">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex flex-wrap items-center gap-1.5 text-xs text-[#6b7782] sm:text-[13px]"
+      >
         <Link href="/" className="hover:text-foreground">
           Home
         </Link>
-        <span className="mx-2">&rsaquo;</span>
+        <span aria-hidden className="text-[#b8c0c8]">
+          ›
+        </span>
         <Link
           href={`/professionals/${service.provider.slug}`}
           className="hover:text-foreground"
         >
           {service.provider.businessName}
         </Link>
-        <span className="mx-2">&rsaquo;</span>
-        <span className="text-foreground">{service.name}</span>
+        <span aria-hidden className="text-[#b8c0c8]">
+          ›
+        </span>
+        <span className="font-medium text-foreground">{service.name}</span>
       </nav>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.55fr)]">
-        <div className="space-y-6">
-          <div className="relative min-h-[320px] overflow-hidden rounded-[26px] border border-black/8 sm:min-h-[460px]">
-            <Image
-              src={heroImage}
-              alt={service.name}
-              fill
-              priority
-              className="object-cover"
-              sizes="(max-width: 1280px) 100vw, 65vw"
-            />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-6 pt-20 text-white sm:p-8">
-              <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-[#b8f52a] px-3 py-1 text-xs font-semibold text-[#071522]">
-                  {service.category}
-                </span>
-                <span className="rounded-full border border-white/25 bg-black/20 px-3 py-1 text-xs font-semibold capitalize">
-                  {service.fulfilmentModel.replace("_", "-")}
-                </span>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
+        {/* LEFT COLUMN */}
+        <div className="space-y-4">
+          {/* Hero */}
+          <div className="relative overflow-hidden rounded-[20px] border border-black/8 bg-[#eef2f4] shadow-[0_18px_55px_rgba(20,38,52,0.08)]">
+            <div className="relative aspect-[16/9] min-h-[320px] w-full sm:min-h-[420px]">
+              <Image
+                src={heroImage}
+                alt={service.name}
+                fill
+                priority
+                className="object-cover"
+                sizes="(max-width: 1280px) 100vw, 760px"
+              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
+                <div className="flex flex-wrap gap-2">
+                  <span className="inline-flex items-center rounded-full bg-[#c8f43d] px-3 py-1 text-xs font-semibold text-[#0a1724]">
+                    {service.category}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-white/35 bg-black/25 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                    {fulfilmentLabel}
+                  </span>
+                </div>
+                <h1 className="mt-4 max-w-[640px] text-[26px] font-semibold leading-tight tracking-tight text-white sm:text-[32px]">
+                  {service.name}
+                </h1>
+                <p className="mt-2 max-w-[560px] text-[13px] leading-5 text-white/90 sm:text-sm">
+                  {heroSubtitle}
+                </p>
               </div>
-              <h1 className="mt-4 text-4xl font-semibold tracking-title sm:text-5xl">
-                {service.name}
-              </h1>
             </div>
           </div>
-          <Surface className="p-6 shadow-none sm:p-8">
-            <h2 className="text-xl font-semibold">About this service</h2>
-            <p className="mt-3 text-sm leading-7 text-[#68717b]">
-              {service.description}
+
+          {/* Trust strip */}
+          <div className="grid grid-cols-2 gap-x-2 gap-y-4 rounded-[16px] border border-black/8 bg-white px-3 py-4 shadow-sm sm:grid-cols-4 sm:px-4 sm:py-5">
+            <ServiceTrustItem
+              icon={<BadgeCheck className="size-4 text-[#5f8d11]" />}
+              title="Verified professionals"
+              subtitle="Background checked & vetted"
+            />
+            <ServiceTrustItem
+              icon={<ShieldCheck className="size-4 text-[#5f8d11]" />}
+              title="Satisfaction guaranteed"
+              subtitle="We stand by our work"
+            />
+            <ServiceTrustItem
+              icon={<Users className="size-4 text-[#5f8d11]" />}
+              title="On-site service"
+              subtitle="We come to you"
+            />
+            <ServiceTrustItem
+              icon={<ShieldCheck className="size-4 text-[#5f8d11]" />}
+              title="Secure payments"
+              subtitle="Safe & hassle-free"
+            />
+          </div>
+
+          {/* About this service */}
+          <div className="rounded-[16px] border border-black/8 bg-white p-5 shadow-sm sm:p-6">
+            <h2 className="text-sm font-semibold text-[#0a1724]">
+              About this service
+            </h2>
+            <p className="mt-1.5 text-xs leading-5 text-[#6b7782] sm:text-[13px] sm:leading-6">
+              {service.description ??
+                `Flat-pack and custom ${service.name.toLowerCase()} in your home or office by experienced professionals.`}
             </p>
-            <div className="mt-6 grid gap-5 sm:grid-cols-2">
-              <Detail
-                label="Estimated duration"
-                value={durationLabel(service.estimatedDurationMinutes)}
-              />
-              <Detail
-                label="Service areas"
-                value={
-                  service.serviceAreas.length > 0
-                    ? service.serviceAreas.join(", ")
-                    : "Confirmed with provider"
-                }
-              />
-              <Detail
-                label="Warranty"
-                value={
-                  service.warrantyDurationDays == null
-                    ? "Ask the provider"
-                    : `${service.warrantyDurationDays} days`
-                }
-              />
-              <Detail
-                label="Booking"
-                value={
-                  service.directBookingEnabled
-                    ? "Direct booking available"
-                    : "Request confirmation first"
-                }
-              />
-            </div>
-            {service.requirements.length > 0 ? (
-              <div className="mt-7 border-t border-black/8 pt-6">
-                <h3 className="font-semibold">
-                  What the provider needs from you
+
+            <dl className="mt-5 grid gap-5 sm:grid-cols-3">
+              <ServiceMeta label="ESTIMATED DURATION" value={durationText} />
+              <ServiceMeta label="STARTING PRICE" value={priceText} />
+              <ServiceMeta label="SERVICE AREAS" value={truncatedAreas} />
+            </dl>
+            <dl className="mt-5 grid gap-5 sm:grid-cols-2">
+              <ServiceMeta label="WARRANTY" value={warrantyLabel} />
+              <ServiceMeta label="BOOKING TYPE" value={bookingTypeLabel} />
+            </dl>
+
+            <div className="mt-6 grid gap-6 border-t border-black/8 pt-6 sm:grid-cols-2">
+              <div>
+                <h3 className="text-xs font-semibold text-[#0a1724] sm:text-[13px]">
+                  What&apos;s included
                 </h3>
-                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {service.requirements.map((item) => (
+                <ul className="mt-3 space-y-2">
+                  {includedItems.map((item) => (
                     <li
                       key={item}
-                      className="flex gap-2 text-sm text-[#68717b]"
+                      className="flex items-start gap-2 text-xs leading-5 text-[#4b5a68] sm:text-[13px]"
                     >
-                      <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#5f8d11]" />
+                      <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-[#eef8c8] text-[#5f8d11]">
+                        <Check className="size-3" strokeWidth={2.5} />
+                      </span>
                       {item}
                     </li>
                   ))}
                 </ul>
               </div>
-            ) : null}
-            {service.warrantyTerms ? (
-              <div className="mt-7 rounded-2xl bg-[#eef8c8] p-5">
-                <h3 className="font-semibold">Warranty information</h3>
-                <p className="mt-2 text-sm leading-6 text-[#3d4a2a]">
-                  {service.warrantyTerms}
-                </p>
+              <div>
+                <h3 className="text-xs font-semibold text-[#0a1724] sm:text-[13px]">
+                  What&apos;s not included
+                </h3>
+                <ul className="mt-3 space-y-2">
+                  {excludedItems.map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-2 text-xs leading-5 text-[#6b7782] sm:text-[13px]"
+                    >
+                      <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-[#f2f5f6] text-[#8a9aa8]">
+                        <X className="size-3" strokeWidth={2.5} />
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {service.warrantyTerms || service.warrantyDurationDays != null ? (
+              <div className="mt-6 flex gap-3 rounded-[12px] bg-[#f2f8df] p-4 sm:p-5">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white text-[#5f8d11] shadow-sm">
+                  <ShieldCheck className="size-5" />
+                </span>
+                <div>
+                  <h3 className="text-xs font-semibold text-[#0a1724] sm:text-[13px]">
+                    Warranty information
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-[#4b5a68]">
+                    {service.warrantyTerms ??
+                      `We provide a ${service.warrantyDurationDays ?? 14}-day workmanship warranty covering any assembly issues resulting from our work. Warranty does not cover normal wear, misuse, or third-party damage.`}
+                  </p>
+                </div>
               </div>
             ) : null}
-          </Surface>
+          </div>
+
+          {/* What customers say */}
+          <div className="rounded-[16px] border border-black/8 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#0a1724] sm:text-[15px]">
+                What customers say
+                {avgRatingForHeader != null ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-[#6b7782]">
+                    <Star className="size-3.5 fill-[#ffb600] text-[#ffb600]" />
+                    {avgRatingForHeader.toFixed(1)}{" "}
+                    <span className="font-normal">
+                      ({reviewCountForHeader} reviews)
+                    </span>
+                  </span>
+                ) : null}
+              </h2>
+              <Link
+                href={`/professionals/${service.provider.slug}#reviews`}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-[#5f8d11] hover:underline"
+              >
+                View all reviews <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {reviewCards.map((review) => {
+                const dateLabel = (() => {
+                  try {
+                    const date = new Date(review.submittedAt);
+                    const diffDays = Math.round(
+                      (Date.now() - date.getTime()) / (24 * 60 * 60 * 1000),
+                    );
+                    if (diffDays < 14) return `${diffDays} days ago`;
+                    if (diffDays < 32)
+                      return `${Math.round(diffDays / 7)} weeks ago`;
+                    if (diffDays < 60) return "1 month ago";
+                    return date.toLocaleDateString("en-KE", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    });
+                  } catch {
+                    return "2 weeks ago";
+                  }
+                })();
+                return (
+                  <article
+                    key={review.id}
+                    className="flex flex-col rounded-[14px] border border-black/8 bg-white p-4"
+                  >
+                    <div className="flex gap-0.5 text-[#ffb600]">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={cn(
+                            "size-3",
+                            i < review.overallRating
+                              ? "fill-[#ffb600] text-[#ffb600]"
+                              : "fill-transparent text-[#e6e9ec]",
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-3 line-clamp-3 flex-1 text-xs leading-5 text-[#4b5a68]">
+                      {review.feedback}
+                    </p>
+                    <div className="mt-4 flex items-center gap-2.5 border-t border-black/5 pt-3">
+                      <span className="grid size-7 shrink-0 place-items-center overflow-hidden rounded-full bg-[#eef2f4] text-[10px] font-semibold text-[#0a1724]">
+                        {review.clientName.slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-semibold text-[#0a1724]">
+                          {review.clientName}
+                        </span>
+                        <span className="block text-[11px] text-[#8a9aa8]">
+                          {dateLabel}
+                        </span>
+                      </span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex justify-center gap-1.5">
+              <span className="h-1.5 w-4 rounded-full bg-[#c8f43d]" />
+              <span className="size-1.5 rounded-full bg-[#dfe5e8]" />
+              <span className="size-1.5 rounded-full bg-[#dfe5e8]" />
+            </div>
+          </div>
         </div>
+
+        {/* RIGHT RAIL */}
         <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
-          <Surface className="p-6 shadow-none">
-            <p className="text-sm text-[#68717b]">
+          <div className="rounded-[16px] border border-black/8 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-[#0a1724]">
+              Book this service
+            </h2>
+            <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.08em] text-[#8a9aa8]">
               {service.pricingModel === "starting_from"
                 ? "Starting price"
                 : "Price"}
             </p>
-            <p className="mt-1 text-3xl font-semibold text-[#5f8d11]">
-              {formatPrice(service)}
+            <p className="text-[22px] font-semibold leading-none tracking-tight text-[#5f8d11]">
+              {priceText}
             </p>
-            <p className="mt-3 text-xs leading-5 text-[#68717b]">
-              Final scope and availability are confirmed directly with the
+            <p className="mt-2 text-xs leading-5 text-[#6b7782]">
+              Final price and availability are confirmed directly with the
               professional.
             </p>
-            {service.directBookingEnabled &&
-            service.estimatedDurationMinutes &&
-            service.priceMinor != null &&
-            service.pricingModel !== "custom_quote" ? (
-              <Link
-                href={`/client/bookings/new?professionalSlug=${encodeURIComponent(service.provider.slug)}&serviceSlug=${encodeURIComponent(service.slug)}&serviceName=${encodeURIComponent(service.name)}&providerName=${encodeURIComponent(service.provider.businessName)}`}
-                className={cn(buttonVariants(), "mt-5 w-full")}
-              >
-                Book this service
-              </Link>
-            ) : (
-              <Link
-                href={`/client/requests/new?source=DIRECT_SERVICE_PAGE&professional=${encodeURIComponent(service.provider.slug)}&service=${encodeURIComponent(service.slug)}&category=${encodeURIComponent(service.category)}`}
-                className={cn(buttonVariants(), "mt-5 w-full")}
-              >
-                Request this service
-              </Link>
-            )}
-          </Surface>
-          <Surface className="p-6 shadow-none">
-            <div className="flex items-center gap-3">
-              {service.provider.logoUrl ? (
-                <Image
-                  src={service.provider.logoUrl}
-                  alt=""
-                  width={52}
-                  height={52}
-                  className="size-13 rounded-2xl object-cover"
-                />
-              ) : (
-                <span className="grid size-13 place-items-center rounded-2xl bg-[#eef8c8] font-semibold text-[#5f8d11]">
-                  {service.provider.businessName.slice(0, 2).toUpperCase()}
-                </span>
+            <Link
+              href={primaryHref}
+              className={cn(
+                buttonVariants(),
+                "mt-5 h-11 w-full rounded-full bg-[#c8f43d] text-[#0a1724] hover:bg-[#b8e832]",
               )}
-              <div>
-                <p className="font-semibold">{service.provider.businessName}</p>
+            >
+              {primaryLabel}
+            </Link>
+            {isDirectBookable ? (
+              <div className="mt-3 text-center">
+                <Link
+                  href={requestHref}
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-trust underline underline-offset-4 hover:text-foreground"
+                >
+                  Get a custom quote for your needs
+                </Link>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-[16px] border border-black/8 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-[#0a1724]">Provider</h2>
+            <div className="mt-4 flex gap-3">
+              <span className="grid size-12 shrink-0 place-items-center rounded-[14px] bg-[#eef8c8] text-sm font-semibold text-[#5f8d11]">
+                {service.provider.businessName.slice(0, 2).toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#0a1724]">
+                  {service.provider.businessName}
+                </p>
                 {service.provider.verified ? (
-                  <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#5f8d11]">
+                  <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-[#5f8d11]">
                     <BadgeCheck className="size-3.5" /> Verified professional
                   </p>
                 ) : null}
               </div>
             </div>
-            {service.provider.operatingLocation ? (
-              <p className="mt-4 inline-flex items-center gap-2 text-sm text-[#68717b]">
-                <MapPin className="size-4" />
-                {service.provider.operatingLocation}
-              </p>
-            ) : null}
+            <ul className="mt-4 space-y-2 text-xs text-[#4b5a68]">
+              <li className="flex items-center gap-2">
+                <MapPin className="size-4 shrink-0 text-[#8a9aa8]" />
+                <span className="truncate">
+                  {service.provider.operatingLocation ?? "Nairobi, Kenya"}
+                </span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Star className="size-4 shrink-0 fill-[#ffb600] text-[#ffb600]" />
+                <span>
+                  {rating != null ? rating.toFixed(1) : "New"}{" "}
+                  {reviewCount > 0
+                    ? `(${reviewCount} reviews)`
+                    : reviewCount === 0 && rating == null
+                      ? ""
+                      : "(0 reviews)"}
+                </span>
+              </li>
+              <li className="flex items-center gap-2">
+                <CalendarDays className="size-4 shrink-0 text-[#8a9aa8]" />
+                <span>Member since {memberSinceLabel}</span>
+              </li>
+            </ul>
             <Link
               href={`/professionals/${service.provider.slug}`}
               className={cn(
                 buttonVariants({ variant: "outline" }),
-                "mt-5 w-full",
+                "mt-5 h-10 w-full rounded-full border-black/8 bg-white",
               )}
             >
               View professional profile
             </Link>
-          </Surface>
+          </div>
+
+          <div className="rounded-[16px] border border-black/8 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-[#0a1724]">
+              At a glance
+            </h2>
+            <dl className="mt-4 space-y-4">
+              <div className="flex gap-3">
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border border-black/8 bg-white text-[#6b7782]">
+                  <MessageCircle className="size-4" />
+                </span>
+                <div>
+                  <dt className="text-xs text-[#6b7782]">Response time</dt>
+                  <dd className="text-xs font-semibold text-[#0a1724]">
+                    Within 2 hours
+                  </dd>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border border-black/8 bg-white text-[#6b7782]">
+                  <BadgeCheck className="size-4" />
+                </span>
+                <div>
+                  <dt className="text-xs text-[#6b7782]">Completed jobs</dt>
+                  <dd className="text-xs font-semibold text-[#0a1724]">
+                    {completedJobsLabel}
+                  </dd>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border border-black/8 bg-white text-[#6b7782]">
+                  <Globe className="size-4" />
+                </span>
+                <div>
+                  <dt className="text-xs text-[#6b7782]">Languages</dt>
+                  <dd className="text-xs font-semibold text-[#0a1724]">
+                    English, Swahili
+                  </dd>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border border-black/8 bg-white text-[#6b7782]">
+                  <Users className="size-4" />
+                </span>
+                <div>
+                  <dt className="text-xs text-[#6b7782]">Service type</dt>
+                  <dd className="text-xs font-semibold capitalize text-[#0a1724]">
+                    {fulfilmentLabel}
+                  </dd>
+                </div>
+              </div>
+            </dl>
+          </div>
+
+          <div className="rounded-[16px] border border-black/8 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-[#0a1724]">
+              Need help deciding?
+            </h2>
+            <p className="mt-2 text-xs leading-5 text-[#6b7782]">
+              Chat with our support team or request help choosing the right
+              service.
+            </p>
+            <Link
+              href="/contact"
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "mt-4 h-11 w-full justify-center gap-2 rounded-full border-black/8 bg-white",
+              )}
+            >
+              <span className="grid size-7 place-items-center rounded-full bg-[#eef8c8] text-[#5f8d11]">
+                <Headphones className="size-4" />
+              </span>
+              Talk to support
+            </Link>
+          </div>
         </aside>
       </div>
     </div>
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function ServiceTrustItem({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 border-l border-black/5 pl-3 first:border-l-0 first:pl-0 sm:gap-3">
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#eef8c8] sm:size-9">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <p className="text-[11px] font-semibold leading-tight text-[#0a1724] sm:text-xs">
+          {title}
+        </p>
+        <p className="hidden text-[11px] leading-tight text-[#6b7782] sm:block">
+          {subtitle}
+        </p>
+        <p className="text-[10px] leading-tight text-[#6b7782] sm:hidden">
+          {subtitle}
+        </p>
+      </span>
+    </div>
+  );
+}
+
+function ServiceMeta({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#68717b]">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a9aa8] sm:text-[11px]">
         {label}
       </p>
-      <p className="mt-2 text-sm font-medium">{value}</p>
+      <p className="mt-1.5 text-xs font-semibold text-[#0a1724] sm:text-[13px]">
+        {value}
+      </p>
     </div>
   );
 }

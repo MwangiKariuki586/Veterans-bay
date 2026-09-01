@@ -19,16 +19,26 @@ export function PublicShell({
   marketplace?: boolean;
 }) {
   return (
-    <div className={pageBackdropClass}>
+    <div className={cn(pageBackdropClass, "flex flex-col")}>
       <div
-        className={pageFrameClass(
-          marketplace
-            ? "max-w-[1440px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5"
-            : undefined,
+        className={cn(
+          pageFrameClass(
+            marketplace
+              ? "max-w-[1440px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5"
+              : undefined,
+          ),
+          "flex flex-1 flex-col",
         )}
       >
         <SiteHeader variant="marketing" marketplace={marketplace} />
-        <div className={marketplace ? "mt-5 sm:mt-7" : "mt-8"}>{children}</div>
+        <div
+          className={cn(
+            marketplace ? "mt-5 sm:mt-7" : "mt-8",
+            "flex flex-1 flex-col",
+          )}
+        >
+          {children}
+        </div>
         <PublicFooter marketplace={marketplace} />
       </div>
     </div>

@@ -164,6 +164,8 @@ export class PublicCatalogueService {
           ? `${Math.round(reputation.responseRateBasisPoints / 100)}%`
           : null,
       experienceYears,
+      organisationCreatedAt:
+        professional.organisationCreatedAt?.toISOString() ?? null,
       reviews: publishedReviews.map((review) => ({
         id: review.id,
         clientName: review.clientName,
@@ -191,7 +193,11 @@ export class PublicCatalogueService {
   async getService(slug: string): Promise<PublicServiceDetail> {
     const result = await this.store.findServiceBySlug(slug);
     if (!result || !isComplete(result.service)) throw this.unavailable("service");
-    const images = await this.store.listServiceImages(result.service.id);
+    const [images, reputation, publishedReviews] = await Promise.all([
+      this.store.listServiceImages(result.service.id),
+      this.store.getReputation?.(result.professional.organisationId) ?? null,
+      this.store.listReviews?.(result.professional.organisationId) ?? [],
+    ]);
     const imageUrls = images
       .map((item) => publicImageUrl(this.cloudName, item.publicId))
       .filter((url): url is string => Boolean(url));
@@ -205,12 +211,47 @@ export class PublicCatalogueService {
         : [],
     );
 
+    const publishedReviewCount = publishedReviews.length;
+    const publishedAverageRating =
+      publishedReviewCount > 0
+        ? publishedReviews.reduce(
+            (total, review) => total + review.overallRating,
+            0,
+          ) / publishedReviewCount
+        : null;
+    const projectedReviewCount = Math.max(
+      reputation?.reviewCount ?? 0,
+      publishedReviewCount,
+    );
+    const projectedRating =
+      reputation?.averageRatingHundredths == null
+        ? publishedAverageRating
+        : reputation.averageRatingHundredths / 100;
+    const experienceYears =
+      professional.experienceStartedYear == null
+        ? null
+        : Math.max(0, this.now().getFullYear() - professional.experienceStartedYear);
+
     return {
       ...toServiceCard(result.service, imageUrls[0] ?? null),
       requirements: result.service.requirements,
       warrantyDurationDays: result.service.warrantyDurationDays,
       warrantyTerms: result.service.warrantyTerms,
       images: imageUrls,
+      reviews: publishedReviews.slice(0, 6).map((review) => ({
+        id: review.id,
+        clientName: review.clientName,
+        overallRating: review.overallRating,
+        feedback: review.feedback,
+        submittedAt: review.submittedAt.toISOString(),
+        response:
+          review.responseBody && review.responseCreatedAt
+            ? {
+                body: review.responseBody,
+                createdAt: review.responseCreatedAt.toISOString(),
+              }
+            : null,
+      })),
       provider: {
         slug: professional.slug,
         businessName: professional.businessName,
@@ -222,15 +263,30 @@ export class PublicCatalogueService {
         nextAvailableSlot,
         verified: professional.verificationStatus === "verified",
         logoUrl: publicImageUrl(this.cloudName, professional.logoPublicId),
-        rating: null,
-        reviewCount: 0,
-        completedJobs: 0,
-        responseIndicator: null,
-        experienceYears:
-          professional.experienceStartedYear == null
-            ? null
-            : Math.max(0, this.now().getFullYear() - professional.experienceStartedYear),
-        reviews: [],
+        rating: projectedRating,
+        reviewCount: projectedReviewCount,
+        completedJobs: reputation?.verifiedJobs ?? 0,
+        responseIndicator:
+          reputation && reputation.reviewCount > 0
+            ? `${Math.round(reputation.responseRateBasisPoints / 100)}%`
+            : null,
+        experienceYears,
+        organisationCreatedAt:
+          professional.organisationCreatedAt?.toISOString() ?? null,
+        reviews: publishedReviews.slice(0, 3).map((review) => ({
+          id: review.id,
+          clientName: review.clientName,
+          overallRating: review.overallRating,
+          feedback: review.feedback,
+          submittedAt: review.submittedAt.toISOString(),
+          response:
+            review.responseBody && review.responseCreatedAt
+              ? {
+                  body: review.responseBody,
+                  createdAt: review.responseCreatedAt.toISOString(),
+                }
+              : null,
+        })),
       },
     };
   }

@@ -8,7 +8,7 @@ export default async function ServiceDetailRoute({
 }) {
   const { slug } = await params;
   return (
-    <PublicShell>
+    <PublicShell marketplace>
       <main>
         <PublicServicePage slug={slug} />
       </main>
