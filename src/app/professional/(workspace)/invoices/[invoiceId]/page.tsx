@@ -1,4 +1,4 @@
-import { InvoiceDetail } from "@/components/invoices/invoice-detail";
+import { redirect } from "next/navigation";
 
 export default async function ProfessionalInvoiceDetailPage({
   params,
@@ -6,7 +6,5 @@ export default async function ProfessionalInvoiceDetailPage({
   params: Promise<{ invoiceId: string }>;
 }) {
   const { invoiceId } = await params;
-  return (
-    <InvoiceDetail audience="professional" invoiceId={invoiceId} />
-  );
+  redirect(`/professional/invoices?invoiceId=${encodeURIComponent(invoiceId)}`);
 }

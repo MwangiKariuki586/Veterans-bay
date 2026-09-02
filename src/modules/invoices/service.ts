@@ -6,8 +6,10 @@ import {
   type ProfessionalInvoiceScope,
 } from "./repository";
 import type {
+  InvoiceBucket,
   InvoiceDetail,
   InvoicePage,
+  InvoiceSort,
   InvoiceStatus,
   PaymentMethod,
 } from "./types";
@@ -25,6 +27,9 @@ export class InvoicesService {
   listProfessional(input: {
     scope: ProfessionalInvoiceScope;
     status?: InvoiceStatus;
+    bucket?: InvoiceBucket;
+    search?: string;
+    sort?: InvoiceSort;
     page: number;
     pageSize: number;
   }): Promise<InvoicePage> {
@@ -34,6 +39,9 @@ export class InvoicesService {
   async listClient(input: {
     authUserId: string;
     status?: InvoiceStatus;
+    bucket?: InvoiceBucket;
+    search?: string;
+    sort?: InvoiceSort;
     page: number;
     pageSize: number;
   }): Promise<InvoicePage> {
@@ -41,6 +49,9 @@ export class InvoicesService {
     return this.store.listClient({
       clientAccountId: account.id,
       status: input.status,
+      bucket: input.bucket,
+      search: input.search,
+      sort: input.sort,
       page: input.page,
       pageSize: input.pageSize,
     });

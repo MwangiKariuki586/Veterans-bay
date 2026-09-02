@@ -429,7 +429,7 @@ export function JobDetail({
                       void createInvoiceFromJob(job.id)
                         .then((invoice) => {
                           window.location.assign(
-                            `/professional/invoices/${invoice.id}`,
+                            `/professional/invoices?invoiceId=${invoice.id}`,
                           );
                         })
                         .catch((cause: unknown) =>

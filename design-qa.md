@@ -1,3 +1,47 @@
+# Invoice Inspection Drawer — 2 September 2026
+
+## Evidence
+
+- Source visual truth: user-supplied invoice-list and invoice-drawer mockups in the current conversation; no local source-image path is available.
+- Implementation routes: `/client/invoices?invoiceId=:invoiceId` and `/professional/invoices?invoiceId=:invoiceId`.
+- Implementation screenshot: unavailable because browser discovery returned no available browser surfaces.
+- Intended viewport: supplied desktop workspace composition, plus responsive drawer behavior down to mobile width; exact source viewport and density metadata are unavailable.
+- State: authenticated client or professional inspecting an invoice without leaving the invoice list.
+
+## Full-view comparison evidence
+
+Blocked. The implementation keeps the established invoice list visible beneath a modal sheet and replaces dedicated detail navigation with a 94vw-capped, 36rem drawer. No browser-rendered capture is available to compare its shell, overlay, vertical rhythm, or viewport fit with the supplied mockup.
+
+## Focused-region comparison evidence
+
+Blocked. Component tests cover the loaded drawer content and actions, but they do not establish pixel fidelity for the financial summary, related-service grid, line-item table, payment history, status timeline, notes, or sticky action footer.
+
+## Findings
+
+- [P1] Browser-rendered invoice drawer comparison unavailable.
+  - Location: invoice row inspection on client and professional invoice lists.
+  - Evidence: the configured browser runtime reported no available browser surfaces.
+  - Impact: exact spacing, drawer scrolling, overlay treatment, responsive stacking, and visual fidelity cannot be signed off from code and tests alone.
+  - Fix: capture a partially paid invoice drawer at desktop and mobile widths, compare it with the supplied mockup, and correct any P0, P1, or P2 differences.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Veterans Bay workspace hierarchy and semibold weight ceiling are preserved; rendered comparison blocked.
+- Spacing and layout rhythm: compact numbered sections and sticky actions follow the supplied hierarchy; rendered comparison blocked.
+- Colors and visual tokens: existing lime, neutral, warning, danger, border, and surface tokens are reused; rendered comparison blocked.
+- Image quality and asset fidelity: no new raster assets are required; existing Lucide invoice, payment, person, and calendar icons are used.
+- Copy and content: financial figures, related service, line items, payments, timeline, terms, and manual-record guidance are sourced from authoritative invoice data.
+
+## Comparison history
+
+- Implementation pass: converted invoice selection into an in-place drawer and redirected legacy invoice-detail routes back to the list with the selected invoice open.
+- Workflow pass: replaced generic full-detail and support actions with PDF download and a role-aware service or job destination; the unnecessary reference-copy action was removed.
+- Header collision follow-up: the supplied crop showed the status badge beneath the close button. The header now preserves a 4rem right-side close-control lane at mobile and desktop breakpoints; browser-rendered post-fix evidence remains unavailable.
+- Automated evidence: focused UI/PDF tests, database tests, changed-file lint, typecheck, production build, and whitespace checks pass.
+- Post-fix rendered comparison: blocked because no browser surface is available.
+
+final result: blocked
+
 # Client Quotation Detail Design QA
 
 ## Evidence

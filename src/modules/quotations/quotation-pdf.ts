@@ -1,6 +1,6 @@
 import type { QuotationDetail, QuotationVersion } from "./types";
 
-type PdfLine = { text: string; strong?: boolean };
+export type PdfLine = { text: string; strong?: boolean };
 
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
@@ -18,7 +18,7 @@ export function createQuotationPdf(
     throw new Error("Quotation current-version invariant violated.");
   }
 
-  return buildPdf(quotationLines(quotation, version));
+  return buildSimplePdf(quotationLines(quotation, version), "quotation");
 }
 
 function quotationLines(
@@ -104,7 +104,10 @@ function wrapLine(value: string, width = 76): PdfLine[] {
   return result;
 }
 
-function buildPdf(lines: PdfLine[]): Uint8Array<ArrayBuffer> {
+export function buildSimplePdf(
+  lines: PdfLine[],
+  documentLabel = "document",
+): Uint8Array<ArrayBuffer> {
   const pages = chunk(lines, LINES_PER_PAGE);
   const fontId = 3 + pages.length * 2;
   const strongFontId = fontId + 1;
@@ -138,7 +141,7 @@ function buildPdf(lines: PdfLine[]): Uint8Array<ArrayBuffer> {
   );
 
   const objectCount = strongFontId;
-  let pdf = "%PDF-1.4\n% Veterans Bay quotation\n";
+  let pdf = `%PDF-1.4\n% Veterans Bay ${documentLabel}\n`;
   const offsets = [0];
   for (let id = 1; id <= objectCount; id += 1) {
     offsets[id] = pdf.length;

@@ -58,6 +58,30 @@ describe("invoice and manual payment persistence", () => {
         });
         expect(draft?.items).toHaveLength(1);
         await expect(
+          repository.listProfessional({
+            scope: { organisationId: fixture.organisationId },
+            bucket: "drafts",
+            search: "safety",
+            sort: "balance_desc",
+            page: 1,
+            pageSize: 10,
+          }),
+        ).resolves.toMatchObject({
+          totalItems: 1,
+          summary: {
+            total: 1,
+            drafts: 1,
+            outstanding: 0,
+            amounts: [{
+              currency: "KES",
+              totalMinor: 25_000,
+              paidMinor: 0,
+              outstandingMinor: 0,
+            }],
+          },
+          items: [{ id: first, status: "DRAFT" }],
+        });
+        await expect(
           repository.getClient(first!, fixture.clientId),
         ).resolves.toBeNull();
         await expect(
@@ -82,6 +106,30 @@ describe("invoice and manual payment persistence", () => {
           status: "ISSUED",
           paidMinor: 0,
           balanceMinor: 25_000,
+        });
+        await expect(
+          repository.listClient({
+            clientAccountId: fixture.clientId,
+            bucket: "outstanding",
+            search: "Electrical safety",
+            sort: "due_asc",
+            page: 1,
+            pageSize: 10,
+          }),
+        ).resolves.toMatchObject({
+          totalItems: 1,
+          summary: {
+            total: 1,
+            outstanding: 1,
+            drafts: 0,
+            amounts: [{
+              currency: "KES",
+              totalMinor: 25_000,
+              paidMinor: 0,
+              outstandingMinor: 25_000,
+            }],
+          },
+          items: [{ id: first, status: "ISSUED", balanceMinor: 25_000 }],
         });
         const [issuedEvent] = await testDb
             .select()

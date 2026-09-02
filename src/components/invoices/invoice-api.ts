@@ -1,6 +1,9 @@
 import type { PageResult } from "@/platform/http/pagination";
 import type {
+  InvoiceBucket,
   InvoiceDetail,
+  InvoicePage,
+  InvoiceSort,
   InvoiceStatus,
   InvoiceSummary,
   PaymentSummary,
@@ -41,12 +44,42 @@ export function listInvoices(
   );
 }
 
+export type InvoiceListQuery = {
+  page: number;
+  pageSize: number;
+  bucket: "all" | InvoiceBucket;
+  status: "" | InvoiceStatus;
+  search: string;
+  sort: InvoiceSort;
+};
+
+export function listInvoicesPage(
+  audience: "client" | "professional",
+  query: InvoiceListQuery,
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams({
+    page: String(query.page),
+    pageSize: String(query.pageSize),
+    sort: query.sort,
+  });
+  if (query.bucket !== "all") params.set("bucket", query.bucket);
+  if (query.status) params.set("status", query.status);
+  if (query.search) params.set("search", query.search);
+  return invoiceApi<InvoicePage>(
+    `/api/v1/${audience}/invoices?${params.toString()}`,
+    signal ? { signal } : undefined,
+  );
+}
+
 export function getInvoice(
   audience: "client" | "professional",
   invoiceId: string,
+  signal?: AbortSignal,
 ) {
   return invoiceApi<InvoiceDetail>(
     `/api/v1/${audience}/invoices/${invoiceId}`,
+    signal ? { signal } : undefined,
   );
 }
 

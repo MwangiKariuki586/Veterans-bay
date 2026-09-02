@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 
 import { createDatabaseClient } from "../../platform/database/client";
 import type { ApiSuccessBody } from "../../platform/http/contracts";
@@ -26,6 +26,7 @@ import {
 } from "./schemas";
 import { InvoicesService } from "./service";
 import { enforcePreviewPaymentPolicy } from "./preview-policy";
+import { createInvoicePdf } from "./invoice-pdf";
 import type {
   InvoiceDetail,
   InvoicePage,
@@ -179,6 +180,28 @@ export function createInvoiceRoutes() {
           data,
           requestId: context.get("requestId"),
         });
+      } finally {
+        await client.close();
+      }
+    },
+  );
+
+  routes.get(
+    "/v1/professional/invoices/:invoiceId/download",
+    ...professionalRead,
+    async (context) => {
+      const selection = organisationSelection(context);
+      const { client, service } = createService(
+        context.get("environment").DATABASE_URL,
+      );
+      try {
+        return downloadableInvoice(
+          context,
+          await service.getProfessional(
+            id(context.req.param("invoiceId")),
+            selection.organisationId,
+          ),
+        );
       } finally {
         await client.close();
       }
@@ -350,5 +373,41 @@ export function createInvoiceRoutes() {
     },
   );
 
+  routes.get(
+    "/v1/client/invoices/:invoiceId/download",
+    requireSessionMiddleware,
+    async (context) => {
+      const { client, service } = createService(
+        context.get("environment").DATABASE_URL,
+      );
+      try {
+        return downloadableInvoice(
+          context,
+          await service.getClient(
+            authUserId(context),
+            id(context.req.param("invoiceId")),
+          ),
+        );
+      } finally {
+        await client.close();
+      }
+    },
+  );
+
   return routes;
+}
+
+function downloadableInvoice(
+  context: Context<ApiAppEnvironment>,
+  invoice: InvoiceDetail,
+) {
+  const body = createInvoicePdf(invoice);
+  return context.body(body, 200, {
+    "Accept-Ranges": "none",
+    "Cache-Control": "private, no-store",
+    "Content-Disposition": `attachment; filename="invoice-${invoice.invoiceNumber}.pdf"`,
+    "Content-Length": String(body.byteLength),
+    "Content-Type": "application/pdf",
+    "X-Content-Type-Options": "nosniff",
+  });
 }

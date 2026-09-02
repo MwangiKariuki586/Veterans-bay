@@ -21,12 +21,41 @@ export const paymentMethods = [
 
 export type InvoiceStatus = (typeof invoiceStatuses)[number];
 export type PaymentMethod = (typeof paymentMethods)[number];
-export type InvoicePage = PageResult<InvoiceSummary>;
+export type InvoiceBucket = "outstanding" | "overdue" | "settled" | "drafts";
+export type InvoiceSort =
+  | "updated_desc"
+  | "updated_asc"
+  | "due_asc"
+  | "due_desc"
+  | "balance_desc"
+  | "balance_asc";
+
+export interface InvoiceSummaryStats {
+  total: number;
+  outstanding: number;
+  overdue: number;
+  paid: number;
+  drafts: number;
+  settled: number;
+  amounts: InvoiceCurrencySummary[];
+}
+
+export interface InvoiceCurrencySummary {
+  currency: string;
+  totalMinor: number;
+  paidMinor: number;
+  outstandingMinor: number;
+}
+
+export interface InvoicePage extends PageResult<InvoiceSummary> {
+  summary: InvoiceSummaryStats;
+}
 
 export interface InvoiceSummary {
   id: string;
   invoiceNumber: string;
   jobId: string;
+  bookingId: string | null;
   serviceName: string;
   providerName: string;
   clientName: string;

@@ -5,7 +5,9 @@ import {
   desc,
   eq,
   getTableColumns,
+  ilike,
   inArray,
+  or,
   sql,
   type SQL,
 } from "drizzle-orm";
@@ -30,8 +32,10 @@ import {
   paginationOffset,
 } from "../../platform/http/pagination";
 import type {
+  InvoiceBucket,
   InvoiceDetail,
   InvoicePage,
+  InvoiceSort,
   InvoiceStatus,
   InvoiceSummary,
   PaymentMethod,
@@ -270,6 +274,9 @@ export class InvoicesRepository {
   listProfessional(input: {
     scope: ProfessionalInvoiceScope;
     status?: InvoiceStatus;
+    bucket?: InvoiceBucket;
+    search?: string;
+    sort?: InvoiceSort;
     page: number;
     pageSize: number;
   }): Promise<InvoicePage> {
@@ -282,6 +289,9 @@ export class InvoicesRepository {
   listClient(input: {
     clientAccountId: string;
     status?: InvoiceStatus;
+    bucket?: InvoiceBucket;
+    search?: string;
+    sort?: InvoiceSort;
     page: number;
     pageSize: number;
   }): Promise<InvoicePage> {
@@ -724,20 +734,69 @@ export class InvoicesRepository {
     scope: SQL<unknown>,
     input: {
       status?: InvoiceStatus;
+      bucket?: InvoiceBucket;
+      search?: string;
+      sort?: InvoiceSort;
       page: number;
       pageSize: number;
     },
   ): Promise<InvoicePage> {
+    const bucketStatuses: Record<InvoiceBucket, InvoiceStatus[]> = {
+      outstanding: ["ISSUED", "PARTIALLY_PAID", "OVERDUE"],
+      overdue: ["OVERDUE"],
+      settled: ["PAID", "REFUNDED"],
+      drafts: ["DRAFT"],
+    };
+    const searchPattern = input.search?.trim()
+      ? `%${input.search.trim()}%`
+      : null;
+    const bucketFilter = input.bucket
+      ? inArray(effectiveStatusSql, bucketStatuses[input.bucket])
+      : undefined;
+    const searchFilter = searchPattern
+      ? or(
+          ilike(invoices.invoiceNumber, searchPattern),
+          ilike(jobs.serviceName, searchPattern),
+          ilike(organisations.name, searchPattern),
+          ilike(clientProfile.displayName, searchPattern),
+        )
+      : undefined;
     const filter = and(
       scope,
       ...(input.status ? [sql`${effectiveStatusSql} = ${input.status}`] : []),
+      ...(bucketFilter ? [bucketFilter] : []),
+      ...(searchFilter ? [searchFilter] : []),
     );
-    const [rows, totals] = await Promise.all([
+    const orderBy = (() => {
+      switch (input.sort) {
+        case "updated_asc":
+          return [asc(invoices.updatedAt), asc(invoices.id)] as const;
+        case "due_asc":
+          return [asc(invoices.dueAt), desc(invoices.updatedAt)] as const;
+        case "due_desc":
+          return [desc(invoices.dueAt), desc(invoices.updatedAt)] as const;
+        case "balance_desc":
+          return [
+            desc(sql`${invoices.totalMinor} - ${netPaidSql}`),
+            desc(invoices.updatedAt),
+          ] as const;
+        case "balance_asc":
+          return [
+            asc(sql`${invoices.totalMinor} - ${netPaidSql}`),
+            desc(invoices.updatedAt),
+          ] as const;
+        case "updated_desc":
+        default:
+          return [desc(invoices.updatedAt), desc(invoices.id)] as const;
+      }
+    })();
+    const [rows, totals, statusTotals] = await Promise.all([
       this.db
         .select({
           id: invoices.id,
           invoiceNumber: invoices.invoiceNumber,
           jobId: invoices.jobId,
+          bookingId: jobs.bookingId,
           serviceName: jobs.serviceName,
           providerName: organisations.name,
           clientName: clientProfile.displayName,
@@ -757,16 +816,73 @@ export class InvoicesRepository {
           eq(clientProfile.id, invoices.clientAccountId),
         )
         .where(filter)
-        .orderBy(desc(invoices.updatedAt), desc(invoices.id))
+        .orderBy(...(orderBy as unknown as [SQL<unknown>, SQL<unknown>]))
         .limit(input.pageSize)
         .offset(paginationOffset(input)),
-      this.db.select({ value: count() }).from(invoices).where(filter),
+      this.db
+        .select({ value: count() })
+        .from(invoices)
+        .innerJoin(jobs, eq(jobs.id, invoices.jobId))
+        .innerJoin(organisations, eq(organisations.id, invoices.organisationId))
+        .innerJoin(
+          clientProfile,
+          eq(clientProfile.id, invoices.clientAccountId),
+        )
+        .where(filter),
+      this.db
+        .select({
+          status: effectiveStatusSql,
+          currency: invoices.currency,
+          total: count(),
+          totalMinor: sql<number>`coalesce(sum(${invoices.totalMinor}), 0)`,
+          paidMinor: sql<number>`coalesce(sum(${netPaidSql}), 0)`,
+        })
+        .from(invoices)
+        .where(scope)
+        .groupBy(effectiveStatusSql, invoices.currency),
     ]);
-    return buildPageResult(
-      rows.map((row) => mapSummary(row)),
-      totals[0]?.value ?? 0,
-      input,
+    const counts = new Map(
+      statusTotals.map((row) => [row.status as InvoiceStatus, row.total]),
     );
+    const countStatuses = (statuses: readonly InvoiceStatus[]) =>
+      statuses.reduce((total, status) => total + (counts.get(status) ?? 0), 0);
+    const amountMap = new Map<
+      string,
+      { currency: string; totalMinor: number; paidMinor: number; outstandingMinor: number }
+    >();
+    for (const row of statusTotals) {
+      const amount = amountMap.get(row.currency) ?? {
+        currency: row.currency,
+        totalMinor: 0,
+        paidMinor: 0,
+        outstandingMinor: 0,
+      };
+      amount.totalMinor += Number(row.totalMinor);
+      amount.paidMinor += Number(row.paidMinor);
+      if (bucketStatuses.outstanding.includes(row.status as InvoiceStatus)) {
+        amount.outstandingMinor +=
+          Number(row.totalMinor) - Number(row.paidMinor);
+      }
+      amountMap.set(row.currency, amount);
+    }
+    return {
+      ...buildPageResult(
+        rows.map((row) => mapSummary(row)),
+        totals[0]?.value ?? 0,
+        input,
+      ),
+      summary: {
+        total: statusTotals.reduce((total, row) => total + row.total, 0),
+        outstanding: countStatuses(bucketStatuses.outstanding),
+        overdue: counts.get("OVERDUE") ?? 0,
+        paid: counts.get("PAID") ?? 0,
+        drafts: counts.get("DRAFT") ?? 0,
+        settled: countStatuses(bucketStatuses.settled),
+        amounts: [...amountMap.values()].sort((left, right) =>
+          left.currency.localeCompare(right.currency),
+        ),
+      },
+    };
   }
 
   private async detail(
@@ -776,6 +892,7 @@ export class InvoicesRepository {
     const [row] = await this.db
       .select({
         ...getTableColumns(invoices),
+        bookingId: jobs.bookingId,
         serviceName: jobs.serviceName,
         providerName: organisations.name,
         clientName: clientProfile.displayName,
@@ -850,6 +967,7 @@ export class InvoicesRepository {
       id: row.id,
       invoiceNumber: row.invoiceNumber,
       jobId: row.jobId,
+      bookingId: row.bookingId,
       organisationId: row.organisationId,
       clientAccountId: row.clientAccountId,
       serviceName: row.serviceName,
@@ -1005,6 +1123,7 @@ function mapSummary(row: {
   id: string;
   invoiceNumber: string;
   jobId: string;
+  bookingId: string | null;
   serviceName: string;
   providerName: string;
   clientName: string;

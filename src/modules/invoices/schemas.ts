@@ -7,6 +7,18 @@ export const financialIdSchema = z.uuid();
 
 export const invoiceListQuerySchema = paginationQuerySchema.extend({
   status: z.enum(invoiceStatuses).optional(),
+  bucket: z.enum(["outstanding", "overdue", "settled", "drafts"]).optional(),
+  search: z.string().trim().max(120).optional(),
+  sort: z
+    .enum([
+      "updated_desc",
+      "updated_asc",
+      "due_asc",
+      "due_desc",
+      "balance_desc",
+      "balance_asc",
+    ])
+    .default("updated_desc"),
 });
 
 export const invoiceIssueBodySchema = z.object({

@@ -1,4 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { InvoiceDetail } from "@/modules/invoices/types";
@@ -6,10 +8,24 @@ import { InvoiceDetail as InvoiceDetailView } from "./invoice-detail";
 import { InvoiceList } from "./invoice-list";
 import { PaymentList } from "./payment-list";
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/client/invoices",
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+function Wrapper({ children }: { children: ReactNode }) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+
 const detail: InvoiceDetail = {
   id: "11111111-1111-4111-8111-111111111111",
   invoiceNumber: "INV-2026-ABCD1234",
   jobId: "22222222-2222-4222-8222-222222222222",
+  bookingId: "88888888-8888-4888-8888-888888888888",
   organisationId: "33333333-3333-4333-8333-333333333333",
   clientAccountId: "44444444-4444-4444-8444-444444444444",
   serviceName: "Electrical safety inspection",
@@ -71,7 +87,7 @@ afterEach(() => {
 });
 
 describe("invoice workspaces", () => {
-  it("shows balances and manual-record language in the professional list", async () => {
+  it("gives professionals an accounts-focused invoice workspace", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -82,16 +98,119 @@ describe("invoice workspaces", () => {
             pageSize: 20,
             totalItems: 1,
             totalPages: 1,
+            summary: {
+              total: 1,
+              outstanding: 1,
+              overdue: 0,
+              paid: 0,
+              drafts: 0,
+              settled: 0,
+              amounts: [{ currency: "KES", totalMinor: 25_000, paidMinor: 10_000, outstandingMinor: 15_000 }],
+            },
           },
         }),
       ),
     );
-    render(<InvoiceList audience="professional" />);
+    render(<InvoiceList audience="professional" />, { wrapper: Wrapper });
     expect(
-      await screen.findByText("Electrical safety inspection"),
+      (await screen.findAllByText("Electrical safety inspection")).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Invoices" })).toBeInTheDocument();
+    expect(screen.getByText("Outstanding balance")).toBeInTheDocument();
+    expect(screen.getByText("Payments recorded")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Payment ledger/i })).toHaveAttribute(
+      "href",
+      "/professional/payments",
+    );
+    expect(screen.getByPlaceholderText(/service or client/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Outstanding: 1" })).toBeInTheDocument();
+    expect(screen.getAllByText(/150\.00/).length).toBeGreaterThan(0);
+  });
+
+  it("prioritises client balances and hides professional-only draft controls", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          data: {
+            items: [detail],
+            page: 1,
+            pageSize: 10,
+            totalItems: 1,
+            totalPages: 1,
+            summary: {
+              total: 1,
+              outstanding: 1,
+              overdue: 0,
+              paid: 0,
+              drafts: 0,
+              settled: 0,
+              amounts: [{ currency: "KES", totalMinor: 25_000, paidMinor: 10_000, outstandingMinor: 15_000 }],
+            },
+          },
+        }),
+      ),
+    );
+    render(<InvoiceList audience="client" />, { wrapper: Wrapper });
+    expect(
+      await screen.findByRole("heading", { name: "Your invoices" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Manual payment record")).toBeInTheDocument();
-    expect(screen.getByText(/150\.00 due/)).toBeInTheDocument();
+    expect(await screen.findByText("Balance remaining")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "To pay: 1" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/service or professional/i)).toBeInTheDocument();
+    expect(screen.queryByText("Draft invoices")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Payment ledger/i })).not.toBeInTheDocument();
+  });
+
+  it("opens the complete client invoice drawer with workflow actions", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        return url.includes(detail.id)
+          ? jsonResponse({ data: detail })
+          : jsonResponse({
+              data: {
+                items: [detail],
+                page: 1,
+                pageSize: 10,
+                totalItems: 1,
+                totalPages: 1,
+                summary: {
+                  total: 1,
+                  outstanding: 1,
+                  overdue: 0,
+                  paid: 0,
+                  drafts: 0,
+                  settled: 0,
+                  amounts: [{ currency: "KES", totalMinor: 25_000, paidMinor: 10_000, outstandingMinor: 15_000 }],
+                },
+              },
+            });
+      }),
+    );
+    render(<InvoiceList audience="client" />, { wrapper: Wrapper });
+    fireEvent.click(await screen.findByRole("button", { name: "Review" }));
+
+    const drawer = await screen.findByRole("dialog");
+    expect(
+      await within(drawer).findByText("1. Financial summary"),
+    ).toBeInTheDocument();
+    expect(within(drawer).getByText("3. Line items")).toBeInTheDocument();
+    expect(within(drawer).getByText("4. Payment history")).toBeInTheDocument();
+    expect(within(drawer).getByText("5. Timeline / status")).toBeInTheDocument();
+    expect(within(drawer).getByText(/does not confirm or process/i)).toBeInTheDocument();
+    expect(within(drawer).getByRole("link", { name: /Download invoice/i })).toHaveAttribute(
+      "href",
+      `/api/v1/client/invoices/${detail.id}/download`,
+    );
+    expect(within(drawer).queryByRole("button", { name: /Copy reference/i })).not.toBeInTheDocument();
+    expect(within(drawer).getByRole("link", { name: /View service record/i })).toHaveAttribute(
+      "href",
+      `/client/bookings/${detail.bookingId}#service-progress`,
+    );
+    expect(within(drawer).queryByText(/View full details/i)).not.toBeInTheDocument();
+    expect(within(drawer).queryByText(/Contact support/i)).not.toBeInTheDocument();
   });
 
   it("renders client-safe detail and professional allocation controls", async () => {
