@@ -6,6 +6,12 @@ import { warrantyClaimStatuses, warrantyStatuses } from "./types";
 export const warrantyIdSchema = z.uuid();
 export const warrantyListQuerySchema = paginationQuerySchema.extend({
   status: z.enum(warrantyStatuses).optional(),
+  bucket: z.enum(["all", "active", "expiring-soon", "expired", "voided"]).optional(),
+  service: z.string().optional(),
+  search: z.string().optional(),
+  sort: z.enum(["expiry_asc", "expiry_desc", "created_desc", "created_asc"]).optional(),
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
 });
 export const warrantyClaimListQuerySchema = paginationQuerySchema.extend({
   status: z.enum(warrantyClaimStatuses).optional(),

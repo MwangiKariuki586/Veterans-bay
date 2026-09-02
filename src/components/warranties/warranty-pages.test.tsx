@@ -1,14 +1,29 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { WarrantyDetail } from "@/modules/warranties/types";
 import { WarrantyDetail as WarrantyDetailView } from "./warranty-detail";
 import { WarrantyList } from "./warranty-list";
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/client/warranties",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+function Wrapper({ children }: { children: ReactNode }) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+
 const detail: WarrantyDetail = {
   id: "11111111-1111-4111-8111-111111111111",
   jobId: "22222222-2222-4222-8222-222222222222",
   organisationId: "33333333-3333-4333-8333-333333333333",
+  providerSlug: "veterans-bay-electrical",
   clientAccountId: "44444444-4444-4444-8444-444444444444",
   serviceName: "Electrical safety inspection",
   providerName: "Veterans Bay Electrical",
@@ -17,6 +32,8 @@ const detail: WarrantyDetail = {
   startsAt: "2026-07-28T08:00:00.000Z",
   endsAt: "2026-08-27T08:00:00.000Z",
   openClaimCount: 1,
+  latestClaimStatus: "UNDER_REVIEW",
+  latestClaimSubject: "Outlet is loose again",
   termsSnapshot: "Workmanship is covered for 30 days.",
   exclusionsSnapshot: "Damage after the service is excluded.",
   claims: [
@@ -64,21 +81,48 @@ describe("warranty workspaces", () => {
       vi.fn().mockResolvedValue(
         jsonResponse({
           data: {
-            items: [detail],
+            items: [
+              {
+                id: detail.id,
+                jobId: detail.jobId,
+                serviceName: detail.serviceName,
+                providerName: detail.providerName,
+                providerSlug: detail.providerSlug,
+                organisationId: detail.organisationId,
+                clientName: detail.clientName,
+                status: detail.status,
+                startsAt: detail.startsAt,
+                endsAt: detail.endsAt,
+                openClaimCount: detail.openClaimCount,
+                latestClaimStatus: detail.latestClaimStatus,
+                latestClaimSubject: detail.latestClaimSubject,
+              },
+            ],
             page: 1,
-            pageSize: 20,
+            pageSize: 10,
             totalItems: 1,
             totalPages: 1,
+            summary: {
+              activeWarranties: 1,
+              expiringSoon: 1,
+              openClaims: 1,
+              resolvedClaims: 0,
+            },
+            services: [detail.serviceName],
           },
         }),
       ),
     );
-    render(<WarrantyList audience="client" />);
+    render(<WarrantyList audience="client" />, { wrapper: Wrapper });
     expect(
-      await screen.findByText("Electrical safety inspection"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("1 open claim")).toBeInTheDocument();
-    expect(screen.getAllByText("ACTIVE")).toHaveLength(2);
+      (await screen.findAllByText("Electrical safety inspection")).length,
+    ).toBeGreaterThan(0);
+    expect(await screen.findByText("Active warranties")).toBeInTheDocument();
+    expect(screen.getAllByText("Expiring soon").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Open claims").length).toBeGreaterThan(0);
+    expect(screen.getByText("Resolved claims")).toBeInTheDocument();
+    expect(screen.getAllByText("Active").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Under review").length).toBeGreaterThan(0);
   });
 
   it("keeps client and professional claim actions role-sensitive", async () => {
@@ -117,7 +161,7 @@ describe("warranty workspaces", () => {
       "fetch",
       vi.fn().mockResolvedValue(
         jsonResponse({
-          data: { ...detail, openClaimCount: 0, claims: [] },
+          data: { ...detail, openClaimCount: 0, latestClaimStatus: null, latestClaimSubject: null, claims: [] },
         }),
       ),
     );

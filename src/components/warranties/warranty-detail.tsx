@@ -142,7 +142,7 @@ export function WarrantyDetail({
           href={`/${audience}/jobs/${warranty.jobId}`}
           className={buttonVariants({ variant: "outline" })}
         >
-          View service job
+          {audience === "client" ? "View service record" : "View job"}
         </Link>
       </div>
       {error ? (

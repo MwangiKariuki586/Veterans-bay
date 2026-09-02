@@ -19,4 +19,16 @@ describe("workspace navigation", () => {
       expect.objectContaining({ href: "/professional/jobs", label: "Jobs" }),
     );
   });
+
+  it("omits Help Center from the client sidebar menu", () => {
+    const clientItems = getWorkspaceNav("client").flatMap((group) => group.items);
+    const adminItems = getWorkspaceNav("admin").flatMap((group) => group.items);
+
+    expect(clientItems).not.toContainEqual(
+      expect.objectContaining({ href: "/help", label: "Help Center" }),
+    );
+    expect(adminItems).toContainEqual(
+      expect.objectContaining({ href: "/help", label: "Help Center" }),
+    );
+  });
 });

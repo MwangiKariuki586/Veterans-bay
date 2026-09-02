@@ -5,11 +5,7 @@ import {
   WarrantiesRepository,
   type ProfessionalWarrantyScope,
 } from "./repository";
-import type {
-  WarrantyDetail,
-  WarrantyPage,
-  WarrantyStatus,
-} from "./types";
+import type { WarrantyDetail, WarrantyPage, WarrantyStatus } from "./types";
 
 export class WarrantiesService {
   private readonly identity: IdentityService;
@@ -24,6 +20,12 @@ export class WarrantiesService {
   listProfessional(input: {
     scope: ProfessionalWarrantyScope;
     status?: WarrantyStatus;
+    bucket?: "all" | "active" | "expiring-soon" | "expired" | "voided";
+    service?: string;
+    search?: string;
+    sort?: "expiry_asc" | "expiry_desc" | "created_desc" | "created_asc";
+    dateFrom?: string;
+    dateTo?: string;
     page: number;
     pageSize: number;
   }): Promise<WarrantyPage> {
@@ -33,6 +35,12 @@ export class WarrantiesService {
   async listClient(input: {
     authUserId: string;
     status?: WarrantyStatus;
+    bucket?: "all" | "active" | "expiring-soon" | "expired" | "voided";
+    service?: string;
+    search?: string;
+    sort?: "expiry_asc" | "expiry_desc" | "created_desc" | "created_asc";
+    dateFrom?: string;
+    dateTo?: string;
     page: number;
     pageSize: number;
   }): Promise<WarrantyPage> {
@@ -40,6 +48,12 @@ export class WarrantiesService {
     return this.store.listClient({
       clientAccountId: account.id,
       status: input.status,
+      bucket: input.bucket,
+      service: input.service,
+      search: input.search,
+      sort: input.sort,
+      dateFrom: input.dateFrom,
+      dateTo: input.dateTo,
       page: input.page,
       pageSize: input.pageSize,
     });

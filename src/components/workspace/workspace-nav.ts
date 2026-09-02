@@ -79,7 +79,6 @@ const clientNav: ReadonlyArray<WorkspaceNavGroup> = [
     id: "system",
     items: [
       { href: "/account/profile", label: "Settings", icon: Settings },
-      { href: "/help", label: "Help Center", icon: BriefcaseBusiness },
     ],
   },
 ];

@@ -1,5 +1,6 @@
 import type { PageResult } from "@/platform/http/pagination";
 import type {
+  ClientWarrantySummary,
   WarrantyDetail,
   WarrantyStatus,
   WarrantySummary,
@@ -30,22 +31,48 @@ export async function warrantyApi<T>(path: string, init?: RequestInit) {
   return body.data;
 }
 
+export interface WarrantyListQuery {
+  status?: WarrantyStatus;
+  bucket?: "all" | "active" | "expiring-soon" | "expired" | "voided";
+  service?: string;
+  search?: string;
+  sort?: "expiry_asc" | "expiry_desc" | "created_desc" | "created_asc";
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export function listWarranties(
   audience: "client" | "professional",
-  status?: WarrantyStatus,
+  query: WarrantyListQuery = {},
+  signal?: AbortSignal,
 ) {
-  const query = status ? `?status=${status}` : "";
-  return warrantyApi<PageResult<WarrantySummary>>(
-    `/api/v1/${audience}/warranties${query}`,
+  const params = new URLSearchParams();
+  if (query.status) params.set("status", query.status);
+  if (query.bucket) params.set("bucket", query.bucket);
+  if (query.service) params.set("service", query.service);
+  if (query.search) params.set("search", query.search);
+  if (query.sort) params.set("sort", query.sort);
+  if (query.dateFrom) params.set("dateFrom", query.dateFrom);
+  if (query.dateTo) params.set("dateTo", query.dateTo);
+  if (query.page) params.set("page", String(query.page));
+  if (query.pageSize) params.set("pageSize", String(query.pageSize));
+  const queryString = params.toString();
+  return warrantyApi<PageResult<WarrantySummary> & { summary: ClientWarrantySummary; services: string[] }>(
+    `/api/v1/${audience}/warranties${queryString ? `?${queryString}` : ""}`,
+    signal ? { signal } : undefined,
   );
 }
 
 export function getWarranty(
   audience: "client" | "professional",
   warrantyId: string,
+  signal?: AbortSignal,
 ) {
   return warrantyApi<WarrantyDetail>(
     `/api/v1/${audience}/warranties/${warrantyId}`,
+    signal ? { signal } : undefined,
   );
 }
 

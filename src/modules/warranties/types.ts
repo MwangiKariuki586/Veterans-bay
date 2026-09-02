@@ -13,18 +13,29 @@ export const warrantyClaimStatuses = [
 
 export type WarrantyStatus = (typeof warrantyStatuses)[number];
 export type WarrantyClaimStatus = (typeof warrantyClaimStatuses)[number];
-export type WarrantyPage = PageResult<WarrantySummary>;
+export type WarrantyPage = PageResult<WarrantySummary> & { summary: ClientWarrantySummary; services: string[] };
+
+export interface ClientWarrantySummary {
+  activeWarranties: number;
+  expiringSoon: number;
+  openClaims: number;
+  resolvedClaims: number;
+}
 
 export interface WarrantySummary {
   id: string;
   jobId: string;
   serviceName: string;
   providerName: string;
+  providerSlug: string;
+  organisationId: string;
   clientName: string;
   status: WarrantyStatus;
   startsAt: string;
   endsAt: string;
   openClaimCount: number;
+  latestClaimStatus: WarrantyClaimStatus | null;
+  latestClaimSubject: string | null;
 }
 
 export interface WarrantyClaimEvidenceItem {

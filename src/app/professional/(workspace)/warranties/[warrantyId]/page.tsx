@@ -1,4 +1,4 @@
-import { WarrantyDetail } from "@/components/warranties/warranty-detail";
+import { redirect } from "next/navigation";
 
 export default async function ProfessionalWarrantyDetailPage({
   params,
@@ -6,7 +6,5 @@ export default async function ProfessionalWarrantyDetailPage({
   params: Promise<{ warrantyId: string }>;
 }) {
   const { warrantyId } = await params;
-  return (
-    <WarrantyDetail audience="professional" warrantyId={warrantyId} />
-  );
+  redirect(`/professional/warranties?warrantyId=${encodeURIComponent(warrantyId)}`);
 }

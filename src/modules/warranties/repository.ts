@@ -27,10 +27,7 @@ import {
   warrantyClaimHistory,
   warrantyClaims,
 } from "../../platform/database/schema/warranties";
-import {
-  buildPageResult,
-  paginationOffset,
-} from "../../platform/http/pagination";
+import { paginationOffset } from "../../platform/http/pagination";
 import { deriveWarrantyCoverage } from "../../platform/warranties/coverage";
 import type {
   WarrantyClaimStatus,
@@ -151,6 +148,12 @@ export class WarrantiesRepository {
   listClient(input: {
     clientAccountId: string;
     status?: WarrantyStatus;
+    bucket?: "all" | "active" | "expiring-soon" | "expired" | "voided";
+    service?: string;
+    search?: string;
+    sort?: "expiry_asc" | "expiry_desc" | "created_desc" | "created_asc";
+    dateFrom?: string;
+    dateTo?: string;
     page: number;
     pageSize: number;
   }): Promise<WarrantyPage> {
@@ -571,26 +574,125 @@ export class WarrantiesRepository {
     scope: SQL<unknown>,
     input: {
       status?: WarrantyStatus;
+      bucket?: "all" | "active" | "expiring-soon" | "expired" | "voided";
+      service?: string;
+      search?: string;
+      sort?: "expiry_asc" | "expiry_desc" | "created_desc" | "created_asc";
+      dateFrom?: string;
+      dateTo?: string;
       page: number;
       pageSize: number;
     },
   ): Promise<WarrantyPage> {
+    const now = new Date();
+    const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const bucketFilter = (() => {
+      switch (input.bucket) {
+        case "active":
+          return and(
+            sql`${effectiveStatusSql} = 'ACTIVE'`,
+            sql`${warranties.endsAt} > ${now.toISOString()}`,
+          );
+        case "expiring-soon":
+          return and(
+            sql`${effectiveStatusSql} = 'ACTIVE'`,
+            sql`${warranties.endsAt} > ${now.toISOString()}`,
+            sql`${warranties.endsAt} <= ${thirtyDaysLater.toISOString()}`,
+          );
+        case "expired":
+          return sql`${effectiveStatusSql} = 'EXPIRED'`;
+        case "voided":
+          return sql`${effectiveStatusSql} = 'VOID'`;
+        default:
+          return undefined;
+      }
+    })();
+
+    const statusFilter = input.status
+      ? sql`${effectiveStatusSql} = ${input.status}`
+      : undefined;
+
+    const serviceFilter = input.service
+      ? sql`${warranties.serviceNameSnapshot} ILIKE ${`%${input.service}%`}`
+      : undefined;
+
+    const searchFilter = input.search
+      ? sql`(
+          ${warranties.serviceNameSnapshot} ILIKE ${`%${input.search}%`} OR
+          ${warranties.id}::text ILIKE ${`%${input.search}%`} OR
+          ${organisations.name} ILIKE ${`%${input.search}%`}
+        )`
+      : undefined;
+
+    const dateFromFilter = input.dateFrom
+      ? sql`${warranties.startsAt} >= ${input.dateFrom}`
+      : undefined;
+
+    const dateToFilter = input.dateTo
+      ? sql`${warranties.endsAt} <= ${input.dateTo}`
+      : undefined;
+
     const filter = and(
       scope,
-      ...(input.status ? [sql`${effectiveStatusSql} = ${input.status}`] : []),
+      bucketFilter,
+      statusFilter,
+      serviceFilter,
+      searchFilter,
+      dateFromFilter,
+      dateToFilter,
     );
-    const [rows, totals] = await Promise.all([
+
+    const orderBy = (() => {
+      switch (input.sort) {
+        case "expiry_asc":
+          return asc(warranties.endsAt);
+        case "expiry_desc":
+          return desc(warranties.endsAt);
+        case "created_asc":
+          return asc(warranties.createdAt);
+        case "created_desc":
+        default:
+          return desc(warranties.createdAt);
+      }
+    })();
+
+    const baseFilter = and(
+      scope,
+      statusFilter,
+      serviceFilter,
+      searchFilter,
+      dateFromFilter,
+      dateToFilter,
+    );
+
+    const latestClaimStatusSql = sql<string | null>`(
+      select wc.status from warranty_claims wc
+      where wc.warranty_id = ${warranties.id}
+      order by wc.sequence desc limit 1
+    )`;
+    const latestClaimSubjectSql = sql<string | null>`(
+      select wc.subject from warranty_claims wc
+      where wc.warranty_id = ${warranties.id}
+      order by wc.sequence desc limit 1
+    )`;
+
+    const [rows, totals, warrantyCounts, openClaimsCount, resolvedClaimsCount, services] = await Promise.all([
       this.db
         .select({
           id: warranties.id,
           jobId: warranties.jobId,
           serviceName: warranties.serviceNameSnapshot,
           providerName: organisations.name,
+          providerSlug: organisations.slug,
+          organisationId: warranties.organisationId,
           clientName: clientProfile.displayName,
           status: effectiveStatusSql,
           startsAt: warranties.startsAt,
           endsAt: warranties.endsAt,
           openClaimCount: openClaimCountSql,
+          latestClaimStatus: latestClaimStatusSql,
+          latestClaimSubject: latestClaimSubjectSql,
         })
         .from(warranties)
         .innerJoin(jobs, eq(jobs.id, warranties.jobId))
@@ -600,35 +702,98 @@ export class WarrantiesRepository {
           eq(clientProfile.id, warranties.clientAccountId),
         )
         .where(filter)
-        .orderBy(desc(warranties.endsAt), desc(warranties.id))
+        .orderBy(orderBy)
         .limit(input.pageSize)
         .offset(paginationOffset(input)),
-      this.db.select({ value: count() }).from(warranties).where(filter),
+      this.db
+        .select({ value: count() })
+        .from(warranties)
+        .innerJoin(jobs, eq(jobs.id, warranties.jobId))
+        .innerJoin(organisations, eq(organisations.id, warranties.organisationId))
+        .innerJoin(clientProfile, eq(clientProfile.id, warranties.clientAccountId))
+        .where(filter),
+      this.db
+        .select({
+          activeWarranties: sql<number>`count(*) filter (where ${effectiveStatusSql} = 'ACTIVE' and ${warranties.endsAt} > ${now.toISOString()})`,
+          expiringSoon: sql<number>`count(*) filter (where ${effectiveStatusSql} = 'ACTIVE' and ${warranties.endsAt} > ${now.toISOString()} and ${warranties.endsAt} <= ${thirtyDaysLater.toISOString()})`,
+        })
+        .from(warranties)
+        .innerJoin(jobs, eq(jobs.id, warranties.jobId))
+        .innerJoin(organisations, eq(organisations.id, warranties.organisationId))
+        .innerJoin(clientProfile, eq(clientProfile.id, warranties.clientAccountId))
+        .where(baseFilter),
+      this.db
+        .select({ value: count() })
+        .from(warrantyClaims)
+        .innerJoin(warranties, eq(warrantyClaims.warrantyId, warranties.id))
+        .innerJoin(organisations, eq(organisations.id, warranties.organisationId))
+        .innerJoin(clientProfile, eq(clientProfile.id, warranties.clientAccountId))
+        .innerJoin(jobs, eq(jobs.id, warranties.jobId))
+        .where(
+          and(
+            baseFilter,
+            inArray(warrantyClaims.status, ["SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "RETURN_VISIT_SCHEDULED", "ESCALATED"] as const),
+          ),
+        ),
+      this.db
+        .select({ value: count() })
+        .from(warrantyClaims)
+        .innerJoin(warranties, eq(warrantyClaims.warrantyId, warranties.id))
+        .innerJoin(organisations, eq(organisations.id, warranties.organisationId))
+        .innerJoin(clientProfile, eq(clientProfile.id, warranties.clientAccountId))
+        .innerJoin(jobs, eq(jobs.id, warranties.jobId))
+        .where(and(baseFilter, eq(warrantyClaims.status, "RESOLVED"))),
+      this.db
+        .selectDistinct({ service: warranties.serviceNameSnapshot })
+        .from(warranties)
+        .where(scope)
+        .orderBy(warranties.serviceNameSnapshot),
     ]);
-    return buildPageResult(
-      rows.map((row) => ({
+
+    return {
+      items: rows.map((row) => ({
         ...row,
         status: row.status as WarrantyStatus,
         startsAt: row.startsAt.toISOString(),
         endsAt: row.endsAt.toISOString(),
         openClaimCount: Number(row.openClaimCount),
+        latestClaimStatus: (row.latestClaimStatus as WarrantyClaimStatus | null) ?? null,
+        latestClaimSubject: row.latestClaimSubject ?? null,
       })),
-      totals[0]?.value ?? 0,
-      input,
-    );
+      page: input.page,
+      pageSize: input.pageSize,
+      totalItems: totals[0]?.value ?? 0,
+      totalPages: Math.max(1, Math.ceil((totals[0]?.value ?? 0) / input.pageSize)),
+      summary: {
+        activeWarranties: Number(warrantyCounts[0]?.activeWarranties ?? 0),
+        expiringSoon: Number(warrantyCounts[0]?.expiringSoon ?? 0),
+        openClaims: Number(openClaimsCount[0]?.value ?? 0),
+        resolvedClaims: Number(resolvedClaimsCount[0]?.value ?? 0),
+      },
+      services: services.map((s) => s.service).filter(Boolean) as string[],
+    };
   }
 
   private async detail(
     warrantyId: string,
     scope: SQL<unknown>,
   ): Promise<WarrantyDetail | null> {
+    const latestClaimStatusSql = sql<string | null>`(
+      select wc.status from warranty_claims wc where wc.warranty_id = ${warranties.id} order by wc.sequence desc limit 1
+    )`;
+    const latestClaimSubjectSql = sql<string | null>`(
+      select wc.subject from warranty_claims wc where wc.warranty_id = ${warranties.id} order by wc.sequence desc limit 1
+    )`;
     const [row] = await this.db
       .select({
         ...getTableColumns(warranties),
         providerName: organisations.name,
+        providerSlug: organisations.slug,
         clientName: clientProfile.displayName,
         effectiveStatus: effectiveStatusSql,
         openClaimCount: openClaimCountSql,
+        latestClaimStatus: latestClaimStatusSql,
+        latestClaimSubject: latestClaimSubjectSql,
       })
       .from(warranties)
       .innerJoin(jobs, eq(jobs.id, warranties.jobId))
@@ -667,6 +832,7 @@ export class WarrantiesRepository {
       clientAccountId: row.clientAccountId,
       serviceName: row.serviceNameSnapshot,
       providerName: row.providerName,
+      providerSlug: row.providerSlug,
       clientName: row.clientName,
       status: row.effectiveStatus as WarrantyStatus,
       termsSnapshot: row.termsSnapshot,
@@ -674,6 +840,8 @@ export class WarrantiesRepository {
       startsAt: row.startsAt.toISOString(),
       endsAt: row.endsAt.toISOString(),
       openClaimCount: Number(row.openClaimCount),
+      latestClaimStatus: (row.latestClaimStatus as WarrantyClaimStatus | null) ?? null,
+      latestClaimSubject: row.latestClaimSubject ?? null,
       claims: claims.map((claim) => ({
         id: claim.id,
         sequence: claim.sequence,

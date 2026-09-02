@@ -262,7 +262,15 @@ export function createWarrantyRoutes() {
       try {
         const data = await service.listClient({
           authUserId: authUserId(context),
-          ...query,
+          status: query.status,
+          bucket: query.bucket,
+          service: query.service,
+          search: query.search,
+          sort: query.sort,
+          dateFrom: query.dateFrom,
+          dateTo: query.dateTo,
+          page: query.page,
+          pageSize: query.pageSize,
         });
         return context.json<ApiSuccessBody<WarrantyPage>>({
           data,
