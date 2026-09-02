@@ -120,7 +120,7 @@ export function WorkspaceSidebar({
 
       {kind !== "admin" ? (
         <Link
-          href="/help"
+          href={kind === "client" ? "/client/support" : "/professional/support"}
           className="mt-4 flex min-h-10 items-center justify-between rounded-full bg-primary px-4 type-control text-primary-foreground"
         >
           Contact support
