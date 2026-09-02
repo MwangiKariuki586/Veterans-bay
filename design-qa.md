@@ -48,6 +48,56 @@ Blocked for the same reason. The intended focused regions are the stable journey
 
 final result: blocked
 
+## Saved Items Loading Skeleton — 2 September 2026
+
+### Evidence
+
+- Source visual truth: user-supplied desktop screenshot of `/client/saved` in the current conversation; no local source-image path is available.
+- Implementation route: `/client/saved`.
+- Implementation screenshot: unavailable because browser discovery returned no available browser surfaces.
+- Intended viewport: supplied desktop screenshot at 1920 by 1080 pixels and a responsive mobile fallback.
+- Source density: browser screenshot captured at 80% zoom; device-pixel density metadata is unavailable.
+- Implementation pixels, CSS viewport, and density normalization: unavailable.
+- State: authenticated client while saved professionals are loading.
+
+### Full-view comparison evidence
+
+Blocked. The surrounding workspace shell, page heading, summary cards, search, filters, and sort controls are intentionally unchanged. The generic centered spinner panel is replaced by a two-column grid of four card-shaped skeletons, but no browser-rendered implementation screenshot could be captured for direct comparison.
+
+### Focused-region comparison evidence
+
+Blocked. Source-informed code mirrors the loaded cards' 16px radius, border, white surface, subtle elevation, internal 16px padding, avatar or service-thumbnail geometry, title, badge, metadata, description, heart-control, and saved-date positions. A rendered focused crop is unavailable, so exact rhythm and shimmer appearance cannot be signed off.
+
+### Required fidelity surfaces
+
+- Fonts and typography: skeleton bars follow the existing text hierarchy and do not add visible loading copy; rendered comparison blocked.
+- Spacing and layout rhythm: four placeholders use the loaded two-column grid and switch to one column below the existing medium breakpoint; rendered comparison blocked.
+- Colors and visual tokens: the shared muted skeleton token, existing card border, white surface, and shadow are reused; rendered comparison blocked.
+- Image quality and asset fidelity: no new image assets are required; avatar and service-image slots are represented by shared skeleton primitives.
+- Copy and content: the former loading title and description are visually removed while an accessible `Loading saved items` busy status remains.
+
+### Findings
+
+- [P1] Browser-rendered loading-state comparison unavailable.
+  - Location: saved-items card grid below the toolbar.
+  - Evidence: the configured browser runtime reported no available browser surfaces.
+  - Impact: exact desktop card proportions, shimmer contrast, mobile stacking, and viewport fit cannot be approved from code and tests alone.
+  - Fix: capture the delayed saved-professionals request at the supplied desktop proportions and at a mobile width, then compare both renders with the loaded card grid.
+
+### Comparison history
+
+- Implementation pass: replaced the centered spinner panel with alternating professional and service card skeletons and retained an accessible busy announcement.
+- Automated post-fix evidence: three focused component tests, changed-file lint, typecheck through the 82-route production build, and whitespace checks pass.
+- Post-fix rendered comparison: blocked because no browser surface is available.
+
+### Implementation checklist
+
+- Capture the authenticated loading state at desktop and mobile widths.
+- Confirm the grid transition, card height consistency, and no horizontal overflow.
+- Check the browser console and repeat the comparison until no P0, P1, or P2 findings remain.
+
+final result: blocked
+
 ## Dynamic Quotation Status Card — 1 September 2026
 
 ### Evidence
