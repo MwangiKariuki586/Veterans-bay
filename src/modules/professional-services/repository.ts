@@ -31,6 +31,8 @@ export type ManagedProfileRecord = {
   verificationStatus: string;
   logoAssetId: string | null;
   logoPublicId: string | null;
+  phone?: string | null;
+  email?: string | null;
   updatedAt: Date;
 };
 export type ManagedPortfolioRecord = {
@@ -359,6 +361,8 @@ export class ProfessionalServicesRepository implements ProfessionalServicesStore
         workingHours: professionalProfiles.workingHours,
         verificationStatus: professionalProfiles.verificationStatus,
         logoAssetId: professionalProfiles.logoAssetId,
+        phone: professionalProfiles.phone,
+        email: professionalProfiles.email,
         updatedAt: professionalProfiles.updatedAt,
       })
       .from(professionalProfiles)
@@ -393,6 +397,8 @@ export class ProfessionalServicesRepository implements ProfessionalServicesStore
       businessName: string;
       description: string;
       primaryCategory: string;
+      phone?: string | null;
+      email?: string | null;
       operatingLocation: string;
       experienceStartedYear: number | null;
       serviceAreas: string[];
@@ -408,6 +414,8 @@ export class ProfessionalServicesRepository implements ProfessionalServicesStore
         .set({
           description: input.values.description,
           primaryCategory: input.values.primaryCategory,
+          phone: input.values.phone ?? null,
+          email: input.values.email ?? null,
           operatingLocation: input.values.operatingLocation,
           experienceStartedYear: input.values.experienceStartedYear,
           serviceAreas: input.values.serviceAreas,

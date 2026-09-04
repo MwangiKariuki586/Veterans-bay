@@ -213,13 +213,13 @@ export function AuthenticatedShell({
 
   const shell = (
     <WorkspaceShellContext.Provider value={{ workspaceLabel }}>
-      <div className="shrink-0 border-b border-black/8 px-4 py-3 sm:px-6 lg:h-[92px] lg:px-6 lg:py-[18px]">
+      <div className="shrink-0 border-b border-black/8 px-4 py-3 sm:px-6 lg:h-[92px] lg:px-8 lg:py-[18px]">
         <SiteHeader
           variant="workspace"
           workspaceContext={{ kind, label: workspaceLabel }}
         />
       </div>
-      <div className="flex shrink-0 items-center justify-end border-b border-black/8 bg-white px-4 py-2 lg:hidden">
+      <div className="flex shrink-0 items-center justify-end border-b border-black/8 bg-white px-4 py-2 sm:px-6 lg:hidden lg:px-8">
         <WorkspaceMenu
           kind={kind}
           workspaceLabel={workspaceLabel}
@@ -235,7 +235,7 @@ export function AuthenticatedShell({
         />
         <main
           ref={scrollContainerRef}
-          className="min-h-0 min-w-0 overflow-x-clip overflow-y-auto bg-[#f8fafb] p-3 sm:p-5 lg:p-6"
+          className="min-h-0 min-w-0 overflow-x-clip overflow-y-auto bg-[#f8fafb] p-4 sm:p-6 lg:p-8"
         >
           {error ? (
             <InlineAlert

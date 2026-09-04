@@ -111,14 +111,14 @@ describe("public catalogue pages", () => {
     expect(screen.queryByText("Available Mon, Tue")).not.toBeInTheDocument();
     expect(screen.getByText("Next slot available")).toBeInTheDocument();
     expect(screen.getByText("Mon, Jan 7, 2:30 PM")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Check availability" })).toHaveAttribute(
+    expect(screen.queryByRole("link", { name: "Check availability" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Message" })).toHaveAttribute(
+      "href",
+      "/coming-soon/messaging",
+    );
+    expect(screen.getByRole("link", { name: "Book Now" })).toHaveAttribute(
       "href",
       expect.stringContaining("/client/requests/new"),
-    );
-    expect(screen.getAllByRole("link", { name: "Book Now" })[0]).toHaveClass(
-      "border-0",
-      "shadow-none",
-      "ring-0",
     );
     expect(screen.getByRole("button", { name: `Save ${profile.businessName}` })).toHaveAttribute(
       "aria-pressed",
@@ -132,8 +132,8 @@ describe("public catalogue pages", () => {
       "href",
       "#services",
     );
-    expect(screen.getAllByText("Select service")).toHaveLength(2);
-    expect(screen.getAllByText("Confirm & pay")).toHaveLength(2);
+    expect(screen.queryByText("Select service")).not.toBeInTheDocument();
+    expect(screen.queryByText("Confirm & pay")).not.toBeInTheDocument();
 
     const servicesSection = document.getElementById("services");
     expect(servicesSection).not.toBeNull();

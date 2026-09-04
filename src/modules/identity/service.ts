@@ -101,6 +101,8 @@ export class IdentityService {
     input: {
       displayName?: string;
       phone?: string | null;
+      location?: string | null;
+      bio?: string | null;
       timezone?: string;
     },
     correlationId?: string,
@@ -136,5 +138,72 @@ export class IdentityService {
   ): Promise<AccountProfileRecord> {
     const { profile } = await this.requireActiveAccount(authUserId);
     return this.repository.deactivateProfile(profile.id, correlationId);
+  }
+
+  async attachAvatar(
+    authUserId: string,
+    assetId: string,
+    correlationId?: string,
+  ): Promise<AccountProfileRecord> {
+    const { profile } = await this.requireActiveAccount(authUserId);
+    if (!this.repository.attachAvatar) throw new Error("Avatar attachment is not available.");
+    const updated = await this.repository.attachAvatar(profile.id, assetId);
+
+    await this.repository.recordAuditEvent({
+      actorAccountId: updated.id,
+      action: "user.avatar_updated",
+      entityType: "account_profile",
+      entityId: updated.id,
+      correlationId,
+      metadata: { assetId },
+    });
+
+    await this.repository.insertDomainEvent({
+      eventType: "user.avatar_updated",
+      eventVersion: 1,
+      aggregateType: "account_profile",
+      aggregateId: updated.id,
+      actorAccountId: updated.id,
+      correlationId,
+      payload: { assetId },
+    });
+
+    return updated;
+  }
+
+  async removeAvatar(authUserId: string, correlationId?: string): Promise<AccountProfileRecord> {
+    const { profile } = await this.requireActiveAccount(authUserId);
+    if (!this.repository.removeAvatar) throw new Error("Avatar removal is not available.");
+    const updated = await this.repository.removeAvatar(profile.id);
+
+    await this.repository.recordAuditEvent({
+      actorAccountId: updated.id,
+      action: "user.avatar_removed",
+      entityType: "account_profile",
+      entityId: updated.id,
+      correlationId,
+    });
+
+    await this.repository.insertDomainEvent({
+      eventType: "user.avatar_removed",
+      eventVersion: 1,
+      aggregateType: "account_profile",
+      aggregateId: updated.id,
+      actorAccountId: updated.id,
+      correlationId,
+      payload: {},
+    });
+
+    return updated;
+  }
+
+  async getPresence(authUserId: string): Promise<import("./types").PresenceSummary> {
+    await this.requireActiveAccount(authUserId);
+    return {
+      clientWorkspace: { label: "Personal account", status: "Current" },
+      professionalWorkspaces: [],
+      teamMemberships: [],
+      teamMembershipCount: 0,
+    };
   }
 }

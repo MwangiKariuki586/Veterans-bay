@@ -294,50 +294,9 @@ function SignedInActions({
   const dashboardHref = workspaceKind
     ? shellHomeHref[workspaceKind]
     : "/workspace/select";
-  const showWorkspaceMessages =
-    workspaceKind === "client" || workspaceKind === "professional";
 
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
-      {!workspaceKind ? (
-        <Link
-          href={dashboardHref}
-          className="hidden text-sm font-semibold text-foreground transition-colors hover:text-[#5f7f00] sm:inline"
-        >
-          Dashboard
-        </Link>
-      ) : null}
-      {showWorkspaceMessages ? (
-        <Link
-          href="/messages"
-          className={cn(iconButtonClass, "relative hidden sm:grid")}
-          aria-label="Messages"
-        >
-          <MessageCircle className="size-[1.15rem]" aria-hidden="true" />
-          {utilityBadges?.messages ? (
-            <span className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#2f7d18] px-1 type-caption font-semibold leading-none text-white">
-              {utilityBadges.messages > 99 ? "99+" : utilityBadges.messages}
-            </span>
-          ) : null}
-        </Link>
-      ) : null}
-      {workspaceKind === "professional" ? (
-        <Link
-          href="/professional/calendar"
-          className={cn(iconButtonClass, "hidden sm:grid")}
-          aria-label="Calendar"
-        >
-          <CalendarDays className="size-[1.15rem]" aria-hidden="true" />
-        </Link>
-      ) : workspaceKind === "client" ? (
-        <Link
-          href="/client/saved"
-          className={cn(iconButtonClass, "hidden sm:grid")}
-          aria-label="Saved professionals"
-        >
-          <Heart className="size-[1.15rem]" aria-hidden="true" />
-        </Link>
-      ) : null}
       <NotificationBell authoritativeCount={utilityBadges?.notifications} />
       <div className="hidden sm:block">
         <AccountChip

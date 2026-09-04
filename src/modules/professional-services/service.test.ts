@@ -231,6 +231,8 @@ describe("ProfessionalServicesService", () => {
       verificationStatus: "verified",
       logoAssetId: "logo-1",
       logoPublicId: "veterans-bay/logos/logo-1",
+      phone: "+254 725 123 456",
+      email: "hello@veterans-bay.test",
       updatedAt: new Date("2026-07-23T08:00:00.000Z"),
     });
     vi.mocked(repository.listPortfolio).mockResolvedValue([

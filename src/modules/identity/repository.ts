@@ -4,6 +4,7 @@ import type { Database } from "../../platform/database/client";
 import { accountProfiles } from "../../platform/database/schema/account-profiles";
 import { accountRestrictions } from "../../platform/database/schema/account-restrictions";
 import { auditEvents } from "../../platform/database/schema/audit-events";
+import { fileAssets } from "../../platform/database/schema/file-assets";
 import { outboxEvents } from "../../platform/database/schema/outbox-events";
 
 export interface AuthUserInput {
@@ -18,6 +19,11 @@ export interface AccountProfileRecord {
   displayName: string;
   primaryEmail: string;
   phone: string | null;
+  location: string | null;
+  bio: string | null;
+  avatarAssetId: string | null;
+  avatarPublicId: string | null;
+  avatarUrl: string | null;
   timezone: string;
   status: string;
   termsAcceptedAt: Date | null;
@@ -52,9 +58,14 @@ export interface IdentityStore {
     input: {
       displayName?: string;
       phone?: string | null;
+      location?: string | null;
+      bio?: string | null;
       timezone?: string;
     },
   ): Promise<AccountProfileRecord>;
+  findProfileById?(accountProfileId: string): Promise<AccountProfileRecord | null>;
+  attachAvatar?(accountProfileId: string, assetId: string): Promise<AccountProfileRecord>;
+  removeAvatar?(accountProfileId: string): Promise<AccountProfileRecord>;
   deactivateProfile(
     accountProfileId: string,
     correlationId?: string,
@@ -110,19 +121,40 @@ export class IdentityRepository implements IdentityStore {
       })
       .returning();
 
-    return profile;
+    if (!profile) throw new Error("Failed to reconcile account profile.");
+    return this.mapRow(profile, null);
   }
 
   async findProfileByAuthUserId(
     authUserId: string,
   ): Promise<AccountProfileRecord | null> {
-    const [profile] = await this.db
-      .select()
+    const [row] = await this.db
+      .select({
+        profile: accountProfiles,
+        avatarPublicId: fileAssets.cloudinaryPublicId,
+      })
       .from(accountProfiles)
+      .leftJoin(fileAssets, eq(fileAssets.id, accountProfiles.avatarAssetId))
       .where(eq(accountProfiles.authUserId, authUserId))
       .limit(1);
 
-    return profile ?? null;
+    if (!row) return null;
+    return this.mapRow(row.profile, row.avatarPublicId);
+  }
+
+  async findProfileById(accountProfileId: string): Promise<AccountProfileRecord | null> {
+    const [row] = await this.db
+      .select({
+        profile: accountProfiles,
+        avatarPublicId: fileAssets.cloudinaryPublicId,
+      })
+      .from(accountProfiles)
+      .leftJoin(fileAssets, eq(fileAssets.id, accountProfiles.avatarAssetId))
+      .where(eq(accountProfiles.id, accountProfileId))
+      .limit(1);
+
+    if (!row) return null;
+    return this.mapRow(row.profile, row.avatarPublicId);
   }
 
   async findActiveRestrictions(
@@ -156,6 +188,8 @@ export class IdentityRepository implements IdentityStore {
     input: {
       displayName?: string;
       phone?: string | null;
+      location?: string | null;
+      bio?: string | null;
       timezone?: string;
     },
   ): Promise<AccountProfileRecord> {
@@ -166,13 +200,55 @@ export class IdentityRepository implements IdentityStore {
           ? { displayName: input.displayName }
           : {}),
         ...(input.phone !== undefined ? { phone: input.phone } : {}),
+        ...(input.location !== undefined ? { location: input.location } : {}),
+        ...(input.bio !== undefined ? { bio: input.bio } : {}),
         ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
         updatedAt: new Date(),
       })
       .where(eq(accountProfiles.id, accountProfileId))
       .returning();
 
-    return profile;
+    if (!profile) throw new Error("Account profile not found.");
+    const resolved = await this.findProfileById!(profile.id);
+    if (!resolved) throw new Error("Account profile not found after update.");
+    return resolved;
+  }
+
+  async attachAvatar(accountProfileId: string, assetId: string): Promise<AccountProfileRecord> {
+    const [asset] = await this.db.select().from(fileAssets).where(eq(fileAssets.id, assetId)).limit(1);
+    if (!asset || asset.status !== "ready") {
+      throw new Error("Avatar asset is not ready.");
+    }
+    if (asset.purpose !== "AVATAR") {
+      throw new Error("Asset purpose must be AVATAR.");
+    }
+    if (asset.ownerAccountId !== accountProfileId) {
+      throw new Error("You do not own this asset.");
+    }
+    if (asset.visibility !== "public") {
+      throw new Error("Avatar asset must be public.");
+    }
+    const [updated] = await this.db
+      .update(accountProfiles)
+      .set({ avatarAssetId: asset.id, updatedAt: new Date() })
+      .where(eq(accountProfiles.id, accountProfileId))
+      .returning();
+    if (!updated) throw new Error("Account profile not found.");
+    const resolved = await this.findProfileById!(updated.id);
+    if (!resolved) throw new Error("Account profile not found after avatar update.");
+    return resolved;
+  }
+
+  async removeAvatar(accountProfileId: string): Promise<AccountProfileRecord> {
+    const [updated] = await this.db
+      .update(accountProfiles)
+      .set({ avatarAssetId: null, updatedAt: new Date() })
+      .where(eq(accountProfiles.id, accountProfileId))
+      .returning();
+    if (!updated) throw new Error("Account profile not found.");
+    const resolved = await this.findProfileById!(updated.id);
+    if (!resolved) throw new Error("Account profile not found after avatar removal.");
+    return resolved;
   }
 
   async deactivateProfile(
@@ -187,6 +263,9 @@ export class IdentityRepository implements IdentityStore {
           displayName: "Deactivated account",
           primaryEmail: `deactivated+${accountProfileId}@deleted.veteransbay.invalid`,
           phone: null,
+          location: null,
+          bio: null,
+          avatarAssetId: null,
           timezone: "UTC",
           status: "deactivated",
           deactivatedAt: now,
@@ -227,8 +306,41 @@ export class IdentityRepository implements IdentityStore {
           transactionalHistoryRetained: true,
         },
       });
-      return profile;
+      return this.mapRow(profile, null);
     });
+  }
+
+  private mapRow(
+    profile: typeof accountProfiles.$inferSelect,
+    avatarPublicId: string | null,
+  ): AccountProfileRecord {
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const avatarUrl =
+      avatarPublicId && cloudName
+        ? `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/${avatarPublicId.split("/").map(encodeURIComponent).join("/")}`
+        : avatarPublicId
+          ? `https://res.cloudinary.com/image/upload/${avatarPublicId}`
+          : null;
+    return {
+      id: profile.id,
+      authUserId: profile.authUserId,
+      displayName: profile.displayName,
+      primaryEmail: profile.primaryEmail,
+      phone: profile.phone,
+      location: profile.location,
+      bio: profile.bio,
+      avatarAssetId: profile.avatarAssetId,
+      avatarPublicId,
+      avatarUrl,
+      timezone: profile.timezone,
+      status: profile.status,
+      termsAcceptedAt: profile.termsAcceptedAt,
+      privacyAcceptedAt: profile.privacyAcceptedAt,
+      deactivatedAt: profile.deactivatedAt,
+      personalDataRemovedAt: profile.personalDataRemovedAt,
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+    };
   }
 
   async recordAuditEvent(input: {

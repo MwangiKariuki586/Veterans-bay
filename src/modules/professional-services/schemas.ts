@@ -64,6 +64,8 @@ export const updateProfessionalProfileBodySchema = z.object({
   businessName: z.string().trim().min(2).max(120),
   description: z.string().trim().min(40).max(2_000),
   primaryCategory: z.string().trim().min(2).max(100),
+  phone: z.string().trim().min(5).max(40).nullable().optional(),
+  email: z.string().trim().email().max(120).nullable().optional(),
   operatingLocation: z.string().trim().min(2).max(160),
   experienceStartedYear: z
     .number()

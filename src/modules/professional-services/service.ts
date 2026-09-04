@@ -103,6 +103,8 @@ export class ProfessionalServicesService {
       verificationStatus: profile.verificationStatus,
       logoAssetId: profile.logoAssetId,
       logoUrl: publicImageUrl(this.cloudName, profile.logoPublicId),
+      phone: profile.phone,
+      email: profile.email,
       portfolio: portfolio.map((item) => ({
         id: item.id,
         assetId: item.assetId,
@@ -120,6 +122,8 @@ export class ProfessionalServicesService {
       businessName: string;
       description: string;
       primaryCategory: string;
+      phone?: string | null;
+      email?: string | null;
       operatingLocation: string;
       experienceStartedYear: number | null;
       serviceAreas: string[];

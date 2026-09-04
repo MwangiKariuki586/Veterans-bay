@@ -31,6 +31,7 @@ import { createWorkspaceRoutes } from "../../modules/workspace/routes";
 import { createWarrantyRoutes } from "../../modules/warranties/routes";
 import { createReviewRoutes } from "../../modules/reviews/routes";
 import { createCustomerRoutes } from "../../modules/customers/routes";
+import { createClientContextRoutes } from "../../modules/client-context/routes";
 import { createServiceReminderRoutes } from "../../modules/service-reminders/routes";
 import { createAuth } from "../../platform/auth/create-auth";
 import { rateLimitMiddleware } from "./middleware/rate-limit";
@@ -123,6 +124,7 @@ export function createApiApp(dependencies: ApiAppDependencies = {}) {
   api.route("/api", createWarrantyRoutes());
   api.route("/api", createReviewRoutes());
   api.route("/api", createCustomerRoutes());
+  api.route("/api", createClientContextRoutes());
   api.route("/api", createServiceReminderRoutes());
   api.route("/api", createStorageRoutes());
   api.route("/api", createOutboxRoutes());

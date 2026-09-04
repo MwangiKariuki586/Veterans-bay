@@ -120,6 +120,7 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
     void getPublicData<PublicProfessionalProfile>(
@@ -155,6 +156,13 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
         if (response.ok && body?.data) {
           setSaved(body.data.some((item) => item.slug === slug));
         }
+      })
+      .catch(() => undefined);
+    void fetch("/api/v1/professional/profile", { credentials: "include", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const body = (await response.json().catch(() => null)) as { data?: { slug: string } } | null;
+        if (body?.data?.slug === slug) setIsOwner(true);
       })
       .catch(() => undefined);
     return () => controller.abort();
@@ -197,10 +205,11 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
   const reviewCount = profile.reviewCount;
   const isNew = rating == null || reviewCount === 0;
 
+  const hasDetailedReviews = (profile.reviews?.length ?? 0) > 0;
   const distribution = (() => {
     const counts = [0, 0, 0, 0, 0, 0];
     for (const review of profile.reviews ?? [])
-      counts[review.overallRating] += 1;
+      counts[Math.round(review.overallRating)] += 1;
     return [5, 4, 3, 2, 1].map((stars) => ({
       stars,
       count: counts[stars] ?? 0,
@@ -209,7 +218,7 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
       count: number;
     }>;
   })();
-  const maxDistribution = Math.max(1, ...distribution.map((d) => d.count));
+  const maxDistribution = hasDetailedReviews ? Math.max(1, ...distribution.map((d) => d.count)) : 1;
 
   const visibleServiceAreas = profile.serviceAreas.slice(0, 5);
   const remainingAreas = Math.max(
@@ -226,8 +235,6 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
   const bookHref = eligibleService
     ? `/client/bookings/new?professionalSlug=${encodeURIComponent(profile.slug)}&serviceSlug=${encodeURIComponent(eligibleService.slug)}&serviceName=${encodeURIComponent(eligibleService.name)}&providerName=${encodeURIComponent(profile.businessName)}`
     : `/client/requests/new?source=DIRECT_PROFESSIONAL_PAGE&professional=${encodeURIComponent(profile.slug)}&category=${encodeURIComponent(profile.primaryCategory ?? profile.categories[0] ?? "")}`;
-
-  const messageHref = `/client/requests/new?source=PROFESSIONAL_MESSAGE&professional=${encodeURIComponent(profile.slug)}`;
 
   function activateTab(tabId: string) {
     const target = document.getElementById(tabId);
@@ -276,7 +283,16 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1240px] space-y-4 px-0">
+    <div className="mx-auto w-full max-w-[1340px] space-y-4 px-0">
+      {isOwner ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/8 bg-[#eef8c8] px-4 py-3 text-sm">
+          <span className="font-semibold text-[#5f8d11]">You&apos;re viewing your profile as clients see it.</span>
+          <span className="flex flex-wrap gap-2">
+            <Link href="/professional/profile" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-full bg-white")}>Edit profile</Link>
+            <Link href="/professional" className={cn(buttonVariants({ variant: "secondary", size: "sm" }), "rounded-full")}>Return to professional workspace</Link>
+          </span>
+        </div>
+      ) : null}
       {/* Breadcrumb */}
       <nav
         aria-label="Breadcrumb"
@@ -401,6 +417,25 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
                   "Experienced plumbers handling repairs, installations and maintenance with quality and reliability."}
               </p>
 
+              <div className="mt-4 grid grid-cols-4 gap-2 border-t border-black/5 pt-4">
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-[#0a1724]">{profile.experienceYears != null ? `${profile.experienceYears}+` : "—"}</p>
+                  <p className="text-[10px] leading-tight text-[#6b7782]">Years experience</p>
+                </div>
+                <div className="text-center border-l border-black/5">
+                  <p className="text-sm font-semibold text-[#0a1724]">{profile.completedJobs}</p>
+                  <p className="text-[10px] leading-tight text-[#6b7782]">Jobs completed</p>
+                </div>
+                <div className="text-center border-l border-black/5">
+                  <p className="text-sm font-semibold text-[#0a1724]">{rating != null ? rating.toFixed(1) : "—"}</p>
+                  <p className="text-[10px] leading-tight text-[#6b7782]">Rating</p>
+                </div>
+                <div className="text-center border-l border-black/5">
+                  <p className="text-sm font-semibold text-[#0a1724]">{positiveFeedback ?? "—"}</p>
+                  <p className="text-[10px] leading-tight text-[#6b7782]">Response rate</p>
+                </div>
+              </div>
+
               <div className="mt-5 grid gap-3 text-[10px] text-[#4b5a68] sm:grid-cols-2 sm:text-xs">
                 {profile.operatingLocation ? (
                   <span className="inline-flex items-start gap-2">
@@ -431,14 +466,14 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
               <Link
                 href={bookHref}
                 className={cn(
-                  buttonVariants({ variant: "secondary" }),
-                  "h-10 flex-1 rounded-full border-0 px-4 text-xs shadow-none ring-0 outline-none hover:shadow-none focus-visible:ring-2 focus-visible:ring-[#7ba51d] focus-visible:ring-offset-2 sm:w-[136px] sm:flex-none sm:px-6",
+                  buttonVariants({ variant: "primary" }),
+                  "h-10 flex-1 rounded-full px-4 text-xs sm:w-[136px] sm:flex-none sm:px-6",
                 )}
               >
                 Book Now
               </Link>
               <Link
-                href={messageHref}
+                href="/coming-soon/messaging"
                 className={cn(
                   buttonVariants({ variant: "outline" }),
                   "h-10 flex-1 rounded-full bg-white px-4 text-xs sm:w-[120px] sm:flex-none sm:px-6",
@@ -489,16 +524,6 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
                 <p className="mt-0.5 text-sm font-semibold text-[#0a1724]">
                   {nextAvailableLabel ?? "Check back soon"}
                 </p>
-                <Link
-                  href={bookHref}
-                  className="relative mt-4 inline-flex h-10 w-full items-center justify-center rounded-full bg-white px-10 text-xs font-semibold text-[#315c18] shadow-[0_6px_16px_rgba(50,72,24,0.1)] ring-1 ring-black/5 hover:bg-[#fbfcf8]"
-                >
-                  Check availability
-                  <CalendarDays
-                    className="absolute right-4 size-3.5"
-                    aria-hidden="true"
-                  />
-                </Link>
               </div>
 
               <div className="mt-5 border-t border-[#dce7b8] pt-4 sm:col-span-2 lg:mt-5">
@@ -596,10 +621,10 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
         </div>
       </div>
 
-      {/* Main 3-col */}
+      {/* Main 2-col — Availability only in hero (Image 1) per request */}
       <div
         id="overview"
-        className="grid scroll-mt-24 items-stretch gap-4 lg:grid-cols-[1.08fr_1.05fr_0.84fr]"
+        className="grid scroll-mt-24 items-stretch gap-4 lg:grid-cols-[1.08fr_1.05fr]"
       >
         {/* About */}
         <Surface
@@ -720,30 +745,6 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
             View all services
           </Link>
         </Surface>
-
-        {/* Book this professional */}
-        <Surface className="order-2 hidden min-h-[405px] rounded-[16px] p-5 shadow-none sm:p-6 lg:order-3 lg:flex lg:flex-col">
-          <h2 className="text-sm font-semibold text-[#0a1724]">
-            Book this professional
-          </h2>
-          <BookingSteps
-            bookHref={bookHref}
-            className="mt-5 flex flex-1 flex-col"
-          />
-        </Surface>
-
-        <details className="group order-2 rounded-[20px] border border-black/8 bg-white lg:hidden">
-          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 text-sm font-semibold text-[#0a1724] [&::-webkit-details-marker]:hidden">
-            Book this professional
-            <ChevronDown
-              className="size-4 transition-transform group-open:rotate-180"
-              aria-hidden="true"
-            />
-          </summary>
-          <div className="border-t border-black/8 px-5 pb-5 pt-4">
-            <BookingSteps bookHref={bookHref} />
-          </div>
-        </details>
       </div>
 
       {/* What clients say - rating summary + reviews */}
@@ -787,31 +788,39 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
                 </p>
               </div>
               <div className="space-y-2">
-                {distribution.map((row) => (
-                  <div
-                    key={row.stars}
-                    className="flex items-center gap-2 text-[11px]"
-                  >
-                    <span className="inline-flex w-7 shrink-0 items-center justify-end gap-0.5 text-[#52616e]">
-                      {row.stars}
-                      <Star
-                        className="size-2.5 fill-[#ffb600] text-[#ffb600]"
-                        aria-hidden="true"
-                      />
-                    </span>
-                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#edf1f3]">
-                      <span
-                        className="block h-full rounded-full bg-[linear-gradient(90deg,#ffd200_0%,#b8eb3b_100%)]"
-                        style={{
-                          width: `${Math.round((row.count / maxDistribution) * 100)}%`,
-                        }}
-                      />
-                    </span>
-                    <span className="w-5 text-right text-[#52616e]">
-                      {row.count}
-                    </span>
-                  </div>
-                ))}
+                {hasDetailedReviews ? (
+                  distribution.map((row) => (
+                    <div
+                      key={row.stars}
+                      className="flex items-center gap-2 text-[11px]"
+                    >
+                      <span className="inline-flex w-7 shrink-0 items-center justify-end gap-0.5 text-[#52616e]">
+                        {row.stars}
+                        <Star
+                          className="size-2.5 fill-[#ffb600] text-[#ffb600]"
+                          aria-hidden="true"
+                        />
+                      </span>
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#edf1f3]">
+                        <span
+                          className="block h-full rounded-full bg-[linear-gradient(90deg,#ffd200_0%,#b8eb3b_100%)]"
+                          style={{
+                            width: `${Math.round((row.count / maxDistribution) * 100)}%`,
+                          }}
+                        />
+                      </span>
+                      <span className="w-5 text-right text-[#52616e]">
+                        {row.count}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-[11px] leading-5 text-[#6b7782]">
+                    {reviewCount > 0
+                      ? `Based on ${reviewCount} verified reviews. Detailed breakdown appears once reviews are published.`
+                      : `No verified reviews yet.`}
+                  </p>
+                )}
               </div>
             </div>
           </Surface>

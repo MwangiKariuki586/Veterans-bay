@@ -169,7 +169,6 @@ function FeatureStatusCard(props: FeatureStatusPageProps) {
           <h1 className="mt-7 max-w-[430px] text-[2.15rem] leading-[1.08] font-semibold tracking-title text-[#071733] sm:text-[3rem] lg:text-[3.2rem]">
             {props.title}
           </h1>
-          <span className="mt-6 block h-[3px] w-14 bg-[#a8d400]" aria-hidden="true" />
           <div className="mt-6 max-w-[390px] text-[0.98rem] leading-7 text-[#566987]">{props.description}</div>
 
           {props.primaryAction || props.secondaryAction ? (

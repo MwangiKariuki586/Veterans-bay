@@ -52,6 +52,8 @@ export interface ManagedProfessionalProfile {
   verificationStatus: string;
   logoAssetId: string | null;
   logoUrl: string | null;
+  phone?: string | null;
+  email?: string | null;
   portfolio: ManagedPortfolioItem[];
   updatedAt: string;
 }
