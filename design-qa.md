@@ -221,3 +221,21 @@ Blocked. The source crop shows the attachment pill, document tile, two-line labe
 - Post-fix rendered comparison: blocked because no browser surface is available.
 
 final result: blocked
+
+
+## Public service availability ? corrected available-times reference
+
+Source: user-supplied available-times mockup (265 x 375 pixels). Target: `/services/:slug`, expanded availability with a selected slot. The earlier empty-state reference is superseded.
+
+Implemented the compact date/time controls, bordered picker, pale next-slot and selected-time summaries, and rectangular lime Continue action. Preserved authoritative times and existing booking flow. Five focused tests pass.
+
+Browser setup succeeded but in-app selection was unavailable and discovery returned an empty list. No fresh rendered screenshot or responsive comparison was possible. Typography, spacing, colors, and selection-state fidelity require browser review.
+
+final result: blocked
+
+
+## Desktop service detail density
+
+Desktop now surfaces all existing tab sections, pairs inclusions/exclusions in two columns, and retains the availability rail. Mobile keeps tab switching. Six focused tests pass, including desktop content visibility and compact tab switching. Browser geometry and visual comparison remain unavailable; no screenshot-backed fidelity claim.
+
+final result: blocked

@@ -588,14 +588,14 @@ export function BookingDetail({
                     </span>
                   )}
                 </div>
-                <dl className="flex-1 space-y-2 text-[0.72rem]">
-                  <div className="flex justify-between gap-3">
+                <dl className="grid min-w-0 flex-1 grid-cols-[max-content_minmax(0,1fr)] content-start gap-x-3 gap-y-2 text-[0.72rem]">
+                  <div className="contents">
                     <dt className="text-[#6f7d8b]">Date</dt>
                     <dd className="font-medium text-[#0b1e2e]">
                       {scheduleDate ? formatScheduleDate(scheduleDate) : "—"}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-3">
+                  <div className="contents">
                     <dt className="text-[#6f7d8b]">Time</dt>
                     <dd className="font-medium text-[#0b1e2e]">
                       {scheduleDate && endsAt
@@ -603,13 +603,13 @@ export function BookingDetail({
                         : "—"}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-3">
+                  <div className="contents">
                     <dt className="text-[#6f7d8b]">Duration</dt>
                     <dd className="font-medium text-[#0b1e2e]">
                       {duration} minutes
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-3">
+                  <div className="contents">
                     <dt className="text-[#6f7d8b]">Arrival window</dt>
                     <dd className="font-medium text-[#0b1e2e]">
                       {scheduleDate

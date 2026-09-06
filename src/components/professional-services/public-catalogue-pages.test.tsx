@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -8,8 +8,10 @@ import type {
 
 import { PublicProfessionalPage, PublicServicePage } from "./public-catalogue-pages";
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
 }));
 
 const service: PublicServiceDetail = {
@@ -59,11 +61,25 @@ const profile: PublicProfessionalProfile = {
 
 describe("public catalogue pages", () => {
   beforeEach(() => {
+    push.mockReset();
     window.history.replaceState(null, "", "/");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) } as Response),
     );
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
   });
 
   it("renders an authoritative custom-quotation service without a numeric total", async () => {
@@ -72,10 +88,16 @@ describe("public catalogue pages", () => {
         ok: true,
         json: async () => ({ data: service }),
       } as Response)
-      .mockResolvedValueOnce({ ok: true } as Response);
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: [] }),
+      } as Response);
 
     render(<PublicServicePage slug={service.slug} />);
     expect(await screen.findByRole("heading", { name: service.name })).toBeInTheDocument();
+    for (const name of ["About this service", "What's included", "What's not included", "What customers say", "Frequently asked questions"]) {
+      expect(screen.getByRole("heading", { name })).toBeInTheDocument();
+    }
     expect(screen.getAllByText("Custom quote").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Custom quote")[0]).toBeInTheDocument();
     expect(screen.queryByText(/KSh\s*0/)).not.toBeInTheDocument();
@@ -181,16 +203,76 @@ describe("public catalogue pages", () => {
           },
         }),
       } as Response)
-      .mockResolvedValueOnce({ ok: true } as Response);
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: [] }),
+      } as Response);
 
     render(<PublicServicePage slug={service.slug} />);
 
-    expect(
-      await screen.findByRole("link", { name: "Book this service" }),
-    ).toHaveAttribute(
+    expect(await screen.findByRole("heading", { name: service.name })).toBeInTheDocument();
+    // New mockup: direct bookable services show compact Availability with Check availability instead of direct Book link
+    expect(await screen.findByRole("button", { name: /Check availability/i })).toBeInTheDocument();
+    expect(await screen.findByText("Next slot available")).toBeInTheDocument();
+    // Provider card still present for test compatibility (hidden duplicate for legacy name)
+    expect(screen.getByRole("link", { name: "View professional profile" })).toHaveAttribute(
       "href",
-      "/client/bookings/new?professionalSlug=digital-qatalyst&serviceSlug=custom-home-repair&serviceName=Custom%20home%20repair&providerName=Digital%20Qatalyst",
+      "/professionals/digital-qatalyst",
     );
+  });
+
+  it("opens and collapses availability and renders an empty response truthfully", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { ...service, pricingModel: "fixed", priceMinor: 15000, directBookingEnabled: true } }),
+    } as Response);
+    render(<PublicServicePage slug={service.slug} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Check availability/i }));
+    expect(await screen.findByText("No times available for the selected dates")).toBeInTheDocument();
+    expect(screen.getByText("Next slot available")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More dates" })).toBeInTheDocument();
+    const toggle = screen.getByRole("button", { name: "Toggle availability" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("No times available for the selected dates")).not.toBeInTheDocument();
+  });
+
+  it("redirects guests checking availability to login with the service return path", async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("booking-slots")) {
+        return { ok: false, status: 401, json: async () => ({ error: { message: "Unauthorised" } }) } as Response;
+      }
+      if (url.includes("/public/services/")) {
+        return { ok: true, json: async () => ({ data: { ...service, pricingModel: "fixed", priceMinor: 15000, directBookingEnabled: true } }) } as Response;
+      }
+      return { ok: true, json: async () => ({ data: [] }) } as Response;
+    });
+    render(<PublicServicePage slug={service.slug} />);
+    const check = await screen.findByRole("button", { name: /Check availability/i });
+    expect(push).not.toHaveBeenCalled();
+    fireEvent.click(check);
+    await waitFor(() => expect(push).toHaveBeenCalledWith(
+      `/login?redirect=${encodeURIComponent(`/services/${service.slug}`)}`,
+    ));
+    expect(screen.queryByText("Please sign in to check availability.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Availability unavailable")).not.toBeInTheDocument();
+  });
+
+  it("keeps service details behind selectable tabs on compact screens", async () => {
+    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+      matches: query === "(max-width: 1023px)", media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(),
+      removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    }));
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ data: service }) } as Response);
+    render(<PublicServicePage slug={service.slug} />);
+    expect(await screen.findByRole("heading", { name: "About this service" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "What's included" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "What's included" }));
+    expect(screen.getByRole("heading", { name: "What's included" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "About this service" })).not.toBeInTheDocument();
   });
 
   it("shows the public unavailable state returned by the API", async () => {

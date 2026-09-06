@@ -1,5 +1,5 @@
-import { SupportPage } from "@/components/support/support-page";
+import { redirect } from "next/navigation";
 
 export default function ClientSupportPage() {
-  return <SupportPage />;
+  redirect("/support");
 }

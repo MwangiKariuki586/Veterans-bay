@@ -31,7 +31,7 @@ describe("workspace sidebar", () => {
     ).toHaveAttribute("href", "/professional/services");
     expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
       "href",
-      "/professional/support",
+      "/support",
     );
   });
 
@@ -47,7 +47,7 @@ describe("workspace sidebar", () => {
     ).toHaveAttribute("href", "/client/quotations");
     expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
       "href",
-      "/client/support",
+      "/support",
     );
   });
 });
