@@ -356,7 +356,7 @@ function ActionCentreCard({
   items: ClientDashboardData["actionCentre"];
 }) {
   return (
-    <Surface className="flex h-full min-h-[236px] flex-col rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
+    <Surface className="flex h-full min-h-[236px] min-w-0 flex-col rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
       <div className="flex items-center justify-between">
         <h2 className="type-section-title">Action centre</h2>
         <Link
@@ -367,11 +367,11 @@ function ActionCentreCard({
         </Link>
       </div>
       {items.length ? (
-        <ul className="mt-2 grid gap-1.5">
+        <ul className="mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5">
           {items.map((item) => (
             <li
               key={item.id}
-              className="flex min-h-[42px] items-center gap-2 rounded-xl border border-black/5 bg-[#fcfcfd] px-2 py-1.5"
+              className="flex min-h-[42px] min-w-0 items-center gap-2  bg-[#fcfcfd] px-2 py-1.5"
             >
               <span
                 className={cn(
@@ -455,7 +455,7 @@ function SpendingCard({
             100,
         );
   return (
-    <Surface className="flex h-full min-h-[236px] flex-col rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
+    <Surface className="flex h-full min-h-[236px] min-w-0 flex-col rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="type-section-title">Spending & service activity</h2>
         <select
@@ -653,7 +653,7 @@ function ProfessionalsCard({
   ];
   const list = professionals.length ? professionals : placeholders;
   return (
-    <Surface className="flex h-full min-h-[236px] flex-col rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
+    <Surface className="flex h-full min-h-[236px] min-w-0 flex-col rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
       <div className="flex items-center justify-between">
         <h2 className="type-section-title">Your professionals</h2>
         <Link
@@ -663,9 +663,9 @@ function ProfessionalsCard({
           View all
         </Link>
       </div>
-      <ul className="mt-2 grid gap-2.5">
+      <ul className="mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5">
         {list.slice(0, 3).map((pro, index) => (
-          <li key={pro.id} className="flex items-center gap-3">
+          <li key={pro.id} className="flex min-w-0 items-center gap-3">
             <span className="relative size-9 shrink-0 overflow-hidden rounded-full bg-muted">
               <Image
                 src={pro.imageUrl ?? `/images/avatar-${(index % 3) + 1}.png`}

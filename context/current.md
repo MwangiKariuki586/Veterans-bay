@@ -24,6 +24,8 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
+`COMPLETE` — Client dashboard Action centre and Your professionals lists now use shrinkable grid tracks and rows so long text yields space to action buttons instead of extending outside the cards. Dashboard card minimum widths also allow the grid to constrain its contents. Populated browser checks at four viewport sizes confirm all row actions stay inside their cards with no card/row overflow; changed-component lint passes.
+
 `COMPLETE` — Guests clicking Check availability now go to login with the current service as the return destination, instead of seeing an authentication-error banner. Background slot loading leaves public browsing accessible, while both desktop expansion and the mobile sheet trigger login on an unauthenticated request. Fresh guest-browser checks pass at desktop/mobile widths; seven focused catalogue tests and changed-file lint pass.
 
 `COMPLETE` — Support is publicly accessible at `/support` using the existing public shell. Desktop/mobile service-detail support links and client/professional sidebar support links point there; legacy `/client/support` and `/professional/support` routes redirect to it. A fresh signed-out browser context reaches all three URLs without a login gate. Both sidebar tests and changed-file lint pass.
