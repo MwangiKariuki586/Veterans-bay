@@ -285,7 +285,7 @@ export function AuthenticatedShell({
 
   return (
     <div className={`${pageBackdropSurfaceClass} fixed inset-0 overflow-hidden`}>
-      <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col overflow-hidden bg-white">
+      <div className="flex h-full w-full min-w-0 flex-col overflow-hidden bg-white">
         {content}
       </div>
     </div>
