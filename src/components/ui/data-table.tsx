@@ -10,6 +10,7 @@ import {
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function DataTable<TData extends RowData>({
   columns,
@@ -20,6 +21,8 @@ export function DataTable<TData extends RowData>({
   getRowId,
   onRowClick,
   getRowLabel,
+  loading = false,
+  loadingLabel = "Loading items",
 }: {
   columns: LegacyColumnDef<TData, unknown>[];
   data: TData[];
@@ -29,6 +32,8 @@ export function DataTable<TData extends RowData>({
   getRowId?: (row: TData) => string;
   onRowClick?: (row: TData) => void;
   getRowLabel?: (row: TData) => string;
+  loading?: boolean;
+  loadingLabel?: string;
 }) {
   const table = useLegacyTable({
     columns,
@@ -37,10 +42,11 @@ export function DataTable<TData extends RowData>({
     getRowId,
   });
 
-  if (data.length === 0) return <>{empty}</>;
+  if (!loading && data.length === 0) return <>{empty}</>;
 
   return (
     <>
+      {loading ? <span className="sr-only" role="status">{loadingLabel}</span> : null}
       <div className={cn("hidden overflow-x-auto lg:block", className)}>
         <table className="w-full min-w-[1040px] border-collapse text-left">
           <thead className="border-y border-black/6 bg-[#fbfcfd]">
@@ -63,8 +69,17 @@ export function DataTable<TData extends RowData>({
               </tr>
             ))}
           </thead>
-          <tbody className="divide-y divide-black/6">
-            {table.getRowModel().rows.map((row) => (
+          <tbody className="divide-y divide-black/6" aria-busy={loading}>
+            {loading ? Array.from({ length: 4 }, (_, rowIndex) => (
+              <tr key={rowIndex} aria-hidden="true">
+                {table.getVisibleLeafColumns().map((column, columnIndex) => (
+                  <td key={column.id} className="h-[62px] px-4 py-2">
+                    <Skeleton className={cn("h-3 rounded-full", columnIndex === 0 ? "w-4/5" : "w-2/3")} />
+                    {columnIndex < 2 ? <Skeleton className="mt-2 h-2.5 w-1/2 rounded-full" /> : null}
+                  </td>
+                ))}
+              </tr>
+            )) : table.getRowModel().rows.map((row) => (
               <tr
                 key={row.id}
                 className={cn(
@@ -96,8 +111,23 @@ export function DataTable<TData extends RowData>({
         </table>
       </div>
       {mobileRow ? (
-        <div className="grid gap-3 p-3 lg:hidden">
-          {table.getRowModel().rows.map((row) => (
+        <div className="grid gap-3 p-3 lg:hidden" aria-busy={loading}>
+          {loading ? Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="rounded-[14px] border border-black/8 bg-white p-4" aria-hidden="true">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <Skeleton className="h-4 w-3/4 rounded-full" />
+                  <Skeleton className="mt-2 h-3 w-1/2 rounded-full" />
+                </div>
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <Skeleton className="h-3 w-4/5 rounded-full" />
+                <Skeleton className="h-3 w-3/4 rounded-full" />
+              </div>
+              <Skeleton className="mt-4 h-3 w-1/3 rounded-full" />
+            </div>
+          )) : table.getRowModel().rows.map((row) => (
             <div
               key={row.id}
               className={cn(onRowClick && "cursor-pointer rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring")}

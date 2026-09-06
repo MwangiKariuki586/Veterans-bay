@@ -280,9 +280,7 @@ function ClientQuotationList() {
         </p>
       </header>
 
-      {quotationQuery.isPending ? (
-        <QuotationListSkeleton />
-      ) : quotationQuery.isError ? (
+      {quotationQuery.isError ? (
         <InlineAlert
           className="mt-5"
           variant="error"
@@ -293,55 +291,59 @@ function ClientQuotationList() {
               : "Quotations could not be loaded."
           }
         />
-      ) : result ? (
+      ) : (
         <>
           <section
             className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
             aria-label="Quotation summary"
           >
             <WorkspaceMetricCard
+              loading={quotationQuery.isPending}
               icon={FileText}
               tone="green"
               label="Total received"
-              value={result.summary.total}
+              value={result?.summary.total}
               hint="Across all statuses"
               href="/client/quotations"
               action="View quotations"
             />
             <WorkspaceMetricCard
+              loading={quotationQuery.isPending}
               icon={CircleAlert}
               tone="orange"
               label="Awaiting decision"
-              value={result.summary.awaitingDecision}
+              value={result?.summary.awaitingDecision}
               hint={
-                result.summary.awaitingDecision
+                result?.summary.awaitingDecision
                   ? "Your response is needed"
                   : "Nothing needs a decision"
               }
-              hintTone={result.summary.awaitingDecision ? "danger" : "muted"}
+              hintTone={result?.summary.awaitingDecision ? "danger" : "muted"}
               href="/client/quotations?bucket=awaiting-decision"
               action="Review now"
             />
             <WorkspaceMetricCard
+              loading={quotationQuery.isPending}
               icon={CheckCircle2}
               tone="blue"
               label="Accepted"
-              value={result.summary.accepted}
+              value={result?.summary.accepted}
               hint="Preserved agreements"
               href="/client/quotations?bucket=accepted"
               action="View accepted"
             />
             <WorkspaceMetricCard
+              loading={quotationQuery.isPending}
               icon={Clock3}
               tone="purple"
               label="Expiring soon"
-              value={result.summary.expiringSoon}
+              value={result?.summary.expiringSoon}
               hint={
-                result.summary.expiringSoon
+                result?.summary.expiringSoon
                   ? "Within the next 7 days"
                   : "No urgent expiries"
               }
-              hintTone={result.summary.expiringSoon ? "danger" : "muted"}
+              hintTone={result?.summary.expiringSoon ? "danger" : "muted"}
               href="/client/quotations?validity=expiring"
               action="Review validity"
             />
@@ -353,7 +355,7 @@ function ClientQuotationList() {
           >
             {tabs.map((tab) => {
               const active = queryState.bucket === tab.value;
-              const count = tab.count ? result.summary[tab.count] : null;
+              const count = tab.count ? result?.summary[tab.count] : null;
               return (
                 <button
                   key={tab.value}
@@ -370,7 +372,7 @@ function ClientQuotationList() {
                   {tab.label}
                   {count !== null ? (
                     <span className="rounded-full bg-[#edf1f3] px-2 py-0.5 text-[0.64rem] font-semibold text-[#536170]">
-                      {count}
+                      {count ?? <Skeleton className="h-3 w-4 rounded-full" />}
                     </span>
                   ) : null}
                 </button>
@@ -402,7 +404,7 @@ function ClientQuotationList() {
                 onChange={(category) => updateParams({ category })}
               >
                 <option value="">Category</option>
-                {result.categories.map((item) => (
+                {result?.categories.map((item) => (
                   <option key={item} value={item}>
                     {item}
                   </option>
@@ -457,6 +459,8 @@ function ClientQuotationList() {
 
             <div className="relative" aria-busy={showProgress}>
               <DataTable
+                loading={quotationQuery.isPending}
+                loadingLabel="Loading quotations"
                 columns={columns}
                 data={visibleItems}
                 getRowId={(row) => row.id}
@@ -465,7 +469,7 @@ function ClientQuotationList() {
                 }
                 onRowClick={openQuotation}
                 mobileRow={(row) => <QuotationMobileCard quotation={row} />}
-                empty={
+                empty={result ? (
                   <StatePanel
                     className="m-4 border-dashed shadow-none"
                     title={
@@ -485,10 +489,10 @@ function ClientQuotationList() {
                       </Button>
                     ) : null}
                   </StatePanel>
-                }
+                ) : null}
               />
             </div>
-            <QuotationPagination
+            {result ? <QuotationPagination
               page={result.page}
               pageSize={result.pageSize}
               totalItems={result.totalItems}
@@ -497,7 +501,7 @@ function ClientQuotationList() {
               onPageSize={(pageSize) =>
                 updateParams({ pageSize, page: 1 }, false)
               }
-            />
+            /> : null}
           </section>
 
           {selected ? (
@@ -509,7 +513,7 @@ function ClientQuotationList() {
             />
           ) : null}
         </>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -1162,19 +1166,6 @@ function DrawerSection({ label, value }: { label: string; value: string }) {
   );
 }
 
-function QuotationListSkeleton() {
-  return (
-    <div className="mt-4 space-y-3" aria-busy="true">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-32 rounded-[16px]" />
-        ))}
-      </div>
-      <Skeleton className="h-11 rounded-none" />
-      <Skeleton className="h-[430px] rounded-[15px]" />
-    </div>
-  );
-}
 
 function QuotationDrawerSkeleton() {
   return (

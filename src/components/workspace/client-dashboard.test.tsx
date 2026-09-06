@@ -91,10 +91,11 @@ const mockData: ClientDashboardData = {
     { id: "s4", slug: "electrical-services", name: "Electrical Services", category: "Electrical", priceMinor: 250000, currency: "KES", imageUrl: "/images/category-electrical.png", organisationSlug: "bright-spark", organisationName: "Bright Spark", rating: 4.6, reviewCount: 63, href: "/services/electrical-services" },
   ],
 };
-let dashboardData = mockData;
+let dashboardData: ClientDashboardData | null = mockData;
+let dashboardLoading = false;
 
 vi.mock("@/components/workspace/client-dashboard-context", () => ({
-  useClientDashboard: () => ({ data: dashboardData, loading: false, error: null, range: "month" as const, setRange, refresh }),
+  useClientDashboard: () => ({ data: dashboardData, loading: dashboardLoading, error: null, range: "month" as const, setRange, refresh }),
 }));
 
 import { ClientDashboard } from "./client-dashboard";
@@ -102,6 +103,28 @@ import { ClientDashboard } from "./client-dashboard";
 describe("client dashboard", () => {
   beforeEach(() => {
     dashboardData = mockData;
+    dashboardLoading = false;
+  });
+
+  it("shows real card labels and actions while live data is loading", () => {
+    dashboardData = null;
+    dashboardLoading = true;
+    const { rerender } = render(<ClientDashboard />);
+    const findService = screen.getByRole("link", { name: "Find service" });
+    expect(findService).toHaveAttribute("href", "/marketplace");
+    expect(screen.getByRole("link", { name: "Post request" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading open requests" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Action centre" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your professionals" })).toBeInTheDocument();
+    expect(screen.queryByText("No open requests")).not.toBeInTheDocument();
+    expect(screen.queryByText("All paid")).not.toBeInTheDocument();
+    expect(screen.queryByText("David Mwangi")).not.toBeInTheDocument();
+    dashboardData = mockData;
+    dashboardLoading = false;
+    rerender(<ClientDashboard />);
+    expect(screen.queryByRole("status", { name: "Loading open requests" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Find service" })).toBe(findService);
+    expect(screen.getByText("Review 3 quotations")).toBeInTheDocument();
   });
 
   it("renders mockup sections with authoritative data", () => {

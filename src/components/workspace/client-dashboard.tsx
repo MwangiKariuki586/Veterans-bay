@@ -37,6 +37,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { StatePanel } from "@/components/ui/state-panel";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Surface } from "@/components/ui/surface";
 import { useWorkspaceShell } from "@/components/workspace/authenticated-shell";
 import { useClientDashboard } from "@/components/workspace/client-dashboard-context";
@@ -94,10 +95,7 @@ export function ClientDashboard() {
   const { workspaceLabel } = useWorkspaceShell();
   const dashboard = useClientDashboard();
 
-  if (!dashboard || (dashboard.loading && !dashboard.data)) {
-    return <ClientDashboardSkeleton />;
-  }
-  if (!dashboard.data) {
+  if (dashboard && !dashboard.loading && !dashboard.data) {
     return (
       <StatePanel
         variant="error"
@@ -109,8 +107,9 @@ export function ClientDashboard() {
     );
   }
 
-  const data = dashboard.data;
-  const displayName = workspaceLabel !== "Workspace" ? workspaceLabel : "Alex";
+  const data = dashboard?.data;
+  const loading = !data;
+  const displayName = workspaceLabel !== "Workspace" ? workspaceLabel : "there";
   const firstName = displayName.split(/\s+/)[0] ?? "there";
 
   return (
@@ -156,12 +155,13 @@ export function ClientDashboard() {
       >
         <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <WorkspaceMetricCard
+            loading={loading}
             icon={ClipboardList}
             tone="purple"
             label="Open requests"
-            value={data.summary.openRequests}
+            value={data?.summary.openRequests}
             hint={
-              data.summary.openRequests
+              data?.summary.openRequests
                 ? "Awaiting responses"
                 : "No open requests"
             }
@@ -169,12 +169,13 @@ export function ClientDashboard() {
             action="View requests"
           />
           <WorkspaceMetricCard
+            loading={loading}
             icon={FileText}
             tone="blue"
             label="Quotes to review"
-            value={data.summary.quotesToReview}
+            value={data?.summary.quotesToReview}
             hint={
-              data.summary.quotesToReview
+              data?.summary.quotesToReview
                 ? "From professionals"
                 : "No new quotes"
             }
@@ -182,66 +183,69 @@ export function ClientDashboard() {
             action="Review quotes"
           />
           <WorkspaceMetricCard
+            loading={loading}
             icon={CalendarDays}
             tone="green"
             label="Upcoming bookings"
-            value={data.summary.upcomingBookings}
+            value={data?.summary.upcomingBookings}
             hint={
-              data.summary.nextBookingAt
-                ? `Next: ${relativeNext(data.summary.nextBookingAt)}`
+              data?.summary.nextBookingAt
+                ? `Next: ${relativeNext(data?.summary.nextBookingAt)}`
                 : "No upcoming bookings"
             }
             href="/client/bookings"
             action="View bookings"
           />
           <WorkspaceMetricCard
+            loading={loading}
             icon={Wrench}
             tone="orange"
             label="Active jobs"
-            value={data.summary.activeJobs}
-            hint={data.summary.activeJobs ? "In progress" : "No active jobs"}
+            value={data?.summary.activeJobs}
+            hint={data?.summary.activeJobs ? "In progress" : "No active jobs"}
             href="/client/bookings?stage=active"
             action="View jobs"
           />
           <WorkspaceMetricCard
+            loading={loading}
             icon={CircleDollarSign}
             tone="yellow"
             label="Outstanding payments"
-            value={data.summary.outstandingPaymentsCount}
+            value={data?.summary.outstandingPaymentsCount}
             hint={
-              data.summary.outstandingPaymentsCount
-                ? formatMoney(data.summary.outstandingPaymentsMinor)
+              data?.summary.outstandingPaymentsCount
+                ? formatMoney(data?.summary.outstandingPaymentsMinor)
                 : "All paid"
             }
             hintTone={
-              data.summary.outstandingPaymentsCount ? "danger" : "muted"
+              data?.summary.outstandingPaymentsCount ? "danger" : "muted"
             }
             href="/client/invoices"
             action="Pay now"
           />
         </div>
-        <ServiceProtectionCard data={data.serviceProtection} />
+        {data ? <ServiceProtectionCard data={data.serviceProtection} /> : <DashboardSectionSkeleton title="Service protection" variant="protection" />}
       </section>
 
       {/* Second row: Action centre + Spending + Professionals */}
       <div className="grid items-stretch gap-3 xl:grid-cols-[360px_minmax(0,1fr)_340px]">
-        <ActionCentreCard items={data.actionCentre} />
-        <SpendingCard
+        {data ? <ActionCentreCard items={data.actionCentre} /> : <DashboardSectionSkeleton title="Action centre" href="/client/bookings?stage=active" />}
+        {data && dashboard ? <SpendingCard
           data={data}
           range={dashboard.range}
           onRangeChange={dashboard.setRange}
-        />
-        <ProfessionalsCard professionals={data.professionals} />
+        /> : <DashboardSectionSkeleton title="Spending & service activity" variant="chart" />}
+        {data ? <ProfessionalsCard professionals={data.professionals} /> : <DashboardSectionSkeleton title="Your professionals" href="/client/saved" />}
       </div>
 
       {/* Third row: Upcoming bookings + Protection & payments */}
       <div className="grid items-stretch gap-3 xl:grid-cols-[minmax(0,1.7fr)_340px]">
-        <UpcomingBookingsCard bookings={data.upcomingBookings} />
-        <ProtectionPaymentsCard data={data.protectionPayments} />
+        {data ? <UpcomingBookingsCard bookings={data.upcomingBookings} /> : <DashboardSectionSkeleton title="Upcoming bookings" href="/client/bookings" />}
+        {data ? <ProtectionPaymentsCard data={data.protectionPayments} /> : <DashboardSectionSkeleton title="Protection & payments" />}
       </div>
 
       {/* Fourth row: Recommended */}
-      <RecommendedCard items={data.recommended} />
+      {data ? <RecommendedCard items={data.recommended} /> : <DashboardSectionSkeleton title="Recommended for you" variant="services" href="/marketplace" />}
     </div>
   );
 }
@@ -1105,28 +1109,70 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function ClientDashboardSkeleton() {
+function DashboardSectionSkeleton({
+  title,
+  href,
+  variant = "list",
+}: {
+  title: string;
+  href?: string;
+  variant?: "list" | "chart" | "protection" | "services";
+}) {
   return (
-    <div className="space-y-3 animate-pulse">
-      <div className="h-20 rounded-[16px] bg-white" />
-      <div className="grid gap-3 xl:grid-cols-[1fr_300px]">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-[128px] rounded-[16px] bg-white" />
-          ))}
-        </div>
-        <div className="h-[128px] rounded-[16px] bg-white" />
+    <Surface
+      className={cn(
+        "min-w-0 overflow-hidden rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]",
+        variant === "protection" ? "h-[128px]" : "min-h-[236px]",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="type-section-title">{title}</h2>
+        {href ? (
+          <Link href={href} className="shrink-0 type-caption font-medium text-info hover:underline">
+            View all
+          </Link>
+        ) : null}
       </div>
-      <div className="grid gap-3 xl:grid-cols-[360px_minmax(0,1fr)_340px]">
-        <div className="h-[236px] rounded-[16px] bg-white" />
-        <div className="h-[236px] rounded-[16px] bg-white" />
-        <div className="h-[236px] rounded-[16px] bg-white" />
+      <div className="mt-3" role="status" aria-label={`Loading ${title.toLowerCase()}`} aria-busy="true">
+        {variant === "protection" ? (
+          <div className="flex items-center gap-3">
+            <Skeleton className="size-[72px] shrink-0 rounded-full" />
+            <div className="grid flex-1 gap-3">
+              <Skeleton className="h-3 w-3/4 rounded-full" />
+              <Skeleton className="h-3 w-1/2 rounded-full" />
+            </div>
+          </div>
+        ) : variant === "chart" ? (
+          <>
+            <div className="grid grid-cols-4 gap-3">
+              {Array.from({ length: 4 }, (_, index) => (
+                <div key={index}>
+                  <Skeleton className="h-3 w-full rounded-full" />
+                  <Skeleton className="mt-2 h-5 w-2/3 rounded-md" />
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex h-28 items-end gap-3 border-b border-black/8">
+              {[45, 65, 50, 80, 60, 90, 70].map((height, index) => (
+                <Skeleton key={index} className="flex-1 rounded-t-md" style={{ height: `${height}%` }} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className={variant === "services" ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-4" : "grid gap-4"}>
+            {Array.from({ length: variant === "services" ? 4 : 3 }, (_, index) => (
+              <div key={index} className={cn("flex min-w-0 gap-3", variant === "services" && "rounded-[14px] border border-black/8 p-3")}>
+                <Skeleton className={cn("shrink-0", variant === "services" ? "h-20 w-20 rounded-xl" : "size-9 rounded-full")} />
+                <div className="min-w-0 flex-1">
+                  <Skeleton className="h-3 w-4/5 rounded-full" />
+                  <Skeleton className="mt-2 h-3 w-3/5 rounded-full" />
+                  <Skeleton className="mt-2 h-2 w-1/3 rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.7fr)_340px]">
-        <div className="h-[170px] rounded-[16px] bg-white" />
-        <div className="h-[170px] rounded-[16px] bg-white" />
-      </div>
-      <div className="h-[118px] rounded-[16px] bg-white" />
-    </div>
+    </Surface>
   );
 }

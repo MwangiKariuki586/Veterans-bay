@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { Surface } from "@/components/ui/surface";
 import { useWorkspaceContentReady } from "@/components/workspace/workspace-chrome";
 import { cn } from "@/lib/utils";
 
@@ -75,18 +76,40 @@ export function ListPageSkeleton({
   rows = 4,
   actions = 0,
   className,
+  title,
+  summaryLabels,
 }: {
   rows?: number;
   actions?: number;
   className?: string;
+  title?: string;
+  summaryLabels?: string[];
 }) {
   return (
     <BusyFrame className={cn(className)}>
-      <PageHeaderSkeleton actions={actions} />
+      {title ? <h1 className="text-[1.75rem] font-semibold leading-tight tracking-title sm:text-[2rem]">{title}</h1> : <PageHeaderSkeleton actions={actions} />}
+      {summaryLabels ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" role="status" aria-label="Loading summary">
+          {summaryLabels.map((label) => (
+            <Surface key={label} className="flex h-[128px] gap-2.5 rounded-[16px] p-3">
+              <SkeletonBlock className="size-9 shrink-0 rounded-[10px]" />
+              <div className="min-w-0 flex-1">
+                <span className="block min-h-7 text-[0.72rem] font-medium leading-3.5 text-muted-foreground">{label}</span>
+                <SkeletonBlock className="mt-1 h-6 w-14 rounded-md" />
+                <SkeletonBlock className="mt-2 h-2.5 w-4/5 rounded-full" />
+              </div>
+            </Surface>
+          ))}
+        </div>
+      ) : null}
       <FilterChipSkeleton />
       <div className="mt-5 grid gap-4">
         {Array.from({ length: rows }).map((_, index) => (
-          <SkeletonBlock key={index} className="h-28 w-full rounded-[22px]" />
+          title ? <Surface key={index} className="flex gap-3 rounded-[16px] p-4">
+            <SkeletonBlock className="size-12 shrink-0" />
+            <div className="flex-1"><SkeletonBlock className="h-4 w-2/3 rounded-full" /><SkeletonBlock className="mt-3 h-3 w-1/3 rounded-full" /></div>
+            <SkeletonBlock className="h-6 w-20 rounded-full" />
+          </Surface> : <SkeletonBlock key={index} className="h-28 w-full rounded-[22px]" />
         ))}
       </div>
     </BusyFrame>

@@ -230,7 +230,7 @@ describe("client quotation list", () => {
     render(<QuotationList audience="client" />, { wrapper: Wrapper });
 
     expect(await screen.findAllByText("Expired")).not.toHaveLength(0);
-    expect(screen.getByRole("button", { name: "Closed1" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Closed1" })).toBeInTheDocument();
     const actionMenu = screen.getAllByRole("button", {
       name: "More actions for Plumbing",
     })[0];

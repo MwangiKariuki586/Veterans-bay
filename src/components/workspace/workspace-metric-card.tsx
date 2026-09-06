@@ -2,6 +2,7 @@ import { ArrowRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 import { Surface } from "@/components/ui/surface";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const tones = {
@@ -23,11 +24,13 @@ export function WorkspaceMetricCard({
   action,
   layout = "stacked",
   className,
+  loading = false,
 }: {
   icon: LucideIcon;
   tone: keyof typeof tones;
   label: string;
-  value: number | string;
+  value?: number | string;
+  loading?: boolean;
   hint?: string;
   hintTone?: "muted" | "danger";
   href?: string;
@@ -37,6 +40,11 @@ export function WorkspaceMetricCard({
 }) {
   const displayValue =
     typeof value === "number" ? value.toLocaleString() : value;
+  const renderedValue = loading ? (
+    <span className="block" role="status" aria-label={`Loading ${label.toLowerCase()}`}>
+      <Skeleton className="h-6 w-14 rounded-md" />
+    </span>
+  ) : displayValue;
 
   if (layout === "horizontal") {
     return (
@@ -52,7 +60,7 @@ export function WorkspaceMetricCard({
         <span className="min-w-0">
           <span className="block type-card-label text-muted-foreground">{label}</span>
           <span className="mt-0.5 block text-xl font-semibold leading-none text-foreground numeric-tabular">
-            {displayValue}
+            {renderedValue}
           </span>
         </span>
       </Surface>
@@ -67,8 +75,8 @@ export function WorkspaceMetricCard({
         </span>
         <span className="min-w-0">
           <span className="line-clamp-2 min-h-7 text-[0.72rem] font-medium leading-3.5 text-muted-foreground">{label}</span>
-          <span className="mt-0.5 block type-metric font-semibold leading-none text-foreground">{displayValue}</span>
-          {hint ? (
+          <span className="mt-0.5 block type-metric font-semibold leading-none text-foreground">{renderedValue}</span>
+          {loading ? <Skeleton className="mt-1 h-2.5 w-4/5 rounded-full" /> : hint ? (
             <span className={cn("mt-0.5 block truncate text-[0.67rem] leading-none", hintTone === "danger" ? "font-medium text-danger" : "text-muted-foreground")}>
               {hint}
             </span>

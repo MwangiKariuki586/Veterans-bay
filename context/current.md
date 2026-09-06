@@ -24,6 +24,8 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
+`VERIFICATION PENDING` - Client dashboard, Requests, Quotations, Bookings, Invoices, and Warranties now render their headings, summary card shells, and available controls immediately. Live metric values and desktop table/mobile card contents use local skeletons; cached content remains visible during refresh. All 35 focused tests pass across the initial run and focused rerun, including slow responses and preserved search input/focus. Typecheck, changed-file lint, production build, and whitespace checks pass. Rendered desktop/mobile loading checks remain pending because the Browser runtime has no available browser.
+
 `VERIFICATION PENDING` — Removed the authenticated shell's centred 1600px width cap and automatic horizontal margins so client, professional, and admin chrome fills the viewport when zooming out. Inner spacing and the existing root-scroll lock remain intact. All 10 existing shell/footer tests and changed-file lint pass. Rendered zoom verification on `/client` remains pending because the Browser runtime reports no available browser.
 
 `COMPLETE` — Client dashboard Action centre and Your professionals lists now use shrinkable grid tracks and rows so long text yields space to action buttons instead of extending outside the cards. Dashboard card minimum widths also allow the grid to constrain its contents. Populated browser checks at four viewport sizes confirm all row actions stay inside their cards with no card/row overflow; changed-component lint passes.

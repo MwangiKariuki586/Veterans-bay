@@ -208,7 +208,7 @@ export function InvoiceList({ audience }: { audience: Audience }) {
         ) : null}
       </header>
 
-      {invoiceQuery.isPending ? (
+      {invoiceQuery.isPending && audience !== "client" ? (
         <InvoiceListSkeleton />
       ) : invoiceQuery.isError ? (
         <InlineAlert
@@ -217,13 +217,13 @@ export function InvoiceList({ audience }: { audience: Audience }) {
           title="Invoices unavailable"
           description={invoiceQuery.error instanceof Error ? invoiceQuery.error.message : "Invoices could not be loaded."}
         />
-      ) : result ? (
+      ) : result || audience === "client" ? (
         <>
-          <InvoiceMetrics audience={audience} summary={result.summary} />
+          <InvoiceMetrics audience={audience} summary={result?.summary} />
           <nav className="mt-3 flex gap-1 overflow-x-auto border-b border-black/6" aria-label="Invoice status views">
             {(audience === "client" ? clientTabs : professionalTabs).map((tab) => {
               const active = queryState.bucket === tab.value;
-              const count = tab.count ? result.summary[tab.count] : null;
+              const count = tab.count ? result?.summary[tab.count] : null;
               return (
                 <button
                   key={tab.value}
@@ -234,11 +234,11 @@ export function InvoiceList({ audience }: { audience: Audience }) {
                     active ? "border-[#83b72c] text-[#426d08]" : "border-transparent text-[#536170] hover:text-foreground",
                   )}
                   aria-current={active ? "page" : undefined}
-                  aria-label={count === null ? tab.label : `${tab.label}: ${count}`}
+                  aria-label={count == null ? tab.label : `${tab.label}: ${count ?? <Skeleton className="h-3 w-4 rounded-full" />}`}
                 >
                   {tab.label}
                   {count !== null ? (
-                    <span className="rounded-full bg-[#edf1f3] px-2 py-0.5 text-[0.64rem] font-semibold text-[#536170]">{count}</span>
+                    <span className="rounded-full bg-[#edf1f3] px-2 py-0.5 text-[0.64rem] font-semibold text-[#536170]">{count ?? <Skeleton className="h-3 w-4 rounded-full" />}</span>
                   ) : null}
                 </button>
               );
@@ -297,13 +297,15 @@ export function InvoiceList({ audience }: { audience: Audience }) {
 
             <div className="relative" aria-busy={showProgress}>
               <DataTable
+                loading={invoiceQuery.isPending}
+                loadingLabel="Loading invoices"
                 columns={columns}
-                data={result.items}
+                data={result?.items ?? []}
                 getRowId={(row) => row.id}
                 getRowLabel={(row) => `View invoice ${row.invoiceNumber}`}
                 onRowClick={openInvoice}
                 mobileRow={(row) => <InvoiceMobileCard invoice={row} audience={audience} onOpen={openInvoice} />}
-                empty={
+                empty={result ? (
                   <StatePanel
                     className="m-4 border-dashed shadow-none"
                     title={result.summary.total === 0 ? (audience === "professional" ? "No invoices yet" : "No invoices available") : "No invoices match these filters"}
@@ -317,17 +319,17 @@ export function InvoiceList({ audience }: { audience: Audience }) {
                   >
                     {result.summary.total > 0 ? <Button size="sm" variant="outline" onClick={clearFilters}>Clear filters</Button> : null}
                   </StatePanel>
-                }
+                ) : null}
               />
             </div>
-            <InvoicePagination
+            {result ? <InvoicePagination
               page={result.page}
               pageSize={result.pageSize}
               totalItems={result.totalItems}
               totalPages={result.totalPages}
               onPage={(page) => updateParams({ page }, false)}
               onPageSize={(pageSize) => updateParams({ pageSize, page: 1 }, false)}
-            />
+            /> : null}
           </section>
           {selected ? (
             <InvoiceDrawer audience={audience} selected={selected} onClose={closeInvoice} />
@@ -338,43 +340,47 @@ export function InvoiceList({ audience }: { audience: Audience }) {
   );
 }
 
-function InvoiceMetrics({ audience, summary }: { audience: Audience; summary: InvoiceSummaryStats }) {
+function InvoiceMetrics({ audience, summary }: { audience: Audience; summary?: InvoiceSummaryStats }) {
   const base = `/${audience}/invoices`;
   return (
     <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Invoice summary">
       <WorkspaceMetricCard
+        loading={!summary}
         icon={audience === "client" ? FileText : WalletCards}
         tone="green"
         label={audience === "client" ? "Total invoices" : "Outstanding balance"}
-        value={audience === "client" ? summary.total : formatSummaryMoney(summary, "outstandingMinor")}
-        hint={audience === "client" ? "Your complete financial record" : `${summary.outstanding} open invoice${summary.outstanding === 1 ? "" : "s"}`}
+        value={audience === "client" ? summary?.total : (summary ? formatSummaryMoney(summary, "outstandingMinor") : undefined)}
+        hint={audience === "client" ? "Your complete financial record" : `${summary?.outstanding} open invoice${summary?.outstanding === 1 ? "" : "s"}`}
         href={base}
         action="View all"
       />
       <WorkspaceMetricCard
+        loading={!summary}
         icon={CircleAlert}
         tone="orange"
         label="Overdue invoices"
-        value={summary.overdue}
-        hint={summary.overdue ? "Requires attention" : "Nothing overdue"}
-        hintTone={summary.overdue ? "danger" : "muted"}
+        value={summary?.overdue}
+        hint={summary?.overdue ? "Requires attention" : "Nothing overdue"}
+        hintTone={summary?.overdue ? "danger" : "muted"}
         href={`${base}?bucket=overdue`}
         action="Review overdue"
       />
       <WorkspaceMetricCard
+        loading={!summary}
         icon={audience === "client" ? Banknote : FileClock}
         tone="blue"
         label={audience === "client" ? "Balance remaining" : "Draft invoices"}
-        value={audience === "client" ? formatSummaryMoney(summary, "outstandingMinor") : summary.drafts}
-        hint={audience === "client" ? (summary.outstanding ? `${summary.outstanding} invoice${summary.outstanding === 1 ? "" : "s"} still open` : "No balance remaining") : "Ready to review and issue"}
+        value={audience === "client" ? (summary ? formatSummaryMoney(summary, "outstandingMinor") : undefined) : summary?.drafts}
+        hint={audience === "client" ? (summary?.outstanding ? `${summary?.outstanding} invoice${summary?.outstanding === 1 ? "" : "s"} still open` : "No balance remaining") : "Ready to review and issue"}
         href={`${base}?bucket=${audience === "client" ? "outstanding" : "drafts"}`}
         action={audience === "client" ? "View balances" : "Review drafts"}
       />
       <WorkspaceMetricCard
+        loading={!summary}
         icon={CheckCircle2}
         tone="purple"
         label="Payments recorded"
-        value={formatSummaryMoney(summary, "paidMinor")}
+        value={(summary ? formatSummaryMoney(summary, "paidMinor") : undefined)}
         hint="Manual financial records"
         href={audience === "professional" ? "/professional/payments" : `${base}?bucket=settled`}
         action={audience === "professional" ? "Open ledger" : "View settled"}

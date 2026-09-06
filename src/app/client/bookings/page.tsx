@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 
 import { BookingList } from "@/components/bookings/booking-list";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ListPageSkeleton } from "@/components/ui/workspace-skeletons";
 
 export default function ClientBookingsRoute() {
   return (
-    <Suspense fallback={<Skeleton className="h-[640px] rounded-[18px]" />}>
+    <Suspense fallback={<ListPageSkeleton title="Your bookings" summaryLabels={["Total bookings", "Pending", "Upcoming", "In service"]} />}>
       <BookingList audience="client" />
     </Suspense>
   );

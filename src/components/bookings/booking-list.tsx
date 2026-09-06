@@ -288,7 +288,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
         ) : null}
       </header>
 
-      {bookingQuery.isPending ? (
+      {bookingQuery.isPending && audience !== "client" ? (
         <BookingsSkeleton />
       ) : bookingQuery.isError ? (
         <InlineAlert
@@ -297,43 +297,47 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
           title="Bookings unavailable"
           description={bookingQuery.error instanceof Error ? bookingQuery.error.message : "Bookings could not be loaded."}
         />
-      ) : result ? (
+      ) : result || audience === "client" ? (
         <>
           <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Booking summary">
             <WorkspaceMetricCard
+              loading={bookingQuery.isPending}
               icon={CalendarDays}
               tone="green"
               label="Total bookings"
-              value={result.summary.total}
+              value={result?.summary.total}
               hint="Across all statuses"
               href={`/${audience}/bookings`}
               action="View bookings"
             />
             <WorkspaceMetricCard
+              loading={bookingQuery.isPending}
               icon={Clock3}
               tone="orange"
               label="Pending"
-              value={result.summary.pending}
-              hint={result.summary.pending ? "Awaiting confirmation" : "No pending bookings"}
-              hintTone={result.summary.pending ? "danger" : "muted"}
+              value={result?.summary.pending}
+              hint={result?.summary.pending ? "Awaiting confirmation" : "No pending bookings"}
+              hintTone={result?.summary.pending ? "danger" : "muted"}
               href={`/${audience}/bookings?bucket=pending`}
               action="Review pending"
             />
             <WorkspaceMetricCard
+              loading={bookingQuery.isPending}
               icon={CalendarCheck2}
               tone="blue"
               label={audience === "client" ? "Upcoming" : "Scheduled"}
-              value={audience === "client" ? result.summary.upcoming : result.summary.scheduled}
+              value={audience === "client" ? result?.summary.upcoming : result?.summary.scheduled}
               hint="Confirmed upcoming"
               href={`/${audience}/bookings?${audience === "client" ? "stage=upcoming" : "bucket=scheduled"}`}
               action="View upcoming"
             />
             <WorkspaceMetricCard
+              loading={bookingQuery.isPending}
               icon={CheckCircle2}
               tone="purple"
               label={audience === "client" ? "In service" : "Closed"}
-              value={audience === "client" ? result.summary.active : result.summary.closed}
-              hint={audience === "client" ? "Track current work" : result.summary.closed ? "Completed or cancelled" : "No closed bookings"}
+              value={audience === "client" ? result?.summary.active : result?.summary.closed}
+              hint={audience === "client" ? "Track current work" : result?.summary.closed ? "Completed or cancelled" : "No closed bookings"}
               href={`/${audience}/bookings?${audience === "client" ? "stage=active" : "bucket=closed"}`}
               action={audience === "client" ? "Track service" : "View closed"}
             />
@@ -342,7 +346,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
           <nav className="mt-3 flex gap-1 overflow-x-auto border-b border-black/6" aria-label="Booking status views">
             {(audience === "client" ? clientTabs : tabs).map((tab) => {
               const active = audience === "client" ? queryState.stage === tab.value : queryState.bucket === tab.value;
-              const count = tab.count ? result.summary[tab.count] : null;
+              const count = tab.count ? result?.summary[tab.count] : null;
               return (
                 <button
                   key={tab.value}
@@ -362,7 +366,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
                 >
                   {tab.label}
                   {count !== null ? (
-                    <span className="rounded-full bg-[#edf1f3] px-2 py-0.5 text-[0.64rem] font-semibold text-[#536170]">{count}</span>
+                    <span className="rounded-full bg-[#edf1f3] px-2 py-0.5 text-[0.64rem] font-semibold text-[#536170]">{count ?? <Skeleton className="h-3 w-4 rounded-full" />}</span>
                   ) : null}
                 </button>
               );
@@ -394,12 +398,12 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
               </FilterSelect>
               <FilterSelect label="Origin" value={queryState.origin} onChange={(origin) => updateParams({ origin })}>
                 <option value="">Origin</option>
-                {result.origins.map((origin) => (
+                {result?.origins.map((origin) => (
                   <option key={origin} value={origin}>
                     {origin.replaceAll("_", " ").toLowerCase()}
                   </option>
                 ))}
-                {result.origins.length === 0
+                {result?.origins.length === 0
                   ? ["ACCEPTED_QUOTATION", "DIRECT_SERVICE", "PROFESSIONAL_CUSTOMER", "REPEAT_BOOKING", "APPROVED_ASSESSMENT"].map((origin) => (
                       <option key={origin} value={origin}>
                         {origin.replaceAll("_", " ").toLowerCase()}
@@ -424,13 +428,15 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
 
             <div className="relative" aria-busy={showProgress}>
               <DataTable
+                loading={bookingQuery.isPending}
+                loadingLabel="Loading bookings"
                 columns={columns}
                 data={visibleItems}
                 getRowId={(row) => row.id}
                 getRowLabel={(row) => `View booking for ${row.serviceName}`}
                 onRowClick={openBooking}
                 mobileRow={(row) => <BookingMobileCard booking={row} audience={audience} onOpen={openBooking} />}
-                empty={
+                empty={result ? (
                   <StatePanel
                     className="m-4 border-dashed shadow-none"
                     title={result.summary.total === 0 ? "No bookings yet" : "No bookings match these filters"}
@@ -446,17 +452,17 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
                       </Button>
                     ) : null}
                   </StatePanel>
-                }
+                ) : null}
               />
             </div>
-            <BookingPagination
+            {result ? <BookingPagination
               page={result.page}
               pageSize={result.pageSize}
               totalItems={result.totalItems}
               totalPages={result.totalPages}
               onPage={(page) => updateParams({ page }, false)}
               onPageSize={(pageSize) => updateParams({ pageSize, page: 1 }, false)}
-            />
+            /> : null}
           </section>
 
           {selected ? (

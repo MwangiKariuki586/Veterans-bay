@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 
 import { QuotationList } from "@/components/quotations/quotation-list";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ListPageSkeleton } from "@/components/ui/workspace-skeletons";
 
 export default function ClientQuotationsPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-[640px] rounded-[18px]" />}>
+    <Suspense fallback={<ListPageSkeleton title="Your quotations" summaryLabels={["Total received", "Awaiting decision", "Accepted", "Expiring soon"]} />}>
       <QuotationList audience="client" />
     </Suspense>
   );

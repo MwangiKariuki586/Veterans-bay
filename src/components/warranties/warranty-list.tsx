@@ -208,7 +208,7 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
         </p>
       </header>
 
-      {warrantyQuery.isPending ? (
+      {warrantyQuery.isPending && audience !== "client" ? (
         <WarrantyListSkeleton />
       ) : warrantyQuery.isError ? (
         <InlineAlert
@@ -217,9 +217,9 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
           title="Warranties unavailable"
           description={warrantyQuery.error instanceof Error ? warrantyQuery.error.message : "Warranties could not be loaded."}
         />
-      ) : result ? (
+      ) : result || audience === "client" ? (
         <>
-          <WarrantyMetrics summary={result.summary} audience={audience} />
+          <WarrantyMetrics summary={result?.summary} audience={audience} />
 
           {(() => {
             const banner = getAttentionBanner(visibleItems);
@@ -279,7 +279,7 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
 
               <FilterSelect label="Service" value={queryState.service ?? ""} onChange={(service) => updateParams({ service: service || undefined })}>
                 <option value="">All services</option>
-                {result.services?.map((svc) => (
+                {result?.services?.map((svc) => (
                   <option key={svc} value={svc}>
                     {svc}
                   </option>
@@ -342,13 +342,15 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
 
             <div className="relative" aria-busy={showProgress}>
               <DataTable
+                loading={warrantyQuery.isPending}
+                loadingLabel="Loading warranties"
                 columns={columns}
                 data={visibleItems}
                 getRowId={(row) => row.id}
                 getRowLabel={(row) => `View warranty for ${row.serviceName}`}
                 onRowClick={openWarranty}
                 mobileRow={(row) => <WarrantyMobileCard warranty={row} audience={audience} onOpen={openWarranty} />}
-                empty={
+                empty={result ? (
                   <StatePanel
                     className="m-4 border-dashed shadow-none"
                     title={
@@ -379,17 +381,17 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
                       </Button>
                     )}
                   </StatePanel>
-                }
+                ) : null}
               />
             </div>
-            <WarrantyPagination
+            {result ? <WarrantyPagination
               page={result.page}
               pageSize={result.pageSize}
               totalItems={result.totalItems}
               totalPages={result.totalPages}
               onPage={(page) => updateParams({ page }, false)}
               onPageSize={(pageSize) => updateParams({ pageSize, page: 1 }, false)}
-            />
+            /> : null}
           </section>
 
           {selected ? <WarrantyDrawer selected={selected} audience={audience} onClose={closeWarranty} /> : null}
@@ -403,46 +405,50 @@ function WarrantyMetrics({
   summary,
   audience,
 }: {
-  summary: { activeWarranties: number; expiringSoon: number; openClaims: number; resolvedClaims: number };
+  summary?: { activeWarranties: number; expiringSoon: number; openClaims: number; resolvedClaims: number };
   audience: "client" | "professional";
 }) {
   const base = `/${audience}/warranties`;
   return (
     <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Warranty summary">
       <WorkspaceMetricCard
+        loading={!summary}
         icon={ShieldCheck}
         tone="green"
         label="Active warranties"
-        value={summary.activeWarranties}
+        value={summary?.activeWarranties}
         hint="Currently protected"
         href={`${base}?bucket=active`}
         action="View active"
       />
       <WorkspaceMetricCard
+        loading={!summary}
         icon={CalendarClock}
         tone="orange"
         label="Expiring soon"
-        value={summary.expiringSoon}
+        value={summary?.expiringSoon}
         hint="Within 30 days"
-        hintTone={summary.expiringSoon ? "danger" : "muted"}
+        hintTone={summary?.expiringSoon ? "danger" : "muted"}
         href={`${base}?bucket=expiring-soon`}
         action="Review soon"
       />
       <WorkspaceMetricCard
+        loading={!summary}
         icon={AlertTriangle}
         tone="orange"
         label="Open claims"
-        value={summary.openClaims}
+        value={summary?.openClaims}
         hint="Needs your attention"
-        hintTone={summary.openClaims ? "danger" : "muted"}
+        hintTone={summary?.openClaims ? "danger" : "muted"}
         href={base}
         action="View claims"
       />
       <WorkspaceMetricCard
+        loading={!summary}
         icon={CheckCircle2}
         tone="purple"
         label="Resolved claims"
-        value={summary.resolvedClaims}
+        value={summary?.resolvedClaims}
         hint="All closed"
         href={base}
         action="View resolved"

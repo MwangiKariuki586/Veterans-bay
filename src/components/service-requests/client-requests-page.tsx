@@ -353,21 +353,21 @@ export function ClientRequestsPage() {
         <Button onClick={openNewRequest} className="h-10 min-h-10 rounded-[9px] px-5 text-xs shadow-none"><Plus className="size-4" aria-hidden="true" /> New request</Button>
       </header>
 
-      {requestQuery.isPending ? <RequestsSkeleton /> : requestQuery.isError ? (
+      {requestQuery.isError ? (
         <InlineAlert className="mt-5" variant="error" title="Requests unavailable" description={requestQuery.error instanceof Error ? requestQuery.error.message : "Requests could not be loaded."} />
-      ) : result ? (
+      ) : (
         <>
           <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Request summary">
-            <WorkspaceMetricCard icon={ClipboardList} tone="green" label="Total requests" value={result.summary.total} hint="Across all statuses" href="/client/requests" action="View requests" />
-            <WorkspaceMetricCard icon={RefreshCw} tone="blue" label="Active requests" value={result.summary.active} hint="Awaiting progress" href="/client/requests?bucket=active" action="View active" />
-            <WorkspaceMetricCard icon={CircleAlert} tone="orange" label="Needs action" value={result.summary.needsAction} hint={result.summary.needsAction ? "Your response is required" : "Nothing needs attention"} hintTone={result.summary.needsAction ? "danger" : "muted"} href="/client/requests?bucket=needs-action" action="Review now" />
-            <WorkspaceMetricCard icon={FileText} tone="purple" label="Drafts" value={result.summary.drafts} hint={result.summary.drafts ? "Ready to complete" : "No saved drafts"} href="/client/requests?bucket=draft" action="Continue drafts" />
+            <WorkspaceMetricCard loading={requestQuery.isPending} icon={ClipboardList} tone="green" label="Total requests" value={result?.summary.total} hint="Across all statuses" href="/client/requests" action="View requests" />
+            <WorkspaceMetricCard loading={requestQuery.isPending} icon={RefreshCw} tone="blue" label="Active requests" value={result?.summary.active} hint="Awaiting progress" href="/client/requests?bucket=active" action="View active" />
+            <WorkspaceMetricCard loading={requestQuery.isPending} icon={CircleAlert} tone="orange" label="Needs action" value={result?.summary.needsAction} hint={result?.summary.needsAction ? "Your response is required" : "Nothing needs attention"} hintTone={result?.summary.needsAction ? "danger" : "muted"} href="/client/requests?bucket=needs-action" action="Review now" />
+            <WorkspaceMetricCard loading={requestQuery.isPending} icon={FileText} tone="purple" label="Drafts" value={result?.summary.drafts} hint={result?.summary.drafts ? "Ready to complete" : "No saved drafts"} href="/client/requests?bucket=draft" action="Continue drafts" />
           </section>
 
           <nav className="mt-3 flex gap-1 overflow-x-auto border-b border-black/6" aria-label="Request status views">
             {tabs.map((tab) => {
               const active = bucket === tab.value;
-              return <button key={tab.value} type="button" onClick={() => updateParams({ bucket: tab.value, status: "" })} className={cn("inline-flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-4 text-[0.72rem] font-medium transition", active ? "border-[#83b72c] text-[#426d08]" : "border-transparent text-[#536170] hover:text-foreground")} aria-current={active ? "page" : undefined}>{tab.label}{tab.value !== "all" ? <span className="rounded-full bg-[#edf1f3] px-2 py-0.5 text-[0.64rem] font-semibold text-[#536170]">{result.summary[tab.count]}</span> : null}</button>;
+              return <button key={tab.value} type="button" onClick={() => updateParams({ bucket: tab.value, status: "" })} className={cn("inline-flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-4 text-[0.72rem] font-medium transition", active ? "border-[#83b72c] text-[#426d08]" : "border-transparent text-[#536170] hover:text-foreground")} aria-current={active ? "page" : undefined}>{tab.label}{tab.value !== "all" ? <span className="rounded-full bg-[#edf1f3] px-2 py-0.5 text-[0.64rem] font-semibold text-[#536170]">{result?.summary[tab.count] ?? <Skeleton className="h-3 w-4 rounded-full" />}</span> : null}</button>;
             })}
           </nav>
 
@@ -401,13 +401,15 @@ export function ClientRequestsPage() {
 
             <div className="relative" aria-busy={showQueryProgress}>
               <DataTable
+                loading={requestQuery.isPending}
+                loadingLabel="Loading requests"
                 columns={columns}
                 data={visibleItems}
                 getRowId={(row) => row.id}
                 getRowLabel={(row) => `View details for ${requestTitle(row)}`}
                 onRowClick={openRequest}
                 mobileRow={(row) => <RequestMobileCard request={row} onOpen={openRequest} />}
-                empty={
+                empty={result ? (
                 <StatePanel
                   className="m-4 border-dashed shadow-none"
                   title={showQueryProgress ? "Checking all requests" : result.summary.total === 0 ? "No service requests yet" : "No requests match these filters"}
@@ -415,11 +417,11 @@ export function ClientRequestsPage() {
                 >
                   {showQueryProgress ? null : result.summary.total === 0 ? <Button size="sm" onClick={openNewRequest}>Create request</Button> : <Button size="sm" variant="outline" onClick={clearFilters}>Clear filters</Button>}
                 </StatePanel>
-                }
+                ) : null}
               />
             </div>
 
-            <RequestPagination page={result.page} pageSize={result.pageSize} totalItems={result.totalItems} totalPages={result.totalPages} onPage={(nextPage) => updateParams({ page: nextPage }, false)} onPageSize={(nextSize) => updateParams({ pageSize: nextSize, page: 1 }, false)} />
+            {result ? <RequestPagination page={result.page} pageSize={result.pageSize} totalItems={result.totalItems} totalPages={result.totalPages} onPage={(nextPage) => updateParams({ page: nextPage }, false)} onPageSize={(nextSize) => updateParams({ pageSize: nextSize, page: 1 }, false)} /> : null}
           </section>
           {selectedRequest ? (
             <RequestDetailsDrawer
@@ -431,7 +433,7 @@ export function ClientRequestsPage() {
             />
           ) : null}
         </>
-      ) : null}
+      )}
       {requestEditor ? (
         <RequestEditorDrawer
           editor={requestEditor}
@@ -745,9 +747,6 @@ function RequestPagination({ page, pageSize, totalItems, totalPages, onPage, onP
   return <nav aria-label="Request pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-black/6 px-4 py-3"><p className="text-[0.68rem] text-muted-foreground">Showing {start} to {end} of {totalItems} requests</p><div className="flex items-center gap-2"><label className="sr-only" htmlFor="request-page-size">Requests per page</label><select id="request-page-size" value={pageSize} onChange={(event) => onPageSize(Number(event.target.value))} className={cn(selectClass, "h-9")}><option value="10">10 per page</option><option value="20">20 per page</option><option value="50">50 per page</option></select><button type="button" onClick={() => onPage(page - 1)} disabled={page <= 1} className="grid size-9 place-items-center rounded-lg disabled:opacity-35" aria-label="Previous page"><ChevronLeft className="size-4" /></button>{pages.map((item, index) => <span key={item} className="contents">{index > 0 && item - pages[index - 1] > 1 ? <span className="px-1 text-muted-foreground">…</span> : null}<button type="button" onClick={() => onPage(item)} aria-current={item === page ? "page" : undefined} className={cn("grid size-9 place-items-center rounded-lg text-[0.7rem] font-medium", item === page && "border border-[#83b72c] text-[#5f8d11]")}>{item}</button></span>)}<button type="button" onClick={() => onPage(page + 1)} disabled={page >= totalPages} className="grid size-9 place-items-center rounded-lg disabled:opacity-35" aria-label="Next page"><ChevronRight className="size-4" /></button></div></nav>;
 }
 
-function RequestsSkeleton() {
-  return <div className="mt-4 space-y-3" aria-busy="true"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-[84px] rounded-[16px]" />)}</div><Skeleton className="h-10 rounded-xl" /><Skeleton className="h-[440px] rounded-[15px]" /></div>;
-}
 
 function formatMoney(minor: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(minor / 100).replace("KES", "KSh");
