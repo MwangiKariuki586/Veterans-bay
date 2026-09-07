@@ -17,7 +17,8 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { buttonVariants } from "@/components/ui/button";
@@ -284,7 +285,38 @@ export function ClientSavedProfessionalsPage() {
 
   const [removing, setRemoving] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState<Filter>("All");
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const initialFilter = (() => {
+    const f = searchParams.get("filter");
+    if (f === "professionals") return "Professionals" as Filter;
+    if (f === "services") return "Services" as Filter;
+    if (f === "shortlisted") return "Shortlisted" as Filter;
+    if (f === "recent") return "Recent" as Filter;
+    return "All" as Filter;
+  })();
+  const [activeFilter, setActiveFilterState] = useState<Filter>(initialFilter);
+  const setActiveFilter = useCallback((f: Filter) => {
+    setActiveFilterState(f);
+    const params = new URLSearchParams(window.location.search);
+    if (f === "All") params.delete("filter");
+    else params.set("filter", f.toLowerCase());
+    window.history.replaceState(window.history.state, "", params.toString() ? `${pathname}?${params.toString()}` : pathname);
+  }, [pathname]);
+  useEffect(() => {
+    const f = searchParams.get("filter");
+    const next: Filter =
+      f === "professionals"
+        ? "Professionals"
+        : f === "services"
+          ? "Services"
+          : f === "shortlisted"
+            ? "Shortlisted"
+            : f === "recent"
+              ? "Recent"
+              : "All";
+    if (next !== activeFilter) setActiveFilterState(next);
+  }, [searchParams, activeFilter]);
   const [sort, setSort] = useState<Sort>("Most recent");
   const [mockServices, setMockServices] =
     useState<MockService[]>(MOCK_SERVICES);

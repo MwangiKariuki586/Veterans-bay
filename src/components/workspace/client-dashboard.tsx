@@ -172,8 +172,6 @@ export function ClientDashboard() {
                 ? "Awaiting responses"
                 : "No open requests"
             }
-            href="/client/requests"
-            action="View requests"
           />
           <WorkspaceMetricCard
             loading={loading}
@@ -186,8 +184,6 @@ export function ClientDashboard() {
                 ? "From professionals"
                 : "No new quotes"
             }
-            href="/client/quotations"
-            action="Review quotes"
           />
           <WorkspaceMetricCard
             loading={loading}
@@ -200,8 +196,6 @@ export function ClientDashboard() {
                 ? `Next: ${relativeNext(data?.summary.nextBookingAt)}`
                 : "No upcoming bookings"
             }
-            href="/client/bookings"
-            action="View bookings"
           />
           <WorkspaceMetricCard
             loading={loading}
@@ -210,8 +204,6 @@ export function ClientDashboard() {
             label="Active jobs"
             value={data?.summary.activeJobs}
             hint={data?.summary.activeJobs ? "In progress" : "No active jobs"}
-            href="/client/bookings?stage=active"
-            action="View jobs"
           />
           <WorkspaceMetricCard
             loading={loading}
@@ -227,8 +219,6 @@ export function ClientDashboard() {
             hintTone={
               data?.summary.outstandingPaymentsCount ? "danger" : "muted"
             }
-            href="/client/invoices"
-            action="Pay now"
           />
         </div>
         {data ? <ServiceProtectionCard data={data.serviceProtection} /> : <DashboardSectionSkeleton title="Service protection" variant="protection" />}

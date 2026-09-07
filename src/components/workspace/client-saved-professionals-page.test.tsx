@@ -6,6 +6,10 @@ import type { SavedProfessional } from "@/modules/saved-professionals/types";
 
 import { ClientSavedProfessionalsPage } from "./client-saved-professionals-page";
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/client/saved",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("@/components/workspace/workspace-shell-context", () => ({
   useWorkspaceShell: () => ({ workspaceId: "workspace-1", workspaceLabel: "Workspace", userId: "user-1" }),
   WorkspaceShellContext: { Provider: ({ children }: { children: unknown }) => children },

@@ -324,8 +324,6 @@ function ClientQuotationList() {
               label="Total received"
               value={result?.summary.total}
               hint="Across all statuses"
-              href="/client/quotations"
-              action="View quotations"
             />
             <WorkspaceMetricCard
               loading={isInitialLoading}
@@ -339,8 +337,6 @@ function ClientQuotationList() {
                   : "Nothing needs a decision"
               }
               hintTone={result?.summary.awaitingDecision ? "danger" : "muted"}
-              href="/client/quotations?bucket=awaiting-decision"
-              action="Review now"
             />
             <WorkspaceMetricCard
               loading={isInitialLoading}
@@ -349,8 +345,6 @@ function ClientQuotationList() {
               label="Accepted"
               value={result?.summary.accepted}
               hint="Preserved agreements"
-              href="/client/quotations?bucket=accepted"
-              action="View accepted"
             />
             <WorkspaceMetricCard
               loading={isInitialLoading}
@@ -364,8 +358,6 @@ function ClientQuotationList() {
                   : "No urgent expiries"
               }
               hintTone={result?.summary.expiringSoon ? "danger" : "muted"}
-              href="/client/quotations?validity=expiring"
-              action="Review validity"
             />
           </section>
           {isBackgroundError ? (

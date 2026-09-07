@@ -104,13 +104,13 @@ describe("client requests page", () => {
     expect(
       summary.getByText("Total requests").parentElement?.parentElement
         ?.parentElement,
-    ).toHaveClass("h-[128px]");
+    ).not.toHaveClass("h-[128px]");
     expect(
       within(summary.getByText("Total requests").parentElement?.parentElement
-        ?.parentElement as HTMLElement).getByRole("link", {
+        ?.parentElement as HTMLElement).queryByRole("link", {
         name: /View requests/,
       }),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.getAllByText("Quote received").length).toBeGreaterThan(0);
     expect(fetch).toHaveBeenCalledWith(

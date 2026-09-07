@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /* eslint-disable react-hooks/preserve-manual-memoization -- scoped query keys require stable manual deps */
 
@@ -125,6 +125,11 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
       if (next.dateFrom === "") next.dateFrom = undefined;
       if (next.dateTo === "") next.dateTo = undefined;
       if (next.status === "" as unknown as WarrantyStatus) next.status = undefined;
+      if (changes.bucket !== undefined) next.claimStatus = undefined;
+      if (changes.claimStatus !== undefined) {
+        next.bucket = "all";
+        next.status = undefined;
+      }
       setQueryState(next);
       replaceUrl(pathname, queryString(next, selected?.id));
     },
@@ -154,7 +159,24 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
   const result = warrantyQuery.data as WarrantyPage | undefined;
   const normalizedSearch = search.trim();
   const searchPending = normalizedSearch !== (queryState.search ?? "");
-  const visibleItems: WarrantySummary[] = result?.items ?? [];
+  const shouldFilterCached = searchPending || warrantyQuery.isPlaceholderData || !!queryState.claimStatus;
+  const visibleItems: WarrantySummary[] = result
+    ? shouldFilterCached
+      ? result.items.filter((w) => {
+          if (queryState.claimStatus === "open" && w.openClaimCount === 0) return false;
+          if (queryState.claimStatus === "resolved" && w.latestClaimStatus !== "RESOLVED") return false;
+          if (searchPending) {
+            const q = normalizedSearch.toLowerCase();
+            return (
+              w.serviceName.toLowerCase().includes(q) ||
+              w.providerName.toLowerCase().includes(q) ||
+              w.clientName.toLowerCase().includes(q)
+            );
+          }
+          return true;
+        })
+      : result.items
+    : [];
   const showProgress = searchPending || (warrantyQuery.isFetching && warrantyQuery.isPlaceholderData);
   const hasData = Boolean(result);
   const isInitialLoading = audience === "client" ? (scopeEnabled ? warrantyQuery.isPending : !hasData) : warrantyQuery.isPending;
@@ -247,26 +269,6 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
           ) : null}
           <WarrantyMetrics summary={result?.summary} audience={audience} />
 
-          {(() => {
-            const banner = getAttentionBanner(visibleItems);
-            if (!banner) return null;
-            return (
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-[0.74rem]">
-                <span className="font-medium text-[#7a4a00]">{banner.message}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const target = visibleItems.find((w) => w.id === banner.warrantyId);
-                    if (target) openWarranty(target);
-                  }}
-                  className="inline-flex items-center gap-1 font-semibold text-[#7a4a00] underline-offset-4 hover:underline"
-                >
-                  {banner.cta} <span aria-hidden="true">â†’</span>
-                </button>
-              </div>
-            );
-          })()}
-
           <nav className="mt-3 flex gap-1 overflow-x-auto border-b border-black/6" aria-label="Warranty status views">
             {tabs.map((tab) => {
               const active = (queryState.bucket ?? "all") === tab.value;
@@ -327,20 +329,11 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
                 <span className="sr-only">Coverage from</span>
                 <input
                   type="date"
+                  onClick={(event) => event.currentTarget.showPicker?.()}
                   value={queryState.dateFrom ? queryState.dateFrom.slice(0, 10) : ""}
                   onChange={(event) => updateParams({ dateFrom: event.target.value ? new Date(event.target.value).toISOString() : undefined })}
-                  className={cn(selectClass, "h-10")}
+                  className={cn(selectClass, "h-10 cursor-pointer")}
                   aria-label="Coverage from"
-                />
-              </label>
-              <label className="flex items-center gap-1">
-                <span className="sr-only">Coverage to</span>
-                <input
-                  type="date"
-                  value={queryState.dateTo ? queryState.dateTo.slice(0, 10) : ""}
-                  onChange={(event) => updateParams({ dateTo: event.target.value ? new Date(event.target.value).toISOString() : undefined })}
-                  className={cn(selectClass, "h-10")}
-                  aria-label="Coverage to"
                 />
               </label>
 
@@ -398,7 +391,7 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
                     }
                   >
                     {result.totalItems === 0 ? (
-                      <Link href="/services" className={buttonVariants({ size: "sm" })}>
+                      <Link href="/marketplace" className={buttonVariants({ size: "sm" })}>
                         Browse services
                       </Link>
                     ) : (
@@ -444,8 +437,6 @@ function WarrantyMetrics({
         label="Active warranties"
         value={summary?.activeWarranties}
         hint="Currently protected"
-        href={`${base}?bucket=active`}
-        action="View active"
       />
       <WorkspaceMetricCard
         loading={!summary}
@@ -455,8 +446,6 @@ function WarrantyMetrics({
         value={summary?.expiringSoon}
         hint="Within 30 days"
         hintTone={summary?.expiringSoon ? "danger" : "muted"}
-        href={`${base}?bucket=expiring-soon`}
-        action="Review soon"
       />
       <WorkspaceMetricCard
         loading={!summary}
@@ -466,8 +455,6 @@ function WarrantyMetrics({
         value={summary?.openClaims}
         hint="Needs your attention"
         hintTone={summary?.openClaims ? "danger" : "muted"}
-        href={base}
-        action="View claims"
       />
       <WorkspaceMetricCard
         loading={!summary}
@@ -476,43 +463,9 @@ function WarrantyMetrics({
         label="Resolved claims"
         value={summary?.resolvedClaims}
         hint="All closed"
-        href={base}
-        action="View resolved"
       />
     </section>
   );
-}
-
-function getAttentionBanner(
-  items: WarrantySummary[],
-): { message: string; cta: string; warrantyId: string } | null {
-  if (!items.length) return null;
-  const withOpenClaim = items.find((w) => w.openClaimCount > 0);
-  if (withOpenClaim) {
-    const status = withOpenClaim.latestClaimStatus ?? "SUBMITTED";
-    const statusLabel = claimStatusMeta[status as WarrantyClaimStatus]?.label.toLowerCase() ?? "open";
-    return {
-      message: `Your ${withOpenClaim.serviceName} claim is currently ${statusLabel}.`,
-      cta: "View claim",
-      warrantyId: withOpenClaim.id,
-    };
-  }
-  const now = Date.now();
-  const expiring = items.find((w) => {
-    if (w.status !== "ACTIVE") return false;
-    const ends = new Date(w.endsAt).getTime();
-    const diff = ends - now;
-    return diff > 0 && diff <= 30 * DAY_MS;
-  });
-  if (expiring) {
-    const days = Math.max(1, Math.ceil((new Date(expiring.endsAt).getTime() - now) / DAY_MS));
-    return {
-      message: `${expiring.serviceName} warranty expires in ${days} day${days === 1 ? "" : "s"}.`,
-      cta: "View warranty",
-      warrantyId: expiring.id,
-    };
-  }
-  return null;
 }
 
 function FilterSelect({
@@ -865,11 +818,14 @@ function queryFromParams(searchParams: URLSearchParams): WarrantyListQuery {
   const bucket = (searchParams.get("bucket") ?? "all") as WarrantyListQuery["bucket"];
   const rawStatus = searchParams.get("status");
   const status = (["ACTIVE", "EXPIRED", "VOID"] as const).includes(rawStatus as WarrantyStatus) ? (rawStatus as WarrantyStatus) : undefined;
+  const rawClaimStatus = searchParams.get("claimStatus");
+  const claimStatus = (["open", "resolved"] as const).includes(rawClaimStatus as "open" | "resolved") ? (rawClaimStatus as "open" | "resolved") : undefined;
   const sort = (searchParams.get("sort") ?? "expiry_asc") as WarrantyListQuery["sort"];
   return {
     page,
     pageSize,
     bucket: ["all", "active", "expiring-soon", "expired", "voided"].includes(bucket ?? "") ? bucket : "all",
+    claimStatus,
     service: searchParams.get("service") ?? undefined,
     search: searchParams.get("search") ?? undefined,
     status,
@@ -884,6 +840,7 @@ function queryString(state: WarrantyListQuery, warrantyId?: string) {
   if (state.page && state.page > 1) params.set("page", String(state.page));
   if (state.pageSize && state.pageSize !== 10) params.set("pageSize", String(state.pageSize));
   if (state.bucket && state.bucket !== "all") params.set("bucket", state.bucket);
+  if (state.claimStatus) params.set("claimStatus", state.claimStatus);
   if (state.service) params.set("service", state.service);
   if (state.search) params.set("search", state.search);
   if (state.status) params.set("status", state.status);

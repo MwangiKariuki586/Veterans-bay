@@ -36,6 +36,7 @@ export class WarrantiesService {
     authUserId: string;
     status?: WarrantyStatus;
     bucket?: "all" | "active" | "expiring-soon" | "expired" | "voided";
+    claimStatus?: "open" | "resolved";
     service?: string;
     search?: string;
     sort?: "expiry_asc" | "expiry_desc" | "created_desc" | "created_asc";
@@ -49,6 +50,7 @@ export class WarrantiesService {
       clientAccountId: account.id,
       status: input.status,
       bucket: input.bucket,
+      claimStatus: input.claimStatus,
       service: input.service,
       search: input.search,
       sort: input.sort,

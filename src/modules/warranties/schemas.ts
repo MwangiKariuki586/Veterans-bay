@@ -7,6 +7,7 @@ export const warrantyIdSchema = z.uuid();
 export const warrantyListQuerySchema = paginationQuerySchema.extend({
   status: z.enum(warrantyStatuses).optional(),
   bucket: z.enum(["all", "active", "expiring-soon", "expired", "voided"]).optional(),
+  claimStatus: z.enum(["open", "resolved"]).optional(),
   service: z.string().optional(),
   search: z.string().optional(),
   sort: z.enum(["expiry_asc", "expiry_desc", "created_desc", "created_asc"]).optional(),

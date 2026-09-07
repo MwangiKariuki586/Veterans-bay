@@ -377,8 +377,6 @@ function InvoiceMetrics({ audience, summary }: { audience: Audience; summary?: I
         label={audience === "client" ? "Total invoices" : "Outstanding balance"}
         value={audience === "client" ? summary?.total : (summary ? formatSummaryMoney(summary, "outstandingMinor") : undefined)}
         hint={audience === "client" ? "Your complete financial record" : `${summary?.outstanding} open invoice${summary?.outstanding === 1 ? "" : "s"}`}
-        href={base}
-        action="View all"
       />
       <WorkspaceMetricCard
         loading={!summary}
@@ -388,8 +386,6 @@ function InvoiceMetrics({ audience, summary }: { audience: Audience; summary?: I
         value={summary?.overdue}
         hint={summary?.overdue ? "Requires attention" : "Nothing overdue"}
         hintTone={summary?.overdue ? "danger" : "muted"}
-        href={`${base}?bucket=overdue`}
-        action="Review overdue"
       />
       <WorkspaceMetricCard
         loading={!summary}
@@ -398,8 +394,6 @@ function InvoiceMetrics({ audience, summary }: { audience: Audience; summary?: I
         label={audience === "client" ? "Balance remaining" : "Draft invoices"}
         value={audience === "client" ? (summary ? formatSummaryMoney(summary, "outstandingMinor") : undefined) : summary?.drafts}
         hint={audience === "client" ? (summary?.outstanding ? `${summary?.outstanding} invoice${summary?.outstanding === 1 ? "" : "s"} still open` : "No balance remaining") : "Ready to review and issue"}
-        href={`${base}?bucket=${audience === "client" ? "outstanding" : "drafts"}`}
-        action={audience === "client" ? "View balances" : "Review drafts"}
       />
       <WorkspaceMetricCard
         loading={!summary}
@@ -408,8 +402,6 @@ function InvoiceMetrics({ audience, summary }: { audience: Audience; summary?: I
         label="Payments recorded"
         value={(summary ? formatSummaryMoney(summary, "paidMinor") : undefined)}
         hint="Manual financial records"
-        href={audience === "professional" ? "/professional/payments" : `${base}?bucket=settled`}
-        action={audience === "professional" ? "Open ledger" : "View settled"}
       />
     </section>
   );

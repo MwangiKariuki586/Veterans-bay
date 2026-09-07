@@ -34,6 +34,7 @@ export async function warrantyApi<T>(path: string, init?: RequestInit) {
 export interface WarrantyListQuery {
   status?: WarrantyStatus;
   bucket?: "all" | "active" | "expiring-soon" | "expired" | "voided";
+  claimStatus?: "open" | "resolved";
   service?: string;
   search?: string;
   sort?: "expiry_asc" | "expiry_desc" | "created_desc" | "created_asc";
@@ -51,6 +52,7 @@ export function listWarranties(
   const params = new URLSearchParams();
   if (query.status) params.set("status", query.status);
   if (query.bucket) params.set("bucket", query.bucket);
+  if (query.claimStatus) params.set("claimStatus", query.claimStatus);
   if (query.service) params.set("service", query.service);
   if (query.search) params.set("search", query.search);
   if (query.sort) params.set("sort", query.sort);

@@ -149,6 +149,7 @@ export class WarrantiesRepository {
     clientAccountId: string;
     status?: WarrantyStatus;
     bucket?: "all" | "active" | "expiring-soon" | "expired" | "voided";
+    claimStatus?: "open" | "resolved";
     service?: string;
     search?: string;
     sort?: "expiry_asc" | "expiry_desc" | "created_desc" | "created_asc";
@@ -575,6 +576,7 @@ export class WarrantiesRepository {
     input: {
       status?: WarrantyStatus;
       bucket?: "all" | "active" | "expiring-soon" | "expired" | "voided";
+      claimStatus?: "open" | "resolved";
       service?: string;
       search?: string;
       sort?: "expiry_asc" | "expiry_desc" | "created_desc" | "created_asc";
@@ -613,6 +615,17 @@ export class WarrantiesRepository {
       ? sql`${effectiveStatusSql} = ${input.status}`
       : undefined;
 
+    const claimStatusFilter = (() => {
+      switch (input.claimStatus) {
+        case "open":
+          return sql`EXISTS (select 1 from warranty_claims wc where wc.warranty_id = ${warranties.id} and wc.status in ('SUBMITTED', 'UNDER_REVIEW', 'ACCEPTED', 'RETURN_VISIT_SCHEDULED', 'ESCALATED'))`;
+        case "resolved":
+          return sql`EXISTS (select 1 from warranty_claims wc where wc.warranty_id = ${warranties.id} and wc.status = 'RESOLVED')`;
+        default:
+          return undefined;
+      }
+    })();
+
     const serviceFilter = input.service
       ? sql`${warranties.serviceNameSnapshot} ILIKE ${`%${input.service}%`}`
       : undefined;
@@ -637,6 +650,7 @@ export class WarrantiesRepository {
       scope,
       bucketFilter,
       statusFilter,
+      claimStatusFilter,
       serviceFilter,
       searchFilter,
       dateFromFilter,

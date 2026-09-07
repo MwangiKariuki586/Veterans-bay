@@ -264,6 +264,7 @@ export function createWarrantyRoutes() {
           authUserId: authUserId(context),
           status: query.status,
           bucket: query.bucket,
+          claimStatus: query.claimStatus,
           service: query.service,
           search: query.search,
           sort: query.sort,

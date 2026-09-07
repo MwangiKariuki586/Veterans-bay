@@ -334,8 +334,6 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
               label="Total bookings"
               value={result?.summary.total}
               hint="Across all statuses"
-              href={`/${audience}/bookings`}
-              action="View bookings"
             />
             <WorkspaceMetricCard
               loading={isInitialLoading}
@@ -345,8 +343,6 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
               value={result?.summary.pending}
               hint={result?.summary.pending ? "Awaiting confirmation" : "No pending bookings"}
               hintTone={result?.summary.pending ? "danger" : "muted"}
-              href={`/${audience}/bookings?bucket=pending`}
-              action="Review pending"
             />
             <WorkspaceMetricCard
               loading={isInitialLoading}
@@ -355,8 +351,6 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
               label={audience === "client" ? "Upcoming" : "Scheduled"}
               value={audience === "client" ? result?.summary.upcoming : result?.summary.scheduled}
               hint="Confirmed upcoming"
-              href={`/${audience}/bookings?${audience === "client" ? "stage=upcoming" : "bucket=scheduled"}`}
-              action="View upcoming"
             />
             <WorkspaceMetricCard
               loading={isInitialLoading}
@@ -365,8 +359,6 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
               label={audience === "client" ? "In service" : "Closed"}
               value={audience === "client" ? result?.summary.active : result?.summary.closed}
               hint={audience === "client" ? "Track current work" : result?.summary.closed ? "Completed or cancelled" : "No closed bookings"}
-              href={`/${audience}/bookings?${audience === "client" ? "stage=active" : "bucket=closed"}`}
-              action={audience === "client" ? "Track service" : "View closed"}
             />
           </section>
 

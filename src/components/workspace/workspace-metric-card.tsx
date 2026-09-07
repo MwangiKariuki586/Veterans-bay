@@ -68,7 +68,7 @@ export function WorkspaceMetricCard({
   }
 
   return (
-    <Surface className={cn("flex h-[128px] flex-col rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]", className)}>
+    <Surface className={cn("flex flex-col justify-between rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]", href && action && "h-[128px]", className)}>
       <div className="grid grid-cols-[36px_minmax(0,1fr)] gap-x-2.5">
         <span className={cn("grid size-9 place-items-center rounded-[10px]", tones[tone])}>
           <Icon className="size-4.5" aria-hidden="true" />
@@ -84,7 +84,7 @@ export function WorkspaceMetricCard({
         </span>
       </div>
       {href && action ? (
-        <Link href={href} className="ml-[46px] mt-1.5 inline-flex w-fit items-center gap-1 py-0.5 text-[0.7rem] font-semibold text-trust underline-offset-4 transition-colors hover:text-foreground hover:underline">
+        <Link href={href} className="ml-[46px] inline-flex w-fit items-center gap-1 py-0.5 text-[0.7rem] font-semibold text-trust underline-offset-4 transition-colors hover:text-foreground hover:underline">
           {action}
           <ArrowRight className="size-3.5" aria-hidden="true" />
         </Link>

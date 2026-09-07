@@ -24,6 +24,12 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
+`COMPLETE` - Corrected the warranties empty-state Browse services link from the nonexistent /services index to the existing /marketplace catalogue route, confirmed against src/app/marketplace/page.tsx.
+
+`VERIFICATION PENDING` - Removed the warranties attention banner and duplicate Coverage to date input from the list toolbar in warranty-list.tsx; the Coverage from date filter remains and opens the native calendar when clicked anywhere in the input. Rendered visual verification remains pending.
+
+`VERIFICATION PENDING` - Workspace metric cards without actions now size to content and omit the empty action placeholder, removing excess bottom space. Cards with actions retain their existing height. All 17 focused request/progressive-loading tests and changed-file lint pass; rendered visual verification remains pending.
+
 `VERIFICATION PENDING` - Client dashboard, Requests, Quotations, Bookings, Invoices, and Warranties now render their headings, summary card shells, and available controls immediately. Live metric values and desktop table/mobile card contents use local skeletons; cached content remains visible during refresh. All 35 focused tests pass across the initial run and focused rerun, including slow responses and preserved search input/focus. Typecheck, changed-file lint, production build, and whitespace checks pass. Rendered desktop/mobile loading checks remain pending because the Browser runtime has no available browser.
 
 `VERIFICATION PENDING` — Removed the authenticated shell's centred 1600px width cap and automatic horizontal margins so client, professional, and admin chrome fills the viewport when zooming out. Inner spacing and the existing root-scroll lock remain intact. All 10 existing shell/footer tests and changed-file lint pass. Rendered zoom verification on `/client` remains pending because the Browser runtime reports no available browser.

@@ -391,10 +391,10 @@ export function ClientRequestsPage() {
       ) : (
         <>
           <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Request summary">
-            <WorkspaceMetricCard loading={isInitialLoading} icon={ClipboardList} tone="green" label="Total requests" value={result?.summary.total} hint="Across all statuses" href="/client/requests" action="View requests" />
-            <WorkspaceMetricCard loading={isInitialLoading} icon={RefreshCw} tone="blue" label="Active requests" value={result?.summary.active} hint="Awaiting progress" href="/client/requests?bucket=active" action="View active" />
-            <WorkspaceMetricCard loading={isInitialLoading} icon={CircleAlert} tone="orange" label="Needs action" value={result?.summary.needsAction} hint={result?.summary.needsAction ? "Your response is required" : "Nothing needs attention"} hintTone={result?.summary.needsAction ? "danger" : "muted"} href="/client/requests?bucket=needs-action" action="Review now" />
-            <WorkspaceMetricCard loading={isInitialLoading} icon={FileText} tone="purple" label="Drafts" value={result?.summary.drafts} hint={result?.summary.drafts ? "Ready to complete" : "No saved drafts"} href="/client/requests?bucket=draft" action="Continue drafts" />
+            <WorkspaceMetricCard loading={isInitialLoading} icon={ClipboardList} tone="green" label="Total requests" value={result?.summary.total} hint="Across all statuses" />
+            <WorkspaceMetricCard loading={isInitialLoading} icon={RefreshCw} tone="blue" label="Active requests" value={result?.summary.active} hint="Awaiting progress" />
+            <WorkspaceMetricCard loading={isInitialLoading} icon={CircleAlert} tone="orange" label="Needs action" value={result?.summary.needsAction} hint={result?.summary.needsAction ? "Your response is required" : "Nothing needs attention"} hintTone={result?.summary.needsAction ? "danger" : "muted"} />
+            <WorkspaceMetricCard loading={isInitialLoading} icon={FileText} tone="purple" label="Drafts" value={result?.summary.drafts} hint={result?.summary.drafts ? "Ready to complete" : "No saved drafts"} />
           </section>
           {isBackgroundError ? (
             <InlineAlert className="mt-4" variant="error" title="Requests update failed" description={requestQuery.error instanceof Error ? requestQuery.error.message : "Requests could not be refreshed."} >
