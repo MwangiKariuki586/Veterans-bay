@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+/* eslint-disable react-hooks/preserve-manual-memoization -- scoped query keys require stable manual deps */
 
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -33,6 +35,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { StatePanel } from "@/components/ui/state-panel";
 import { WorkspaceMetricCard } from "@/components/workspace/workspace-metric-card";
 import { useWorkspaceContentReady } from "@/components/workspace/workspace-chrome";
+import { authClient } from "@/lib/auth-client";
+import { CLIENT_OVERVIEW_GC_MS, CLIENT_OVERVIEW_STALE_MS, clientOverviewKeys } from "@/lib/client-overview";
+import { useWorkspaceShell } from "@/components/workspace/workspace-shell-context";
 import { cn } from "@/lib/utils";
 import type { WarrantyClaimStatus, WarrantyPage, WarrantyStatus } from "@/modules/warranties/types";
 import {
@@ -97,6 +102,10 @@ const tabs: Array<{ value: NonNullable<WarrantyListQuery["bucket"]>; label: stri
 export function WarrantyList({ audience }: { audience: "client" | "professional" }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { workspaceId } = useWorkspaceShell();
+  const { data: session } = authClient.useSession();
+  const scope = useMemo(() => (audience === "client" && workspaceId && session?.user.id ? { userId: session.user.id, workspaceId } : null), [audience, workspaceId, session?.user.id]);
+  const scopeEnabled = audience === "client" ? Boolean(scope) : true;
   const [queryState, setQueryState] = useState<WarrantyListQuery>(() => queryFromParams(searchParams));
   const [search, setSearch] = useState(queryState.search ?? "");
   const [selected, setSelected] = useState<SelectedWarranty | null>(() => {
@@ -130,9 +139,16 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
   }, [queryState.search, search, updateParams]);
 
   const warrantyQuery = useQuery({
-    queryKey: ["warranties", audience, queryState],
+    queryKey: audience === "client" && scope ? clientOverviewKeys.warranties(scope, audience, queryState) : (["warranties", audience, queryState] as unknown[]),
     queryFn: ({ signal }) => listWarranties(audience, queryState, signal as unknown as AbortSignal),
     placeholderData: keepPreviousData,
+    enabled: scopeEnabled,
+    staleTime: audience === "client" ? CLIENT_OVERVIEW_STALE_MS : 30_000,
+    gcTime: audience === "client" && scope ? CLIENT_OVERVIEW_GC_MS : 15 * 60_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
+    retry: 2,
   });
 
   const result = warrantyQuery.data as WarrantyPage | undefined;
@@ -140,7 +156,10 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
   const searchPending = normalizedSearch !== (queryState.search ?? "");
   const visibleItems: WarrantySummary[] = result?.items ?? [];
   const showProgress = searchPending || (warrantyQuery.isFetching && warrantyQuery.isPlaceholderData);
-  useWorkspaceContentReady(!warrantyQuery.isPending);
+  const hasData = Boolean(result);
+  const isInitialLoading = audience === "client" ? (scopeEnabled ? warrantyQuery.isPending : !hasData) : warrantyQuery.isPending;
+  const isBackgroundError = hasData && warrantyQuery.isError;
+  useWorkspaceContentReady(!isInitialLoading);
 
   const openWarranty = useCallback(
     (warranty: WarrantySummary) => {
@@ -208,17 +227,24 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
         </p>
       </header>
 
-      {warrantyQuery.isPending && audience !== "client" ? (
+      {isInitialLoading && audience !== "client" ? (
         <WarrantyListSkeleton />
-      ) : warrantyQuery.isError ? (
+      ) : isInitialLoading && warrantyQuery.isError && !hasData ? (
         <InlineAlert
           className="mt-5"
           variant="error"
           title="Warranties unavailable"
           description={warrantyQuery.error instanceof Error ? warrantyQuery.error.message : "Warranties could not be loaded."}
-        />
+        >
+          <button type="button" onClick={() => void warrantyQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+        </InlineAlert>
       ) : result || audience === "client" ? (
         <>
+          {hasData && isBackgroundError ? (
+            <InlineAlert className="mt-4" variant="error" title="Warranties update failed" description={warrantyQuery.error instanceof Error ? warrantyQuery.error.message : "Warranties could not be refreshed."} >
+              <button type="button" onClick={() => void warrantyQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+            </InlineAlert>
+          ) : null}
           <WarrantyMetrics summary={result?.summary} audience={audience} />
 
           {(() => {
@@ -235,7 +261,7 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
                   }}
                   className="inline-flex items-center gap-1 font-semibold text-[#7a4a00] underline-offset-4 hover:underline"
                 >
-                  {banner.cta} <span aria-hidden="true">→</span>
+                  {banner.cta} <span aria-hidden="true">â†’</span>
                 </button>
               </div>
             );
@@ -342,7 +368,7 @@ export function WarrantyList({ audience }: { audience: "client" | "professional"
 
             <div className="relative" aria-busy={showProgress}>
               <DataTable
-                loading={warrantyQuery.isPending}
+                loading={isInitialLoading}
                 loadingLabel="Loading warranties"
                 columns={columns}
                 data={visibleItems}
@@ -519,7 +545,7 @@ function ServiceWarrantyCell({ warranty, audience }: { warranty: WarrantySummary
       <span className="block font-semibold text-foreground">{warranty.serviceName}</span>
       <span className="mt-0.5 block text-[0.64rem] text-muted-foreground">
         {warRef}
-        {showJobRef && jobRef ? ` · ${jobRef}` : null}
+        {showJobRef && jobRef ? ` Â· ${jobRef}` : null}
       </span>
     </span>
   );
@@ -556,7 +582,7 @@ function CoverageCell({ warranty }: { warranty: WarrantySummary }) {
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const ends = new Date(warranty.endsAt);
-  const range = `${formatShortDate(warranty.startsAt)} – ${formatShortDate(warranty.endsAt)}`;
+  const range = `${formatShortDate(warranty.startsAt)} â€“ ${formatShortDate(warranty.endsAt)}`;
   let secondary = "";
   let tone: string = "text-muted-foreground";
   if (warranty.status === "ACTIVE") {
@@ -632,7 +658,7 @@ function WarrantyAction({
     isActive && !hasOpenClaim && audience === "client" ? "File claim" : hasOpenClaim ? "View claim" : audience === "client" ? "View service record" : "View job";
   const handlePrimary = () => {
     if (!isActive && !hasOpenClaim) {
-      // Expired/Void without claim → go to service record
+      // Expired/Void without claim â†’ go to service record
       window.location.href = `/${audience}/jobs/${warranty.jobId}`;
       return;
     }
@@ -712,7 +738,7 @@ function WarrantyMobileCard({
           <p className="truncate font-semibold text-foreground">{warranty.serviceName}</p>
           <p className="mt-0.5 text-[0.64rem] text-muted-foreground">
             {warRef}
-            {jobRef ? ` · ${jobRef}` : null}
+            {jobRef ? ` Â· ${jobRef}` : null}
           </p>
           <p className="mt-1 text-[0.7rem] text-muted-foreground">
             {audience === "client" ? warranty.providerName : warranty.clientName}
@@ -723,7 +749,7 @@ function WarrantyMobileCard({
       <div className="mt-3 grid grid-cols-2 gap-3 border-y border-black/6 py-3 text-xs">
         <div>
           <p className="text-muted-foreground">Coverage</p>
-          <p className="mt-1 font-medium">{formatShortDate(warranty.startsAt)} – {formatShortDate(warranty.endsAt)}</p>
+          <p className="mt-1 font-medium">{formatShortDate(warranty.startsAt)} â€“ {formatShortDate(warranty.endsAt)}</p>
           <p className="mt-0.5 text-[0.62rem] text-muted-foreground">
             {warranty.status === "ACTIVE"
               ? `${daysRemainingMobile} days remaining`
@@ -876,9 +902,9 @@ function formatShortDate(value: string) {
   return new Intl.DateTimeFormat("en-KE", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Drawer
-// ──────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function WarrantyDrawer({
   selected,
@@ -890,10 +916,21 @@ function WarrantyDrawer({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { workspaceId } = useWorkspaceShell();
+  const { data: session } = authClient.useSession();
+  const scope = useMemo(() => (audience === "client" && workspaceId && session?.user.id ? { userId: session.user.id, workspaceId } : null), [audience, workspaceId, session?.user.id]);
   const detailQuery = useQuery({
     queryKey: ["warranty-detail", audience, selected.id],
     queryFn: ({ signal }) => getWarranty(audience, selected.id, signal),
   });
+  const invalidateWarranties = async () => {
+    if (audience === "client" && scope) {
+      await queryClient?.invalidateQueries({ queryKey: clientOverviewKeys.root(scope) });
+      await queryClient?.invalidateQueries({ queryKey: ["warranty-detail", audience, selected.id] });
+    } else {
+      await queryClient?.invalidateQueries({ queryKey: ["warranties", audience] });
+    }
+  };
   const detail = detailQuery.data as WarrantyDetail | undefined;
   const summary = (detail as unknown as WarrantySummary | undefined) ?? selected.placeholder;
   const isActive = summary?.status === "ACTIVE";
@@ -902,7 +939,7 @@ function WarrantyDrawer({
   const hasOpenClaim = Boolean(openClaim);
   const latestClaim = detail?.claims[0] as WarrantyDetail["claims"][number] | undefined;
 
-  const coverageLabel = summary ? `${formatShortDate(summary.startsAt)} → ${formatShortDate(summary.endsAt)}` : "";
+  const coverageLabel = summary ? `${formatShortDate(summary.startsAt)} â†’ ${formatShortDate(summary.endsAt)}` : "";
   // eslint-disable-next-line react-hooks/purity
   const daysRemaining = summary && isActive ? Math.ceil((new Date(summary.endsAt).getTime() - Date.now()) / DAY_MS) : 0;
   // eslint-disable-next-line react-hooks/purity
@@ -951,12 +988,12 @@ function WarrantyDrawer({
         preferredResolution: claimForm.preferredResolution.trim() || undefined,
         evidenceAssetIds,
       });
-      queryClient.setQueryData(["warranty-detail", audience, selected.id], updated);
+      queryClient?.setQueryData(["warranty-detail", audience, selected.id], updated);
       toast.success("Warranty claim submitted");
       setShowForm(false);
       setClaimForm({ subject: "", description: "", preferredResolution: "" });
       setEvidenceAssetIds([]);
-      await queryClient.invalidateQueries({ queryKey: ["warranties", audience] });
+      await invalidateWarranties();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Claim submission failed");
     } finally {
@@ -975,9 +1012,9 @@ function WarrantyDrawer({
         lockVersion: openClaim.lockVersion,
         reason,
       });
-      queryClient.setQueryData(["warranty-detail", audience, selected.id], updated);
+      queryClient?.setQueryData(["warranty-detail", audience, selected.id], updated);
       toast.success("Claim escalated");
-      await queryClient.invalidateQueries({ queryKey: ["warranties", audience] });
+      await invalidateWarranties();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Escalation failed");
     } finally {
@@ -995,9 +1032,9 @@ function WarrantyDrawer({
     setError(null);
     try {
       const updated = await professionalClaimAction(claimId, "action", { lockVersion, action, reason });
-      queryClient.setQueryData(["warranty-detail", audience, selected.id], updated);
+      queryClient?.setQueryData(["warranty-detail", audience, selected.id], updated);
       toast.success("Claim updated");
-      await queryClient.invalidateQueries({ queryKey: ["warranties", audience] });
+      await invalidateWarranties();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Action failed");
     } finally {
@@ -1018,9 +1055,9 @@ function WarrantyDrawer({
         endsAt: endsAt.toISOString(),
         reason: "Warranty follow-up visit.",
       });
-      queryClient.setQueryData(["warranty-detail", audience, selected.id], updated);
+      queryClient?.setQueryData(["warranty-detail", audience, selected.id], updated);
       toast.success("Return visit scheduled");
-      await queryClient.invalidateQueries({ queryKey: ["warranties", audience] });
+      await invalidateWarranties();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Scheduling failed");
     } finally {
@@ -1035,9 +1072,9 @@ function WarrantyDrawer({
     setError(null);
     try {
       const updated = await professionalClaimAction(claimId, "resolve", { lockVersion, resolutionNotes: notes, evidenceAssetIds: [] });
-      queryClient.setQueryData(["warranty-detail", audience, selected.id], updated);
+      queryClient?.setQueryData(["warranty-detail", audience, selected.id], updated);
       toast.success("Claim resolved");
-      await queryClient.invalidateQueries({ queryKey: ["warranties", audience] });
+      await invalidateWarranties();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Resolution failed");
     } finally {
@@ -1154,7 +1191,7 @@ function WarrantyDrawer({
                     </div>
                     {detail.providerSlug ? (
                       <Link href={`/professionals/${detail.providerSlug}`} className="text-[0.72rem] font-semibold text-trust hover:text-foreground">
-                        View profile →
+                        View profile â†’
                       </Link>
                     ) : null}
                   </div>
@@ -1164,10 +1201,10 @@ function WarrantyDrawer({
               <DrawerSection number="3" title={audience === "client" ? "Related service" : "Related job"}>
                 <div className="rounded-[12px] border border-black/8 bg-white p-4 shadow-[0_3px_12px_rgba(15,31,43,0.035)]">
                   <p className="text-sm font-semibold text-foreground">
-                    {audience === "client" ? detail.serviceName : `JOB-${detail.jobId.slice(-6).toUpperCase()} · ${detail.serviceName}`}
+                    {audience === "client" ? detail.serviceName : `JOB-${detail.jobId.slice(-6).toUpperCase()} Â· ${detail.serviceName}`}
                   </p>
                   <Link href={`/${audience}/jobs/${detail.jobId}`} className="mt-2 inline-flex text-[0.72rem] font-semibold text-trust hover:text-foreground">
-                    {audience === "client" ? "View service record →" : "View job →"}
+                    {audience === "client" ? "View service record â†’" : "View job â†’"}
                   </Link>
                 </div>
               </DrawerSection>
@@ -1283,7 +1320,7 @@ function WarrantyDrawer({
                         <div className="mt-3 rounded-[10px] bg-[#eff9c9] p-3">
                           <p className="text-[0.72rem] font-semibold text-[#536132]">Return visit scheduled</p>
                           <p className="mt-1 text-[0.72rem] text-[#536132]">
-                            {formatSchedule(openClaim.returnVisitStartsAt)} – {formatTime(openClaim.returnVisitEndsAt)}
+                            {formatSchedule(openClaim.returnVisitStartsAt)} â€“ {formatTime(openClaim.returnVisitEndsAt)}
                           </p>
                         </div>
                       ) : null}
@@ -1364,7 +1401,7 @@ function WarrantyDrawer({
                         <div className="mt-3 rounded-[10px] bg-[#eff9c9] p-3 text-[0.72rem]">
                           <p className="font-semibold">Return visit scheduled</p>
                           <p className="mt-1">
-                            {formatSchedule(latestClaim.returnVisitStartsAt)} – {formatTime(latestClaim.returnVisitEndsAt)}
+                            {formatSchedule(latestClaim.returnVisitStartsAt)} â€“ {formatTime(latestClaim.returnVisitEndsAt)}
                           </p>
                         </div>
                       ) : null}
@@ -1453,3 +1490,6 @@ function formatSchedule(value: string) {
 function formatTime(value: string) {
   return new Date(value).toLocaleTimeString("en-KE", { hour: "numeric", minute: "2-digit" });
 }
+
+
+

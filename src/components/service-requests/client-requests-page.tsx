@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+/* eslint-disable react-hooks/preserve-manual-memoization -- scoped query keys require stable manual deps */
 
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -42,6 +44,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { StatePanel } from "@/components/ui/state-panel";
 import { WorkspaceMetricCard } from "@/components/workspace/workspace-metric-card";
 import { useWorkspaceContentReady } from "@/components/workspace/workspace-chrome";
+import { authClient } from "@/lib/auth-client";
+import { CLIENT_OVERVIEW_GC_MS, CLIENT_OVERVIEW_STALE_MS, clientOverviewKeys } from "@/lib/client-overview";
+import { useWorkspaceShell } from "@/components/workspace/workspace-shell-context";
 import { cn } from "@/lib/utils";
 import type {
   ClientRequestBucket,
@@ -134,6 +139,10 @@ export function ClientRequestsPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { workspaceId } = useWorkspaceShell();
+  const { data: session } = authClient.useSession();
+  const scope = useMemo(() => (workspaceId && session?.user.id ? { userId: session.user.id, workspaceId } : null), [workspaceId, session?.user.id]);
+  const scopeEnabled = Boolean(scope);
   const [queryState, setQueryState] = useState<RequestQueryState>(() =>
     requestQueryStateFrom(searchParams),
   );
@@ -226,8 +235,13 @@ export function ClientRequestsPage() {
       "",
       `${pathname}?${query.toString()}`,
     );
-    void queryClient.invalidateQueries({ queryKey: ["client-requests"] });
-  }, [pathname, queryClient]);
+    if (scope) {
+      void queryClient?.invalidateQueries({ queryKey: clientOverviewKeys.root(scope) });
+      void queryClient?.invalidateQueries({ queryKey: ["client-request", saved.id] });
+    } else {
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
+    }
+  }, [pathname, queryClient, scope]);
 
   const handleRequestSubmitted = useCallback((submitted: ClientServiceRequest) => {
     setRequestEditor(null);
@@ -240,8 +254,13 @@ export function ClientRequestsPage() {
       "",
       `${pathname}?${query.toString()}`,
     );
-    void queryClient.invalidateQueries({ queryKey: ["client-requests"] });
-  }, [pathname, queryClient]);
+    if (scope) {
+      void queryClient?.invalidateQueries({ queryKey: clientOverviewKeys.root(scope) });
+      void queryClient?.invalidateQueries({ queryKey: ["client-request", submitted.id] });
+    } else {
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
+    }
+  }, [pathname, queryClient, scope]);
 
   const updateParams = useCallback((changes: Partial<RequestQueryState>, resetPage = true) => {
     const nextState: RequestQueryState = {
@@ -268,22 +287,30 @@ export function ClientRequestsPage() {
   }, [queryState.search, search, updateParams]);
 
   const requestQuery = useQuery({
-    queryKey: ["client-requests", queryState],
+    queryKey: scope ? clientOverviewKeys.requests(scope, queryState) : (["client-overview", "requests", queryState] as unknown[]),
     queryFn: ({ signal }) => loadRequests(queryState, signal),
     placeholderData: keepPreviousData,
+    enabled: scopeEnabled,
+    staleTime: CLIENT_OVERVIEW_STALE_MS,
+    gcTime: CLIENT_OVERVIEW_GC_MS,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
+    retry: 2,
   });
   const optionsQuery = useQuery({
-    queryKey: ["client-request-options"],
+    queryKey: scope ? (["client-overview", scope.userId, scope.workspaceId, "request-options"] as unknown[]) : (["client-request-options"] as unknown[]),
     queryFn: ({ signal }) => requestApi<ServiceRequestOptions>("/api/v1/client/requests/options", { signal }),
-    staleTime: 5 * 60_000,
+    staleTime: CLIENT_OVERVIEW_STALE_MS,
+    gcTime: CLIENT_OVERVIEW_GC_MS,
+    enabled: scopeEnabled,
   });
   const result = requestQuery.data;
   const normalizedSearch = search.trim();
   const searchInputIsPending = normalizedSearch !== queryState.search;
-  const cachedUnsearchedResult = queryClient.getQueryData<RequestPage>([
-    "client-requests",
-    { ...queryState, search: "" },
-  ]);
+  const cachedUnsearchedResult = queryClient?.getQueryData<RequestPage>(
+    scope ? clientOverviewKeys.requests(scope, { ...queryState, search: "" }) : (["client-overview", "requests", { ...queryState, search: "" }] as unknown[]),
+  );
   const shouldFilterCachedRows =
     searchInputIsPending || requestQuery.isPlaceholderData;
   const visibleItems = result
@@ -300,18 +327,22 @@ export function ClientRequestsPage() {
     searchInputIsPending ||
     (requestQuery.isFetching && requestQuery.isPlaceholderData);
   const progressLabel =
-    normalizedSearch || queryState.search ? "Searching…" : "Updating requests…";
-  useWorkspaceContentReady(!requestQuery.isPending);
+    normalizedSearch || queryState.search ? "Searching\u2026" : "Updating requests\u2026";
+  const hasData = Boolean(result);
+  const isInitialLoading = scopeEnabled ? requestQuery.isPending : !hasData;
+  const isBackgroundError = hasData && requestQuery.isError;
+  useWorkspaceContentReady(!isInitialLoading);
 
   useEffect(() => {
-    if (!result || page >= result.totalPages || queryState.search) return;
+    if (!scope || !result || page >= result.totalPages || queryState.search) return;
     const nextState = { ...queryState, page: page + 1 };
-    void queryClient.prefetchQuery({
-      queryKey: ["client-requests", nextState],
+    void queryClient?.prefetchQuery({
+      queryKey: clientOverviewKeys.requests(scope, nextState),
       queryFn: ({ signal }) => loadRequests(nextState, signal),
-      staleTime: 30_000,
+      staleTime: CLIENT_OVERVIEW_STALE_MS,
+      gcTime: CLIENT_OVERVIEW_GC_MS,
     });
-  }, [page, queryClient, queryState, result]);
+  }, [page, queryClient, queryState, result, scope]);
 
   const setSortFor = useCallback((column: "updated" | "category" | "status") => {
     updateParams({ sort: sort === `${column}_asc` ? `${column}_desc` : `${column}_asc` });
@@ -353,16 +384,23 @@ export function ClientRequestsPage() {
         <Button onClick={openNewRequest} className="h-10 min-h-10 rounded-[9px] px-5 text-xs shadow-none"><Plus className="size-4" aria-hidden="true" /> New request</Button>
       </header>
 
-      {requestQuery.isError ? (
-        <InlineAlert className="mt-5" variant="error" title="Requests unavailable" description={requestQuery.error instanceof Error ? requestQuery.error.message : "Requests could not be loaded."} />
+      {isInitialLoading && requestQuery.isError && !hasData ? (
+        <InlineAlert className="mt-5" variant="error" title="Requests unavailable" description={requestQuery.error instanceof Error ? requestQuery.error.message : "Requests could not be loaded."} >
+          <button type="button" onClick={() => void requestQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+        </InlineAlert>
       ) : (
         <>
           <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Request summary">
-            <WorkspaceMetricCard loading={requestQuery.isPending} icon={ClipboardList} tone="green" label="Total requests" value={result?.summary.total} hint="Across all statuses" href="/client/requests" action="View requests" />
-            <WorkspaceMetricCard loading={requestQuery.isPending} icon={RefreshCw} tone="blue" label="Active requests" value={result?.summary.active} hint="Awaiting progress" href="/client/requests?bucket=active" action="View active" />
-            <WorkspaceMetricCard loading={requestQuery.isPending} icon={CircleAlert} tone="orange" label="Needs action" value={result?.summary.needsAction} hint={result?.summary.needsAction ? "Your response is required" : "Nothing needs attention"} hintTone={result?.summary.needsAction ? "danger" : "muted"} href="/client/requests?bucket=needs-action" action="Review now" />
-            <WorkspaceMetricCard loading={requestQuery.isPending} icon={FileText} tone="purple" label="Drafts" value={result?.summary.drafts} hint={result?.summary.drafts ? "Ready to complete" : "No saved drafts"} href="/client/requests?bucket=draft" action="Continue drafts" />
+            <WorkspaceMetricCard loading={isInitialLoading} icon={ClipboardList} tone="green" label="Total requests" value={result?.summary.total} hint="Across all statuses" href="/client/requests" action="View requests" />
+            <WorkspaceMetricCard loading={isInitialLoading} icon={RefreshCw} tone="blue" label="Active requests" value={result?.summary.active} hint="Awaiting progress" href="/client/requests?bucket=active" action="View active" />
+            <WorkspaceMetricCard loading={isInitialLoading} icon={CircleAlert} tone="orange" label="Needs action" value={result?.summary.needsAction} hint={result?.summary.needsAction ? "Your response is required" : "Nothing needs attention"} hintTone={result?.summary.needsAction ? "danger" : "muted"} href="/client/requests?bucket=needs-action" action="Review now" />
+            <WorkspaceMetricCard loading={isInitialLoading} icon={FileText} tone="purple" label="Drafts" value={result?.summary.drafts} hint={result?.summary.drafts ? "Ready to complete" : "No saved drafts"} href="/client/requests?bucket=draft" action="Continue drafts" />
           </section>
+          {isBackgroundError ? (
+            <InlineAlert className="mt-4" variant="error" title="Requests update failed" description={requestQuery.error instanceof Error ? requestQuery.error.message : "Requests could not be refreshed."} >
+              <button type="button" onClick={() => void requestQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+            </InlineAlert>
+          ) : null}
 
           <nav className="mt-3 flex gap-1 overflow-x-auto border-b border-black/6" aria-label="Request status views">
             {tabs.map((tab) => {
@@ -401,7 +439,7 @@ export function ClientRequestsPage() {
 
             <div className="relative" aria-busy={showQueryProgress}>
               <DataTable
-                loading={requestQuery.isPending}
+                loading={isInitialLoading}
                 loadingLabel="Loading requests"
                 columns={columns}
                 data={visibleItems}
@@ -571,7 +609,7 @@ function RequestStatus({ status }: { status: ServiceRequestStatus }) {
 }
 
 function ProfessionalCell({ request }: { request: ClientServiceRequest }) {
-  if (!request.preferredProfessionalName) return <span className="text-muted-foreground">—</span>;
+  if (!request.preferredProfessionalName) return <span className="text-muted-foreground">â€”</span>;
   const initials = request.preferredProfessionalName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
   return <span className="flex min-w-[135px] items-center gap-2"><span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#0c1620] text-[0.62rem] font-semibold text-white">{initials}</span><span className="max-w-28 truncate font-semibold">{request.preferredProfessionalName}</span></span>;
 }
@@ -580,7 +618,7 @@ function BudgetCell({ request }: { request: ClientServiceRequest }) {
   const min = request.budgetMinMinor;
   const max = request.budgetMaxMinor;
   let value = "Not set";
-  if (min !== null && max !== null) value = min === max ? formatMoney(min) : `${formatMoney(min)}–${formatMoney(max)}`;
+  if (min !== null && max !== null) value = min === max ? formatMoney(min) : `${formatMoney(min)}â€“${formatMoney(max)}`;
   else if (min !== null) value = `From ${formatMoney(min)}`;
   else if (max !== null) value = `Up to ${formatMoney(max)}`;
   return <span><span className="block whitespace-nowrap font-semibold">{value}</span><span className="text-[0.62rem] text-muted-foreground">Budget</span></span>;
@@ -677,11 +715,11 @@ function RequestDetailsDrawer({
             <div className="min-w-0">
               <SheetTitle className="truncate text-lg font-semibold">{detail ? requestTitle(detail) : "Request details"}</SheetTitle>
               <SheetDescription id="request-drawer-description" className="mt-0.5 text-xs text-muted-foreground">
-                {detail ? `REQ-${detail.id.slice(-6).toUpperCase()} · Updated ${new Date(detail.updatedAt).toLocaleDateString("en-KE")}` : "Retrieving the latest request details."}
+                {detail ? `REQ-${detail.id.slice(-6).toUpperCase()} Â· Updated ${new Date(detail.updatedAt).toLocaleDateString("en-KE")}` : "Retrieving the latest request details."}
               </SheetDescription>
             </div>
           </div>
-          {detailQuery.isFetching ? <span className="mt-4 inline-flex items-center gap-2 text-[0.68rem] text-muted-foreground" role="status"><Spinner className="size-3.5 text-[#6b9f16]" />Refreshing details…</span> : null}
+          {detailQuery.isFetching ? <span className="mt-4 inline-flex items-center gap-2 text-[0.68rem] text-muted-foreground" role="status"><Spinner className="size-3.5 text-[#6b9f16]" />Refreshing details\u2026</span> : null}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -744,10 +782,13 @@ function RequestPagination({ page, pageSize, totalItems, totalPages, onPage, onP
   const start = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, totalItems);
   const pages = Array.from({ length: totalPages }, (_, index) => index + 1).filter((item) => item === 1 || item === totalPages || Math.abs(item - page) <= 1);
-  return <nav aria-label="Request pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-black/6 px-4 py-3"><p className="text-[0.68rem] text-muted-foreground">Showing {start} to {end} of {totalItems} requests</p><div className="flex items-center gap-2"><label className="sr-only" htmlFor="request-page-size">Requests per page</label><select id="request-page-size" value={pageSize} onChange={(event) => onPageSize(Number(event.target.value))} className={cn(selectClass, "h-9")}><option value="10">10 per page</option><option value="20">20 per page</option><option value="50">50 per page</option></select><button type="button" onClick={() => onPage(page - 1)} disabled={page <= 1} className="grid size-9 place-items-center rounded-lg disabled:opacity-35" aria-label="Previous page"><ChevronLeft className="size-4" /></button>{pages.map((item, index) => <span key={item} className="contents">{index > 0 && item - pages[index - 1] > 1 ? <span className="px-1 text-muted-foreground">…</span> : null}<button type="button" onClick={() => onPage(item)} aria-current={item === page ? "page" : undefined} className={cn("grid size-9 place-items-center rounded-lg text-[0.7rem] font-medium", item === page && "border border-[#83b72c] text-[#5f8d11]")}>{item}</button></span>)}<button type="button" onClick={() => onPage(page + 1)} disabled={page >= totalPages} className="grid size-9 place-items-center rounded-lg disabled:opacity-35" aria-label="Next page"><ChevronRight className="size-4" /></button></div></nav>;
+  return <nav aria-label="Request pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-black/6 px-4 py-3"><p className="text-[0.68rem] text-muted-foreground">Showing {start} to {end} of {totalItems} requests</p><div className="flex items-center gap-2"><label className="sr-only" htmlFor="request-page-size">Requests per page</label><select id="request-page-size" value={pageSize} onChange={(event) => onPageSize(Number(event.target.value))} className={cn(selectClass, "h-9")}><option value="10">10 per page</option><option value="20">20 per page</option><option value="50">50 per page</option></select><button type="button" onClick={() => onPage(page - 1)} disabled={page <= 1} className="grid size-9 place-items-center rounded-lg disabled:opacity-35" aria-label="Previous page"><ChevronLeft className="size-4" /></button>{pages.map((item, index) => <span key={item} className="contents">{index > 0 && item - pages[index - 1] > 1 ? <span className="px-1 text-muted-foreground">\u2026</span> : null}<button type="button" onClick={() => onPage(item)} aria-current={item === page ? "page" : undefined} className={cn("grid size-9 place-items-center rounded-lg text-[0.7rem] font-medium", item === page && "border border-[#83b72c] text-[#5f8d11]")}>{item}</button></span>)}<button type="button" onClick={() => onPage(page + 1)} disabled={page >= totalPages} className="grid size-9 place-items-center rounded-lg disabled:opacity-35" aria-label="Next page"><ChevronRight className="size-4" /></button></div></nav>;
 }
 
 
 function formatMoney(minor: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(minor / 100).replace("KES", "KSh");
 }
+
+
+

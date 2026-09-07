@@ -13,6 +13,12 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
+vi.mock("@/components/workspace/workspace-shell-context", () => ({
+  useWorkspaceShell: () => ({ workspaceId: "test-workspace", workspaceLabel: "Workspace", userId: "test-user" }),
+}));
+vi.mock("@/lib/auth-client", () => ({
+  authClient: { useSession: () => ({ data: { user: { id: "test-user" } } }) },
+}));
 
 function Wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({

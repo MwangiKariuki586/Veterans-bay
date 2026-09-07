@@ -12,6 +12,12 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/client/bookings",
   useSearchParams: () => currentSearch,
 }));
+vi.mock("@/components/workspace/workspace-shell-context", () => ({
+  useWorkspaceShell: () => ({ workspaceId: "test-workspace", workspaceLabel: "Workspace", userId: "test-user" }),
+}));
+vi.mock("@/lib/auth-client", () => ({
+  authClient: { useSession: () => ({ data: { user: { id: "test-user" } } }) },
+}));
 
 const booking: BookingSummary = {
   id: "11111111-1111-4111-8111-111111111111",

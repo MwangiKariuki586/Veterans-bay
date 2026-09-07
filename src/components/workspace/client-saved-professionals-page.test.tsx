@@ -1,9 +1,23 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SavedProfessional } from "@/modules/saved-professionals/types";
 
 import { ClientSavedProfessionalsPage } from "./client-saved-professionals-page";
+
+vi.mock("@/components/workspace/workspace-shell-context", () => ({
+  useWorkspaceShell: () => ({ workspaceId: "workspace-1", workspaceLabel: "Workspace", userId: "user-1" }),
+  WorkspaceShellContext: { Provider: ({ children }: { children: unknown }) => children },
+}));
+vi.mock("@/lib/auth-client", () => ({
+  authClient: { useSession: () => ({ data: { user: { id: "user-1" } } }) },
+}));
+
+function renderWithClient(ui: React.ReactNode) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 
 const saved: SavedProfessional = {
   slug: "trusted-plumbing",
@@ -31,7 +45,7 @@ describe("client saved professionals page", () => {
   it("renders card-shaped placeholders while saved items load", () => {
     vi.mocked(fetch).mockImplementation(() => new Promise(() => {}));
 
-    render(<ClientSavedProfessionalsPage />);
+    renderWithClient(<ClientSavedProfessionalsPage />);
 
     expect(
       screen.getByRole("status", { name: "Loading saved items" }),
@@ -40,7 +54,7 @@ describe("client saved professionals page", () => {
   });
 
   it("renders the bounded saved professional projection", async () => {
-    render(<ClientSavedProfessionalsPage />);
+    renderWithClient(<ClientSavedProfessionalsPage />);
 
     expect(await screen.findByText("Trusted Plumbing")).toBeInTheDocument();
     expect(screen.getByText("3 published services")).toBeInTheDocument();
@@ -72,7 +86,7 @@ describe("client saved professionals page", () => {
       json: async () => ({ data: [] }),
     } as Response);
 
-    render(<ClientSavedProfessionalsPage />);
+    renderWithClient(<ClientSavedProfessionalsPage />);
 
     await screen.findByRole("heading", { name: "Assemble Pro Kenya" });
     expect(
@@ -89,7 +103,7 @@ describe("client saved professionals page", () => {
   });
 
   it("removes a professional from the local list after persistence succeeds", async () => {
-    render(<ClientSavedProfessionalsPage />);
+    renderWithClient(<ClientSavedProfessionalsPage />);
     fireEvent.click(
       await screen.findByRole("button", {
         name: "Remove Trusted Plumbing from saved",

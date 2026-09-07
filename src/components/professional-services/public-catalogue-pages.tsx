@@ -29,6 +29,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useOptionalQueryClient } from "@/lib/optional-query-client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -124,6 +125,7 @@ function ListingUnavailable({ message }: { message: string }) {
 
 export function PublicProfessionalPage({ slug }: { slug: string }) {
   const router = useRouter();
+  const queryClient = useOptionalQueryClient();
   const [profile, setProfile] = useState<PublicProfessionalProfile | null>(
     null,
   );
@@ -288,6 +290,7 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
         );
       }
       setSaved((current) => !current);
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
       toast.success(saved ? "Removed from saved." : "Professional saved.");
     } catch (cause) {
       toast.error(

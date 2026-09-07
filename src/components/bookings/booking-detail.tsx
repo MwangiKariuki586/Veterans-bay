@@ -22,6 +22,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import Link from "next/link";
+import { useOptionalQueryClient } from "@/lib/optional-query-client";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -47,6 +48,7 @@ export function BookingDetail({
   audience: "client" | "professional";
   bookingId: string;
 }) {
+  const queryClient = useOptionalQueryClient();
   const [booking, setBooking] = useState<BookingDetailContract | null>(null);
   const [slots, setSlots] = useState<BookingSlot[] | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<BookingSlot | null>(null);
@@ -121,6 +123,10 @@ export function BookingDetail({
       setRescheduleReason("");
       setCancelOpen(false);
       setRescheduleOpen(false);
+      if (audience === "client") {
+        void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
+        void queryClient?.invalidateQueries({ queryKey: ["booking-detail", audience, booking.id] });
+      }
       if (!["CANCELLED", "COMPLETED", "NO_SHOW"].includes(updated.status)) {
         const refreshedSlots = await getBookingSlots(audience, booking.id);
         setSlots(refreshedSlots);

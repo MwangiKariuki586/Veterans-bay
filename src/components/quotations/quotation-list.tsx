@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+/* eslint-disable react-hooks/preserve-manual-memoization -- scoped query keys require stable manual deps */
 
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -39,6 +41,9 @@ import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
 import { WorkspaceMetricCard } from "@/components/workspace/workspace-metric-card";
 import { useWorkspaceContentReady } from "@/components/workspace/workspace-chrome";
+import { authClient } from "@/lib/auth-client";
+import { CLIENT_OVERVIEW_GC_MS, CLIENT_OVERVIEW_STALE_MS, clientOverviewKeys } from "@/lib/client-overview";
+import { useWorkspaceShell } from "@/components/workspace/workspace-shell-context";
 import { cn } from "@/lib/utils";
 import type {
   ClientQuotationBucket,
@@ -115,6 +120,10 @@ function ClientQuotationList() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { workspaceId } = useWorkspaceShell();
+  const { data: session } = authClient.useSession();
+  const scope = useMemo(() => (workspaceId && session?.user.id ? { userId: session.user.id, workspaceId } : null), [workspaceId, session?.user.id]);
+  const scopeEnabled = Boolean(scope);
   const [queryState, setQueryState] = useState<ClientQuotationQuery>(() =>
     queryFromParams(searchParams),
   );
@@ -148,17 +157,23 @@ function ClientQuotationList() {
   }, [queryState.search, search, updateParams]);
 
   const quotationQuery = useQuery({
-    queryKey: ["client-quotations", queryState],
+    queryKey: scope ? clientOverviewKeys.quotations(scope, queryState) : (["client-overview", "quotations", queryState] as unknown[]),
     queryFn: ({ signal }) => listClientQuotations(queryState, signal),
     placeholderData: keepPreviousData,
+    enabled: scopeEnabled,
+    staleTime: CLIENT_OVERVIEW_STALE_MS,
+    gcTime: CLIENT_OVERVIEW_GC_MS,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
+    retry: 2,
   });
   const result = quotationQuery.data;
   const normalizedSearch = search.trim();
   const searchPending = normalizedSearch !== queryState.search;
-  const cachedUnsearched = queryClient.getQueryData<ClientQuotationPage>([
-    "client-quotations",
-    { ...queryState, search: "" },
-  ]);
+  const cachedUnsearched = queryClient?.getQueryData<ClientQuotationPage>(
+    scope ? clientOverviewKeys.quotations(scope, { ...queryState, search: "" }) : (["client-overview", "quotations", { ...queryState, search: "" }] as unknown[]),
+  );
   const filterCached = searchPending || quotationQuery.isPlaceholderData;
   const visibleItems = result
     ? filterCached
@@ -172,7 +187,10 @@ function ClientQuotationList() {
     : [];
   const showProgress =
     searchPending || (quotationQuery.isFetching && quotationQuery.isPlaceholderData);
-  useWorkspaceContentReady(!quotationQuery.isPending);
+  const hasData = Boolean(result);
+  const isInitialLoading = scopeEnabled ? quotationQuery.isPending : !hasData;
+  const isBackgroundError = hasData && quotationQuery.isError;
+  useWorkspaceContentReady(!isInitialLoading);
 
   const openQuotation = useCallback(
     (quotation: QuotationSummary) => {
@@ -280,7 +298,7 @@ function ClientQuotationList() {
         </p>
       </header>
 
-      {quotationQuery.isError ? (
+      {isInitialLoading && quotationQuery.isError && !hasData ? (
         <InlineAlert
           className="mt-5"
           variant="error"
@@ -290,7 +308,9 @@ function ClientQuotationList() {
               ? quotationQuery.error.message
               : "Quotations could not be loaded."
           }
-        />
+        >
+          <button type="button" onClick={() => void quotationQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+        </InlineAlert>
       ) : (
         <>
           <section
@@ -298,7 +318,7 @@ function ClientQuotationList() {
             aria-label="Quotation summary"
           >
             <WorkspaceMetricCard
-              loading={quotationQuery.isPending}
+              loading={isInitialLoading}
               icon={FileText}
               tone="green"
               label="Total received"
@@ -308,7 +328,7 @@ function ClientQuotationList() {
               action="View quotations"
             />
             <WorkspaceMetricCard
-              loading={quotationQuery.isPending}
+              loading={isInitialLoading}
               icon={CircleAlert}
               tone="orange"
               label="Awaiting decision"
@@ -323,7 +343,7 @@ function ClientQuotationList() {
               action="Review now"
             />
             <WorkspaceMetricCard
-              loading={quotationQuery.isPending}
+              loading={isInitialLoading}
               icon={CheckCircle2}
               tone="blue"
               label="Accepted"
@@ -333,7 +353,7 @@ function ClientQuotationList() {
               action="View accepted"
             />
             <WorkspaceMetricCard
-              loading={quotationQuery.isPending}
+              loading={isInitialLoading}
               icon={Clock3}
               tone="purple"
               label="Expiring soon"
@@ -348,6 +368,11 @@ function ClientQuotationList() {
               action="Review validity"
             />
           </section>
+          {isBackgroundError ? (
+            <InlineAlert className="mt-4" variant="error" title="Quotations update failed" description={quotationQuery.error instanceof Error ? quotationQuery.error.message : "Quotations could not be refreshed."} >
+              <button type="button" onClick={() => void quotationQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+            </InlineAlert>
+          ) : null}
 
           <nav
             className="mt-3 flex gap-1 overflow-x-auto border-b border-black/6"
@@ -459,7 +484,7 @@ function ClientQuotationList() {
 
             <div className="relative" aria-busy={showProgress}>
               <DataTable
-                loading={quotationQuery.isPending}
+                loading={isInitialLoading}
                 loadingLabel="Loading quotations"
                 columns={columns}
                 data={visibleItems}
@@ -652,7 +677,7 @@ function QuotationSummaryDrawer({
                 className="mt-0.5 text-xs text-muted-foreground"
               >
                 {summary
-                  ? `QUO-${summary.id.slice(-6).toUpperCase()} · Version ${summary.currentVersionNumber}`
+                  ? `QUO-${summary.id.slice(-6).toUpperCase()} Â· Version ${summary.currentVersionNumber}`
                   : "Retrieving the latest quotation."}
               </SheetDescription>
             </div>
@@ -845,7 +870,7 @@ function QuotationIdentity({ quotation }: { quotation: QuotationSummary }) {
           {quotation.requestCategory}
         </span>
         <span className="mt-0.5 block text-[0.64rem] text-[#6f7d8b]">
-          QUO-{quotation.id.slice(-6).toUpperCase()} · v
+          QUO-{quotation.id.slice(-6).toUpperCase()} Â· v
           {quotation.currentVersionNumber}
         </span>
       </span>
@@ -1341,3 +1366,6 @@ function formatDuration(minutes: number) {
     ? `${hours} hr${hours === 1 ? "" : "s"}${remaining ? ` ${remaining} min` : ""}`
     : `${minutes} min`;
 }
+
+
+

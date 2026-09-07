@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   ArrowLeft,
@@ -303,7 +303,7 @@ function InviteMemberDialog({ onInvite }: { onInvite: (input: { email: string; r
           />
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-            <Button type="submit" disabled={submitting}>{submitting ? "Recordingâ€¦" : "Record invitation"}</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "Recording…" : "Record invitation"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -774,3 +774,4 @@ export function TeamWorkspace({
     </div>
   );
 }
+

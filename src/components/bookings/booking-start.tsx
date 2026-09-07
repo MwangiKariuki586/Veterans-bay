@@ -3,6 +3,7 @@
 import { ArrowLeft, CalendarDays, Clock3, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useOptionalQueryClient } from "@/lib/optional-query-client";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ export function BookingStart({
   sourceBookingId?: string;
 }) {
   const router = useRouter();
+  const queryClient = useOptionalQueryClient();
   const [source, setSource] = useState<BookingDetail | null>(null);
   const [slots, setSlots] = useState<BookingSlot[] | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<BookingSlot | null>(null);
@@ -92,6 +94,7 @@ export function BookingStart({
               cancellationPolicyAcknowledged: true,
             },
       );
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
       router.push(`/client/bookings/${booking.id}`);
     } catch (cause) {
       setError(

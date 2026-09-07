@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   ArrowRight,
@@ -14,15 +14,20 @@ import {
   Star,
   Store,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { buttonVariants } from "@/components/ui/button";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatePanel } from "@/components/ui/state-panel";
 import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
+import { useWorkspaceShell } from "@/components/workspace/workspace-shell-context";
+import { CLIENT_OVERVIEW_GC_MS, CLIENT_OVERVIEW_STALE_MS, clientOverviewKeys } from "@/lib/client-overview";
 import type { SavedProfessional } from "@/modules/saved-professionals/types";
 
 type Filter = "All" | "Professionals" | "Services" | "Shortlisted" | "Recent";
@@ -234,14 +239,50 @@ function SavedItemsLoadingSkeleton() {
   );
 }
 
+async function fetchSavedProfessionals(signal?: AbortSignal): Promise<SavedProfessional[]> {
+  const response = await fetch("/api/v1/client/saved-professionals", {
+    credentials: "include",
+    signal,
+  });
+  const body = (await response.json().catch(() => null)) as {
+    data?: SavedProfessional[];
+    error?: { message?: string };
+  } | null;
+  if (!response.ok || !Array.isArray(body?.data)) {
+    throw new Error(body?.error?.message ?? "Saved professionals could not be loaded.");
+  }
+  return body.data;
+}
+
 export function ClientSavedProfessionalsPage() {
-  const [request, setRequest] = useState<{
-    loading: boolean;
-    error: string | null;
-    items: SavedProfessional[];
-  }>({ loading: true, error: null, items: [] });
+  const queryClient = useQueryClient();
+  const { workspaceId } = useWorkspaceShell();
+  const { data: session } = authClient.useSession();
+  const userId = session?.user.id ?? null;
+  const scope = useMemo(() => (userId && workspaceId ? { userId, workspaceId } : null), [userId, workspaceId]);
+  const enabled = Boolean(scope);
+  const savedKey = scope ? clientOverviewKeys.savedProfessionals(scope) : (["client-overview", "saved-professionals"] as unknown[]);
+
+  const savedQuery = useQuery({
+    queryKey: savedKey as unknown[],
+    queryFn: ({ signal }) => fetchSavedProfessionals(signal),
+    enabled,
+    staleTime: CLIENT_OVERVIEW_STALE_MS,
+    gcTime: CLIENT_OVERVIEW_GC_MS,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
+    retry: 2,
+    placeholderData: undefined,
+  });
+
+  const savedProfessionals = savedQuery.data;
+  const hasData = savedQuery.data !== undefined;
+  const isLoading = enabled ? savedQuery.isPending : !hasData;
+  const error = savedQuery.error instanceof Error ? savedQuery.error.message : savedQuery.error ? String(savedQuery.error) : null;
+  const isBackgroundError = hasData && Boolean(error);
+
   const [removing, setRemoving] = useState<Set<string>>(new Set());
-  const [retry, setRetry] = useState(0);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<Filter>("All");
   const [sort, setSort] = useState<Sort>("Most recent");
@@ -250,41 +291,9 @@ export function ClientSavedProfessionalsPage() {
   const [mockQuotations, setMockQuotations] =
     useState<MockQuotation[]>(MOCK_QUOTATIONS);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetch("/api/v1/client/saved-professionals", {
-      credentials: "include",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const body = (await response.json().catch(() => null)) as {
-          data?: SavedProfessional[];
-          error?: { message?: string };
-        } | null;
-        if (!response.ok || !Array.isArray(body?.data)) {
-          throw new Error(
-            body?.error?.message ?? "Saved professionals could not be loaded.",
-          );
-        }
-        setRequest({ loading: false, error: null, items: body.data });
-      })
-      .catch((cause) => {
-        if (cause instanceof DOMException && cause.name === "AbortError")
-          return;
-        setRequest({
-          loading: false,
-          error:
-            cause instanceof Error
-              ? cause.message
-              : "Saved professionals could not be loaded.",
-          items: [],
-        });
-      });
-    return () => controller.abort();
-  }, [retry]);
-
   async function removeSaved(item: SavedProfessional) {
     if (removing.has(item.slug)) return;
+    if (!scope) return;
     setRemoving((current) => new Set(current).add(item.slug));
     try {
       const response = await fetch(
@@ -299,10 +308,15 @@ export function ClientSavedProfessionalsPage() {
           body?.error?.message ?? "The professional could not be removed.",
         );
       }
-      setRequest((current) => ({
-        ...current,
-        items: current.items.filter((saved) => saved.slug !== item.slug),
-      }));
+      // Update cached list immediately
+      queryClient?.setQueryData<SavedProfessional[]>(savedKey as unknown[], (old) => {
+        if (!old) return old;
+        return old.filter((saved) => saved.slug !== item.slug);
+      });
+      // Invalidate dashboard for saved count
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview", scope.userId, scope.workspaceId, "dashboard"] });
+      // Also invalidate saved to ensure consistency (will not refetch immediately if fresh)
+      // No need to refetch immediately; cache already updated
       toast.success("Removed from saved.");
     } catch (cause) {
       toast.error(
@@ -330,31 +344,24 @@ export function ClientSavedProfessionalsPage() {
   }
 
   const professionals = useMemo(() => {
-    if (!request.loading && request.items.length === 0 && !request.error) {
-      // Show illustrative professionals when the user has no saved professionals yet,
-      // so the refreshed layout matches the reference mockup without inventing
-      // backend records.
+    const items = savedProfessionals ?? [];
+    const isIllustrative = hasData && items.length === 0 && !error;
+    if (isIllustrative) {
       return MOCK_PROFESSIONALS_FALLBACK;
     }
-    return request.items;
-  }, [request.loading, request.items, request.error]);
+    return items;
+  }, [savedProfessionals, hasData, error]);
 
   const stats = useMemo(() => {
-    const isIllustrativeProfessionals =
-      !request.loading && request.items.length === 0 && !request.error;
-    const professionalsCount = request.loading
+    const isIllustrativeProfessionals = hasData && (savedProfessionals?.length ?? 0) === 0 && !error;
+    const professionalsCount = isLoading
       ? 12
       : isIllustrativeProfessionals
         ? 12
         : professionals.length;
-    // Saved services / ready / recent are illustrative until a dedicated
-    // saved-services / shortlist backend exists. Keep the mock numbers so
-    // the header metrics match the design reference.
     const servicesCount = 18;
     const readyCount = 5;
     const recentlyAdded = 6;
-    // Also compute a truthful recent count for accessibility / future use,
-    // but display the mock value to preserve visual fidelity.
     void recentlyAdded;
     return {
       professionalsCount,
@@ -363,10 +370,11 @@ export function ClientSavedProfessionalsPage() {
       recentlyAdded,
     };
   }, [
-    request.loading,
-    request.items.length,
+    isLoading,
+    savedProfessionals?.length,
     professionals.length,
-    request.error,
+    hasData,
+    error,
   ]);
 
   type Unified =
@@ -470,7 +478,7 @@ export function ClientSavedProfessionalsPage() {
         <Link href="/client" className="hover:text-foreground">
           Home
         </Link>
-        <span className="mx-2">›</span>
+        <span className="mx-2">â€º</span>
         <span className="font-medium text-foreground">Saved</span>
       </nav>
 
@@ -657,22 +665,15 @@ export function ClientSavedProfessionalsPage() {
 
         {/* Cards */}
         <div className="mt-4">
-          {request.loading ? (
+          {isLoading ? (
             <SavedItemsLoadingSkeleton />
-          ) : request.error ? (
+          ) : error && !hasData ? (
             <StatePanel
               variant="error"
               title="Saved items unavailable"
-              description={request.error}
+              description={error}
               actionLabel="Try again"
-              onAction={() => {
-                setRequest((current) => ({
-                  ...current,
-                  loading: true,
-                  error: null,
-                }));
-                setRetry((current) => current + 1);
-              }}
+              onAction={() => void savedQuery.refetch()}
               className="min-h-72 border-dashed bg-[#f7f9fa]"
             />
           ) : filtered.length === 0 ? (
@@ -715,151 +716,257 @@ export function ClientSavedProfessionalsPage() {
               ) : null}
             </StatePanel>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {filtered.map((item) => {
-                if (item.kind === "professional") {
-                  const p = item.data as SavedProfessional;
-                  const isRemoving = removing.has(p.slug);
-                  // Use fallback illustration for Assemble / Spotless to match mock visuals
-                  const isAssemble = p.slug === "assemble-pro-kenya";
-                  const isSparkle = p.slug === "sparkle-clean-services";
-                  return (
-                    <Link
-                      key={item.id}
-                      href={`/professionals/${p.slug}`}
-                      className="relative flex flex-col rounded-[16px] border border-black/8 bg-white p-4 shadow-[0_4px_16px_rgba(15,31,43,0.04)] transition-shadow hover:shadow-[0_8px_24px_rgba(15,31,43,0.08)]"
-                    >
-                      <button
-                        type="button"
-                        disabled={isRemoving}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          removeSaved(p);
-                        }}
-                        aria-label={`Remove ${p.businessName} from saved`}
-                        className="absolute right-3 top-3 grid size-8 place-items-center rounded-full text-[#5f8d11] transition-colors hover:bg-[#f7f9fa] disabled:opacity-40"
+            <>
+              {isBackgroundError ? (
+                <InlineAlert
+                  className="mb-4"
+                  variant="error"
+                  title="Saved items update failed"
+                  description={error ?? "Could not refresh saved items."}
+                >
+                  <button
+                    type="button"
+                    onClick={() => void savedQuery.refetch()}
+                    className="mt-2 text-xs font-semibold text-trust underline"
+                  >
+                    Try again
+                  </button>
+                </InlineAlert>
+              ) : null}
+              <div className="grid gap-4 md:grid-cols-2">
+                {filtered.map((item) => {
+                  if (item.kind === "professional") {
+                    const p = item.data as SavedProfessional;
+                    const isRemoving = removing.has(p.slug);
+                    const isAssemble = p.slug === "assemble-pro-kenya";
+                    const isSparkle = p.slug === "sparkle-clean-services";
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/professionals/${p.slug}`}
+                        className="relative flex flex-col rounded-[16px] border border-black/8 bg-white p-4 shadow-[0_4px_16px_rgba(15,31,43,0.04)] transition-shadow hover:shadow-[0_8px_24px_rgba(15,31,43,0.08)]"
                       >
-                        <Heart
-                          className="size-4 fill-[#7cb518] text-[#7cb518]"
-                          aria-hidden="true"
-                        />
-                      </button>
-                      <div className="flex gap-3">
-                        <div
-                          className={cn(
-                            "relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl",
-                            isAssemble
-                              ? "bg-[#0a1931] text-white"
-                              : isSparkle
-                                ? "bg-[#eef8c8] text-[#5f8d11]"
-                                : "bg-[#eef8c8] text-[#5f8d11]",
-                          )}
+                        <button
+                          type="button"
+                          disabled={isRemoving}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            void removeSaved(p);
+                          }}
+                          aria-label={`Remove ${p.businessName} from saved`}
+                          className="absolute right-3 top-3 grid size-8 place-items-center rounded-full text-[#5f8d11] transition-colors hover:bg-[#f7f9fa] disabled:opacity-40"
                         >
-                          {p.logoUrl ? (
-                            <Image
-                              src={p.logoUrl}
-                              alt=""
-                              fill
-                              sizes="56px"
-                              className="object-cover"
-                            />
-                          ) : isAssemble ? (
-                            <Hammer className="size-6" aria-hidden="true" />
-                          ) : isSparkle ? (
-                            <span className="grid place-items-center">
-                              <Sparkles className="size-6" aria-hidden="true" />
-                            </span>
-                          ) : (
-                            <Store className="size-6" aria-hidden="true" />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1 pr-8">
-                          <h2 className="truncate text-sm font-semibold leading-5 text-foreground">
-                            {p.businessName}
-                          </h2>
-                          <p className="mt-0.5 truncate text-xs font-semibold text-[#5f8d11]">
-                            {p.primaryCategory ?? "Home services"}
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {p.verified ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 text-[11px] font-semibold leading-none text-[#5f8d11]">
-                                <BadgeCheck
-                                  className="size-3.5"
-                                  aria-hidden="true"
-                                />
-                                Verified
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                                Not yet verified
-                              </span>
+                          <Heart
+                            className="size-4 fill-[#7cb518] text-[#7cb518]"
+                            aria-hidden="true"
+                          />
+                        </button>
+                        <div className="flex gap-3">
+                          <div
+                            className={cn(
+                              "relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl",
+                              isAssemble
+                                ? "bg-[#0a1931] text-white"
+                                : isSparkle
+                                  ? "bg-[#eef8c8] text-[#5f8d11]"
+                                  : "bg-[#eef8c8] text-[#5f8d11]",
                             )}
-                            {p.slug === "assemble-pro-kenya" ? (
-                              <>
-                                <span className="inline-flex items-center gap-1 rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
-                                  <Star
-                                    className="size-3 fill-[#f5a623] text-[#f5a623]"
-                                    aria-hidden="true"
-                                  />
-                                  4.9 (128)
-                                </span>
-                                <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
-                                  Responds in 1h
-                                </span>
-                                <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
-                                  7 services
-                                </span>
-                              </>
-                            ) : p.slug === "sparkle-clean-services" ? (
-                              <>
-                                <span className="inline-flex items-center gap-1 rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
-                                  <Star
-                                    className="size-3 fill-[#f5a623] text-[#f5a623]"
-                                    aria-hidden="true"
-                                  />
-                                  4.8 (156)
-                                </span>
-                                <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
-                                  Responds in 2h
-                                </span>
-                                <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
-                                  6 services
-                                </span>
-                              </>
-                            ) : (
-                              <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
-                                {p.serviceCount} published{" "}
-                                {p.serviceCount === 1 ? "service" : "services"}
+                          >
+                            {p.logoUrl ? (
+                              <Image
+                                src={p.logoUrl}
+                                alt=""
+                                fill
+                                sizes="56px"
+                                className="object-cover"
+                              />
+                            ) : isAssemble ? (
+                              <Hammer className="size-6" aria-hidden="true" />
+                            ) : isSparkle ? (
+                              <span className="grid place-items-center">
+                                <Sparkles className="size-6" aria-hidden="true" />
                               </span>
+                            ) : (
+                              <Store className="size-6" aria-hidden="true" />
                             )}
                           </div>
+                          <div className="min-w-0 flex-1 pr-8">
+                            <h2 className="truncate text-sm font-semibold leading-5 text-foreground">
+                              {p.businessName}
+                            </h2>
+                            <p className="mt-0.5 truncate text-xs font-semibold text-[#5f8d11]">
+                              {p.primaryCategory ?? "Home services"}
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {p.verified ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 text-[11px] font-semibold leading-none text-[#5f8d11]">
+                                  <BadgeCheck
+                                    className="size-3.5"
+                                    aria-hidden="true"
+                                  />
+                                  Verified
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                                  Not yet verified
+                                </span>
+                              )}
+                              {p.slug === "assemble-pro-kenya" ? (
+                                <>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
+                                    <Star
+                                      className="size-3 fill-[#f5a623] text-[#f5a623]"
+                                      aria-hidden="true"
+                                    />
+                                    4.9 (128)
+                                  </span>
+                                  <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
+                                    Responds in 1h
+                                  </span>
+                                  <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
+                                    7 services
+                                  </span>
+                                </>
+                              ) : p.slug === "sparkle-clean-services" ? (
+                                <>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
+                                    <Star
+                                      className="size-3 fill-[#f5a623] text-[#f5a623]"
+                                      aria-hidden="true"
+                                    />
+                                    4.8 (156)
+                                  </span>
+                                  <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
+                                    Responds in 2h
+                                  </span>
+                                  <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
+                                    6 services
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="rounded-full bg-[#f7f9fa] px-2.5 py-1 text-[11px] font-medium leading-none text-foreground">
+                                  {p.serviceCount} published{" "}
+                                  {p.serviceCount === 1 ? "service" : "services"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      {p.operatingLocation ? (
-                        <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-[#68717b]">
-                          <MapPin className="size-3.5" aria-hidden="true" />
-                          {p.operatingLocation}
-                        </p>
-                      ) : null}
-                      {p.description ? (
+                        {p.operatingLocation ? (
+                          <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-[#68717b]">
+                            <MapPin className="size-3.5" aria-hidden="true" />
+                            {p.operatingLocation}
+                          </p>
+                        ) : null}
+                        {p.description ? (
+                          <p className="my-2 truncate text-xs leading-5 text-[#68717b]">
+                            {p.description}
+                          </p>
+                        ) : null}
+                        <div className="mt-auto inline-flex items-center gap-1.5 text-xs text-[#68717b]">
+                          <CalendarDays className="size-3.5" aria-hidden="true" />
+                          Saved {formatSavedDate(item.savedAt)}
+                        </div>
+                      </Link>
+                    );
+                  }
+                  if (item.kind === "service") {
+                    const s = item.data as MockService;
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/services/${s.slug}`}
+                        className="relative flex flex-col rounded-[16px] border border-black/8 bg-white p-4 shadow-[0_4px_16px_rgba(15,31,43,0.04)] transition-shadow hover:shadow-[0_8px_24px_rgba(15,31,43,0.08)]"
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            removeMockService(s.id);
+                          }}
+                          aria-label={`Remove ${s.name} from saved`}
+                          className="absolute right-3 top-3 grid size-8 place-items-center rounded-full text-[#5f8d11] transition-colors hover:bg-[#f7f9fa]"
+                        >
+                          <Heart
+                            className="size-4 fill-[#7cb518] text-[#7cb518]"
+                            aria-hidden="true"
+                          />
+                        </button>
+                        <div className="flex gap-3">
+                          <div className="relative h-[92px] w-[112px] shrink-0 overflow-hidden rounded-xl bg-muted">
+                            <Image
+                              src={s.imageUrl}
+                              alt=""
+                              fill
+                              sizes="112px"
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1 pr-6">
+                            <h2 className="truncate text-sm font-semibold leading-5 text-foreground">
+                              {s.name}
+                            </h2>
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              <span
+                                className={cn(
+                                  "rounded-full px-2 py-0.5 text-[11px] font-medium leading-4",
+                                  s.category === "Electrical"
+                                    ? "bg-[#eef8c8] text-[#2f7d18]"
+                                    : s.category === "Plumbing"
+                                      ? "bg-[#eef8c8] text-[#2f7d18]"
+                                      : "bg-[#eef8c8] text-[#2f7d18]",
+                                )}
+                              >
+                                {s.category}
+                              </span>
+                              <span className="rounded-full bg-[#e9f0ff] px-2 py-0.5 text-[11px] font-medium leading-4 text-[#1f56bd]">
+                                {s.fulfilment}
+                              </span>
+                            </div>
+                            <p className="mt-1 truncate text-[11px] leading-4 text-[#68717b]">
+                              by {s.providerName}
+                            </p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                              <span className="font-semibold text-[#2f7d18]">
+                                From {formatPrice(s.priceMinor)}
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <Star
+                                  className="size-3 fill-[#f5a623] text-[#f5a623]"
+                                  aria-hidden="true"
+                                />
+                                <span className="font-medium text-foreground">
+                                  {s.rating.toFixed(1)}
+                                </span>
+                                <span className="text-[#68717b]">
+                                  ({s.reviewCount})
+                                </span>
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-[#68717b]">
+                                <MapPin className="size-3" aria-hidden="true" />
+                                {s.location}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                         <p className="my-2 truncate text-xs leading-5 text-[#68717b]">
-                          {p.description}
+                          {s.description}
                         </p>
-                      ) : null}
-                      <div className="mt-auto inline-flex items-center gap-1.5 text-xs text-[#68717b]">
-                        <CalendarDays className="size-3.5" aria-hidden="true" />
-                        Saved {formatSavedDate(item.savedAt)}
-                      </div>
-                    </Link>
-                  );
-                }
-                if (item.kind === "service") {
-                  const s = item.data as MockService;
+                        <div className="mt-auto inline-flex items-center gap-1.5 text-xs text-[#68717b]">
+                          <CalendarDays className="size-3.5" aria-hidden="true" />
+                          Saved {formatSavedDate(item.savedAt)}
+                        </div>
+                      </Link>
+                    );
+                  }
+                  const q = item.data as MockQuotation;
                   return (
                     <Link
                       key={item.id}
-                      href={`/services/${s.slug}`}
+                      href={`/client/quotations/${q.id}`}
                       className="relative flex flex-col rounded-[16px] border border-black/8 bg-white p-4 shadow-[0_4px_16px_rgba(15,31,43,0.04)] transition-shadow hover:shadow-[0_8px_24px_rgba(15,31,43,0.08)]"
                     >
                       <button
@@ -867,9 +974,9 @@ export function ClientSavedProfessionalsPage() {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          removeMockService(s.id);
+                          removeMockQuotation(q.id);
                         }}
-                        aria-label={`Remove ${s.name} from saved`}
+                        aria-label={`Remove ${q.title} from saved`}
                         className="absolute right-3 top-3 grid size-8 place-items-center rounded-full text-[#5f8d11] transition-colors hover:bg-[#f7f9fa]"
                       >
                         <Heart
@@ -878,140 +985,53 @@ export function ClientSavedProfessionalsPage() {
                         />
                       </button>
                       <div className="flex gap-3">
-                        <div className="relative h-[92px] w-[112px] shrink-0 overflow-hidden rounded-xl bg-muted">
-                          <Image
-                            src={s.imageUrl}
-                            alt=""
-                            fill
-                            sizes="112px"
-                            className="object-cover"
-                            unoptimized
-                          />
+                        <div className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#f1eaff] text-[#6335e9]">
+                          <FileText className="size-6" aria-hidden="true" />
                         </div>
-                        <div className="min-w-0 flex-1 pr-6">
-                          <h2 className="truncate text-sm font-semibold leading-5 text-foreground">
-                            {s.name}
+                        <div className="min-w-0 flex-1 pr-10">
+                          <span className="inline-flex rounded-full bg-[#f1eaff] px-2.5 py-1 text-[11px] font-semibold leading-none text-[#6335e9]">
+                            Shortlisted quotation
+                          </span>
+                          <h2 className="mt-1.5 truncate text-sm font-semibold leading-5 text-foreground">
+                            {q.title}
                           </h2>
-                          <div className="mt-1 flex flex-wrap gap-1.5">
-                            <span
-                              className={cn(
-                                "rounded-full px-2 py-0.5 text-[11px] font-medium leading-4",
-                                s.category === "Electrical"
-                                  ? "bg-[#eef8c8] text-[#2f7d18]"
-                                  : s.category === "Plumbing"
-                                    ? "bg-[#eef8c8] text-[#2f7d18]"
-                                    : "bg-[#eef8c8] text-[#2f7d18]",
-                              )}
-                            >
-                              {s.category}
-                            </span>
-                            <span className="rounded-full bg-[#e9f0ff] px-2 py-0.5 text-[11px] font-medium leading-4 text-[#1f56bd]">
-                              {s.fulfilment}
-                            </span>
-                          </div>
-                          <p className="mt-1 truncate text-[11px] leading-4 text-[#68717b]">
-                            by {s.providerName}
+                          <p className="truncate text-xs text-[#68717b]">
+                            by {q.providerName}
                           </p>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
-                            <span className="font-semibold text-[#2f7d18]">
-                              From {formatPrice(s.priceMinor)}
-                            </span>
-                            <span className="inline-flex items-center gap-1">
-                              <Star
-                                className="size-3 fill-[#f5a623] text-[#f5a623]"
-                                aria-hidden="true"
-                              />
-                              <span className="font-medium text-foreground">
-                                {s.rating.toFixed(1)}
-                              </span>
-                              <span className="text-[#68717b]">
-                                ({s.reviewCount})
-                              </span>
-                            </span>
-                            <span className="inline-flex items-center gap-1 text-[#68717b]">
-                              <MapPin className="size-3" aria-hidden="true" />
-                              {s.location}
-                            </span>
-                          </div>
+                          <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#fff3d8] px-2.5 py-1 text-[11px] font-medium leading-none text-[#7a4b00]">
+                            <Clock3 className="size-3.5" aria-hidden="true" />
+                            Awaiting decision
+                          </span>
+                        </div>
+                        <div className="hidden shrink-0 text-right sm:block sm:pt-7">
+                          <p className="text-[11px] leading-4 text-[#68717b]">
+                            Total amount
+                          </p>
+                          <p className="text-sm font-semibold leading-5 text-foreground">
+                            {formatPrice(q.amountMinor)}
+                          </p>
                         </div>
                       </div>
-                      <p className="my-2 truncate text-xs leading-5 text-[#68717b]">
-                        {s.description}
-                      </p>
+                      <div className="mt-2 flex items-center justify-between gap-3 sm:hidden">
+                        <p className="text-xs text-[#68717b]">Total amount</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {formatPrice(q.amountMinor)}
+                        </p>
+                      </div>
                       <div className="mt-auto inline-flex items-center gap-1.5 text-xs text-[#68717b]">
                         <CalendarDays className="size-3.5" aria-hidden="true" />
                         Saved {formatSavedDate(item.savedAt)}
                       </div>
                     </Link>
                   );
-                }
-                const q = item.data as MockQuotation;
-                return (
-                  <Link
-                    key={item.id}
-                    href={`/client/quotations/${q.id}`}
-                    className="relative flex flex-col rounded-[16px] border border-black/8 bg-white p-4 shadow-[0_4px_16px_rgba(15,31,43,0.04)] transition-shadow hover:shadow-[0_8px_24px_rgba(15,31,43,0.08)]"
-                  >
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        removeMockQuotation(q.id);
-                      }}
-                      aria-label={`Remove ${q.title} from saved`}
-                      className="absolute right-3 top-3 grid size-8 place-items-center rounded-full text-[#5f8d11] transition-colors hover:bg-[#f7f9fa]"
-                    >
-                      <Heart
-                        className="size-4 fill-[#7cb518] text-[#7cb518]"
-                        aria-hidden="true"
-                      />
-                    </button>
-                    <div className="flex gap-3">
-                      <div className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#f1eaff] text-[#6335e9]">
-                        <FileText className="size-6" aria-hidden="true" />
-                      </div>
-                      <div className="min-w-0 flex-1 pr-10">
-                        <span className="inline-flex rounded-full bg-[#f1eaff] px-2.5 py-1 text-[11px] font-semibold leading-none text-[#6335e9]">
-                          Shortlisted quotation
-                        </span>
-                        <h2 className="mt-1.5 truncate text-sm font-semibold leading-5 text-foreground">
-                          {q.title}
-                        </h2>
-                        <p className="truncate text-xs text-[#68717b]">
-                          by {q.providerName}
-                        </p>
-                        <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-[#fff3d8] px-2.5 py-1 text-[11px] font-medium leading-none text-[#7a4b00]">
-                          <Clock3 className="size-3.5" aria-hidden="true" />
-                          Awaiting decision
-                        </span>
-                      </div>
-                      <div className="hidden shrink-0 text-right sm:block sm:pt-7">
-                        <p className="text-[11px] leading-4 text-[#68717b]">
-                          Total amount
-                        </p>
-                        <p className="text-sm font-semibold leading-5 text-foreground">
-                          {formatPrice(q.amountMinor)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center justify-between gap-3 sm:hidden">
-                      <p className="text-xs text-[#68717b]">Total amount</p>
-                      <p className="text-sm font-semibold text-foreground">
-                        {formatPrice(q.amountMinor)}
-                      </p>
-                    </div>
-                    <div className="mt-auto inline-flex items-center gap-1.5 text-xs text-[#68717b]">
-                      <CalendarDays className="size-3.5" aria-hidden="true" />
-                      Saved {formatSavedDate(item.savedAt)}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+                })}
+              </div>
+            </>
           )}
         </div>
       </section>
     </div>
   );
 }
+
+

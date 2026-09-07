@@ -15,6 +15,12 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => currentSearch,
   useRouter: () => ({ replace: vi.fn() }),
 }));
+vi.mock("@/components/workspace/workspace-shell-context", () => ({
+  useWorkspaceShell: () => ({ workspaceId: "test-workspace", workspaceLabel: "Workspace", userId: "test-user" }),
+}));
+vi.mock("@/lib/auth-client", () => ({
+  authClient: { useSession: () => ({ data: { user: { id: "test-user" } } }) },
+}));
 
 const request: ClientServiceRequest = {
   id: "00000000-0000-4000-8000-000000000010",

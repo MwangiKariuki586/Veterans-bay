@@ -109,11 +109,18 @@ export function ClientDashboard() {
 
   const data = dashboard?.data;
   const loading = !data;
+  const backgroundError = Boolean(data && dashboard?.error);
   const displayName = workspaceLabel !== "Workspace" ? workspaceLabel : "there";
   const firstName = displayName.split(/\s+/)[0] ?? "there";
 
   return (
     <div className="space-y-3 type-workspace-body">
+      {backgroundError ? (
+        <div className="flex items-center justify-between gap-3 rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs">
+          <span className="font-medium text-amber-900">{dashboard?.error}</span>
+          <button type="button" onClick={dashboard?.refresh} className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-900 shadow">Try again</button>
+        </div>
+      ) : null}
       {/* Top header */}
       <section
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"

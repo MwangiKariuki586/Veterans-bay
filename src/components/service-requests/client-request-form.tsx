@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import { CheckCircle2, FileUp, Save, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useOptionalQueryClient } from "@/lib/optional-query-client";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -80,6 +81,7 @@ export function ClientRequestForm({
   onSubmitted?: (request: ClientServiceRequest) => void;
 }) {
   const router = useRouter();
+  const queryClient = useOptionalQueryClient();
   const [request, setRequest] = useState<ClientServiceRequest | null>(null);
   const [form, setForm] = useState<FormState>({
     ...emptyForm,
@@ -140,7 +142,7 @@ export function ClientRequestForm({
     if (!form.budgetMin && !form.budgetMax) return "No budget added";
     const min = form.budgetMin ? `KSh ${Number(form.budgetMin).toLocaleString()}` : "Any";
     const max = form.budgetMax ? `KSh ${Number(form.budgetMax).toLocaleString()}` : "open";
-    return `${min} – ${max}`;
+    return `${min} â€“ ${max}`;
   }, [form.budgetMax, form.budgetMin]);
 
   const eligibleProfessionals = useMemo(
@@ -237,6 +239,8 @@ export function ClientRequestForm({
           });
       setRequest(saved);
       setForm(toForm(saved));
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
+      void queryClient?.invalidateQueries({ queryKey: ["client-request", saved.id] });
       if (!request) {
         if (onDraftSaved) onDraftSaved(saved);
         else router.replace(requestDrawerHref(saved.id));
@@ -301,6 +305,8 @@ export function ClientRequestForm({
       );
       setRequest(submitted);
       setForm(toForm(submitted));
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
+      void queryClient?.invalidateQueries({ queryKey: ["client-request", submitted.id] });
       notifySubmission(submitted);
       if (onSubmitted) onSubmitted(submitted);
       else router.replace(requestDrawerHref(submitted.id));
@@ -340,12 +346,12 @@ export function ClientRequestForm({
     if (!request) return;
     setError(null);
     try {
-      setRequest(
-        await requestApi<ClientServiceRequest>(
-          `/api/v1/client/requests/${request.id}/attachments/${attachmentId}`,
-          { method: "DELETE" },
-        ),
+      const updated = await requestApi<ClientServiceRequest>(
+        `/api/v1/client/requests/${request.id}/attachments/${attachmentId}`,
+        { method: "DELETE" },
       );
+      setRequest(updated);
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
     } catch (cause) {
       handleError(cause);
     }
@@ -356,16 +362,17 @@ export function ClientRequestForm({
     setBusy("submit");
     setError(null);
     try {
-      setRequest(
-        await requestApi<ClientServiceRequest>(
-          `/api/v1/client/requests/${request.id}/cancel`,
-          {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ version: request.version }),
-          },
-        ),
+      const updated = await requestApi<ClientServiceRequest>(
+        `/api/v1/client/requests/${request.id}/cancel`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ version: request.version }),
+        },
       );
+      setRequest(updated);
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
+      void queryClient?.invalidateQueries({ queryKey: ["client-request", request.id] });
     } catch (cause) {
       handleError(cause);
     } finally {
@@ -391,6 +398,8 @@ export function ClientRequestForm({
       );
       setRequest(updated);
       setInformationNote("");
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
+      void queryClient?.invalidateQueries({ queryKey: ["client-request", request.id] });
     } catch (cause) {
       handleError(cause);
     } finally {
@@ -564,7 +573,7 @@ export function ClientRequestForm({
                 id="request-description-hint"
                 className="mt-1 text-right text-xs text-[#7a838c]"
               >
-                {form.description.length}/5,000 · 20 character minimum
+                {form.description.length}/5,000 Â· 20 character minimum
               </p>
             </div>
             <div className={cn("grid gap-5", display === "page" && "sm:grid-cols-2")}>
@@ -731,7 +740,7 @@ export function ClientRequestForm({
                     className="flex items-center justify-between gap-3 rounded-xl bg-[#f7f9fa] px-4 py-3 text-sm"
                   >
                     <span>
-                      {attachment.mimeType} ·{" "}
+                      {attachment.mimeType} Â·{" "}
                       {(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB
                     </span>
                     {isDraft ? (
@@ -1035,3 +1044,4 @@ function toForm(request: ClientServiceRequest): FormState {
     contactPreference: request.contactPreference ?? "",
   };
 }
+

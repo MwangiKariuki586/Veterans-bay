@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+/* eslint-disable react-hooks/preserve-manual-memoization -- scoped query keys require stable manual deps */
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
@@ -26,6 +28,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { StatePanel } from "@/components/ui/state-panel";
 import { WorkspaceMetricCard } from "@/components/workspace/workspace-metric-card";
 import { useWorkspaceContentReady } from "@/components/workspace/workspace-chrome";
+import { authClient } from "@/lib/auth-client";
+import { CLIENT_OVERVIEW_GC_MS, CLIENT_OVERVIEW_STALE_MS, clientOverviewKeys } from "@/lib/client-overview";
+import { useWorkspaceShell } from "@/components/workspace/workspace-shell-context";
 import { cn } from "@/lib/utils";
 import {
   invoiceStatuses,
@@ -86,6 +91,10 @@ const clientTabs: typeof professionalTabs = [
 export function InvoiceList({ audience }: { audience: Audience }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { workspaceId } = useWorkspaceShell();
+  const { data: session } = authClient.useSession();
+  const scope = useMemo(() => (audience === "client" && workspaceId && session?.user.id ? { userId: session.user.id, workspaceId } : null), [audience, workspaceId, session?.user.id]);
+  const scopeEnabled = audience === "client" ? Boolean(scope) : true;
   const [queryState, setQueryState] = useState<InvoiceListQuery>(() =>
     queryFromParams(searchParams, audience),
   );
@@ -119,14 +128,24 @@ export function InvoiceList({ audience }: { audience: Audience }) {
   }, [queryState.search, search, updateParams]);
 
   const invoiceQuery = useQuery({
-    queryKey: ["invoices", audience, queryState],
+    queryKey: audience === "client" && scope ? clientOverviewKeys.invoices(scope, audience, queryState) : (["invoices", audience, queryState] as unknown[]),
     queryFn: ({ signal }) => listInvoicesPage(audience, queryState, signal),
     placeholderData: keepPreviousData,
+    enabled: scopeEnabled,
+    staleTime: audience === "client" ? CLIENT_OVERVIEW_STALE_MS : 30_000,
+    gcTime: audience === "client" && scope ? CLIENT_OVERVIEW_GC_MS : 15 * 60_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
+    retry: 2,
   });
   const result = invoiceQuery.data;
   const searchPending = search.trim() !== queryState.search;
   const showProgress = searchPending || (invoiceQuery.isFetching && invoiceQuery.isPlaceholderData);
-  useWorkspaceContentReady(!invoiceQuery.isPending);
+  const hasData = Boolean(result);
+  const isInitialLoading = audience === "client" ? (scopeEnabled ? invoiceQuery.isPending : !hasData) : invoiceQuery.isPending;
+  const isBackgroundError = hasData && invoiceQuery.isError;
+  useWorkspaceContentReady(!isInitialLoading);
 
   const openInvoice = useCallback(
     (invoice: InvoiceSummary) => {
@@ -208,17 +227,24 @@ export function InvoiceList({ audience }: { audience: Audience }) {
         ) : null}
       </header>
 
-      {invoiceQuery.isPending && audience !== "client" ? (
+      {isInitialLoading && audience !== "client" ? (
         <InvoiceListSkeleton />
-      ) : invoiceQuery.isError ? (
+      ) : isInitialLoading && invoiceQuery.isError && !hasData ? (
         <InlineAlert
           className="mt-5"
           variant="error"
           title="Invoices unavailable"
           description={invoiceQuery.error instanceof Error ? invoiceQuery.error.message : "Invoices could not be loaded."}
-        />
+        >
+          <button type="button" onClick={() => void invoiceQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+        </InlineAlert>
       ) : result || audience === "client" ? (
         <>
+          {hasData && isBackgroundError ? (
+            <InlineAlert className="mt-4" variant="error" title="Invoices update failed" description={invoiceQuery.error instanceof Error ? invoiceQuery.error.message : "Invoices could not be refreshed."} >
+              <button type="button" onClick={() => void invoiceQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+            </InlineAlert>
+          ) : null}
           <InvoiceMetrics audience={audience} summary={result?.summary} />
           <nav className="mt-3 flex gap-1 overflow-x-auto border-b border-black/6" aria-label="Invoice status views">
             {(audience === "client" ? clientTabs : professionalTabs).map((tab) => {
@@ -297,7 +323,7 @@ export function InvoiceList({ audience }: { audience: Audience }) {
 
             <div className="relative" aria-busy={showProgress}>
               <DataTable
-                loading={invoiceQuery.isPending}
+                loading={isInitialLoading}
                 loadingLabel="Loading invoices"
                 columns={columns}
                 data={result?.items ?? []}
@@ -464,7 +490,7 @@ function InvoicePagination({ page, pageSize, totalItems, totalPages, onPage, onP
   const to = Math.min(page * pageSize, totalItems);
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/6 px-4 py-3 text-[0.68rem] text-muted-foreground">
-      <span>Showing {from}–{to} of {totalItems}</span>
+      <span>Showing {from}â€“{to} of {totalItems}</span>
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-2">
           <span>Rows</span>
@@ -536,7 +562,7 @@ function formatSummaryMoney(
   summary: InvoiceSummaryStats,
   field: "paidMinor" | "outstandingMinor",
 ) {
-  if (summary.amounts.length === 0) return "—";
+  if (summary.amounts.length === 0) return "â€”";
   if (summary.amounts.length > 1) return `${summary.amounts.length} currencies`;
   const amount = summary.amounts[0]!;
   return formatMoney(amount[field], amount.currency);
@@ -545,3 +571,6 @@ function formatSummaryMoney(
 export function formatMoney(amountMinor: number, currency: string) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency }).format(amountMinor / 100);
 }
+
+
+

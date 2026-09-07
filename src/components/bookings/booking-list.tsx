@@ -1,6 +1,9 @@
-"use client";
+﻿"use client";
 
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+/* eslint-disable react-hooks/preserve-manual-memoization -- scoped query keys require stable manual deps */
+
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useOptionalQueryClient } from "@/lib/optional-query-client";
 import {
   ArrowDown,
   ArrowUp,
@@ -34,6 +37,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { StatePanel } from "@/components/ui/state-panel";
 import { WorkspaceMetricCard } from "@/components/workspace/workspace-metric-card";
 import { useWorkspaceContentReady } from "@/components/workspace/workspace-chrome";
+import { authClient } from "@/lib/auth-client";
+import { CLIENT_OVERVIEW_GC_MS, CLIENT_OVERVIEW_STALE_MS, clientOverviewKeys } from "@/lib/client-overview";
+import { useWorkspaceShell } from "@/components/workspace/workspace-shell-context";
 import { cn } from "@/lib/utils";
 import type { BookingBucket, BookingSort, BookingStatus, ClientBookingStage } from "@/modules/bookings/types";
 import type { JobStatus } from "@/modules/jobs/types";
@@ -130,7 +136,11 @@ function ProfessionalBookingList() {
 function BookingWorkspace({ audience }: { audience: "client" | "professional" }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
+  const queryClient = useOptionalQueryClient();
+  const { workspaceId } = useWorkspaceShell();
+  const { data: session } = authClient.useSession();
+  const scope = useMemo(() => (audience === "client" && workspaceId && session?.user.id ? { userId: session.user.id, workspaceId } : null), [audience, workspaceId, session?.user.id]);
+  const scopeEnabled = audience === "client" ? Boolean(scope) : true;
   const [queryState, setQueryState] = useState<BookingListQuery>(() => queryFromParams(searchParams));
   const [search, setSearch] = useState(queryState.search);
   const [selected, setSelected] = useState<SelectedBooking | null>(() => {
@@ -159,19 +169,26 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
   }, [queryState.search, search, updateParams]);
 
   const bookingQuery = useQuery({
-    queryKey: ["bookings", audience, queryState],
+    queryKey: audience === "client" && scope ? clientOverviewKeys.bookings(scope, audience, queryState) : (["bookings", audience, queryState] as unknown[]),
     queryFn: ({ signal }) => listBookingsPage(audience, queryState, signal),
     placeholderData: keepPreviousData,
+    enabled: scopeEnabled,
+    staleTime: audience === "client" ? CLIENT_OVERVIEW_STALE_MS : 30_000,
+    gcTime: audience === "client" && scope ? CLIENT_OVERVIEW_GC_MS : 15 * 60_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
+    retry: 2,
   });
 
   const result = bookingQuery.data;
   const normalizedSearch = search.trim();
   const searchPending = normalizedSearch !== queryState.search;
-  const cachedUnsearched = queryClient.getQueryData<BookingPage>([
-    "bookings",
-    audience,
-    { ...queryState, search: "" },
-  ]);
+  const cachedUnsearched = queryClient?.getQueryData<BookingPage>(
+    audience === "client" && scope
+      ? clientOverviewKeys.bookings(scope, audience, { ...queryState, search: "" })
+      : (["bookings", audience, { ...queryState, search: "" }] as unknown[]),
+  );
   const filterCached = searchPending || bookingQuery.isPlaceholderData;
   const visibleItems = result
     ? filterCached
@@ -182,7 +199,10 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
       : result.items
     : [];
   const showProgress = searchPending || (bookingQuery.isFetching && bookingQuery.isPlaceholderData);
-  useWorkspaceContentReady(!bookingQuery.isPending);
+  const hasData = Boolean(result);
+  const isInitialLoading = audience === "client" ? (scopeEnabled ? bookingQuery.isPending : !hasData) : bookingQuery.isPending;
+  const isBackgroundError = hasData && bookingQuery.isError;
+  useWorkspaceContentReady(!isInitialLoading);
 
   const openBooking = useCallback(
     (booking: BookingSummary) => {
@@ -288,20 +308,27 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
         ) : null}
       </header>
 
-      {bookingQuery.isPending && audience !== "client" ? (
+      {isInitialLoading && audience !== "client" ? (
         <BookingsSkeleton />
-      ) : bookingQuery.isError ? (
+      ) : isInitialLoading && bookingQuery.isError && !hasData ? (
         <InlineAlert
           className="mt-5"
           variant="error"
           title="Bookings unavailable"
           description={bookingQuery.error instanceof Error ? bookingQuery.error.message : "Bookings could not be loaded."}
-        />
+        >
+          <button type="button" onClick={() => void bookingQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+        </InlineAlert>
       ) : result || audience === "client" ? (
         <>
+          {hasData && isBackgroundError ? (
+            <InlineAlert className="mt-4" variant="error" title="Bookings update failed" description={bookingQuery.error instanceof Error ? bookingQuery.error.message : "Bookings could not be refreshed."} >
+              <button type="button" onClick={() => void bookingQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+            </InlineAlert>
+          ) : null}
           <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Booking summary">
             <WorkspaceMetricCard
-              loading={bookingQuery.isPending}
+              loading={isInitialLoading}
               icon={CalendarDays}
               tone="green"
               label="Total bookings"
@@ -311,7 +338,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
               action="View bookings"
             />
             <WorkspaceMetricCard
-              loading={bookingQuery.isPending}
+              loading={isInitialLoading}
               icon={Clock3}
               tone="orange"
               label="Pending"
@@ -322,7 +349,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
               action="Review pending"
             />
             <WorkspaceMetricCard
-              loading={bookingQuery.isPending}
+              loading={isInitialLoading}
               icon={CalendarCheck2}
               tone="blue"
               label={audience === "client" ? "Upcoming" : "Scheduled"}
@@ -332,7 +359,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
               action="View upcoming"
             />
             <WorkspaceMetricCard
-              loading={bookingQuery.isPending}
+              loading={isInitialLoading}
               icon={CheckCircle2}
               tone="purple"
               label={audience === "client" ? "In service" : "Closed"}
@@ -428,7 +455,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
 
             <div className="relative" aria-busy={showProgress}>
               <DataTable
-                loading={bookingQuery.isPending}
+                loading={isInitialLoading}
                 loadingLabel="Loading bookings"
                 columns={columns}
                 data={visibleItems}
@@ -525,7 +552,7 @@ function BookingIdentity({ booking }: { booking: BookingSummary }) {
       <span className="min-w-0">
         <span className="block max-w-48 truncate font-semibold text-foreground">{booking.serviceName}</span>
         <span className="mt-0.5 block text-[0.64rem] text-[#6f7d8b]">
-          BK-{booking.id.slice(-6).toUpperCase()} · {booking.origin.replaceAll("_", " ").toLowerCase()}
+          BK-{booking.id.slice(-6).toUpperCase()} Â· {booking.origin.replaceAll("_", " ").toLowerCase()}
         </span>
       </span>
     </span>
@@ -748,7 +775,10 @@ function BookingDetailDrawer({
   audience: "client" | "professional";
   onOpenChange: (open: boolean) => void;
 }) {
-  const queryClient = useQueryClient();
+  const queryClient = useOptionalQueryClient();
+  const { workspaceId } = useWorkspaceShell();
+  const { data: session } = authClient.useSession();
+  const scope = useMemo(() => (audience === "client" && workspaceId && session?.user.id ? { userId: session.user.id, workspaceId } : null), [audience, workspaceId, session?.user.id]);
   const detailQuery = useQuery({
     queryKey: ["booking-detail", audience, selected.id],
     queryFn: ({ signal }) => getBooking(audience, selected.id, signal),
@@ -775,8 +805,12 @@ function BookingDetailDrawer({
       });
       setCancelOpen(false);
       setReason("");
-      await queryClient.invalidateQueries({ queryKey: ["bookings", audience] });
-      await queryClient.invalidateQueries({ queryKey: ["booking-detail", audience, selected.id] });
+      if (audience === "client" && scope) {
+        await queryClient?.invalidateQueries({ queryKey: clientOverviewKeys.root(scope) });
+      } else {
+        await queryClient?.invalidateQueries({ queryKey: ["bookings", audience] });
+      }
+      await queryClient?.invalidateQueries({ queryKey: ["booking-detail", audience, selected.id] });
       onOpenChange(false);
     } catch (cause) {
       setCancelError(cause instanceof Error ? cause.message : "Cancellation failed.");
@@ -786,7 +820,7 @@ function BookingDetailDrawer({
   }
 
   const scheduleLabel = summary ? bookingScheduleLabel(summary, detail ?? null) : "Schedule";
-  const scheduleValue = summary ? bookingScheduleValue(summary, detail ?? null) : "—";
+  const scheduleValue = summary ? bookingScheduleValue(summary, detail ?? null) : "â€”";
   const showAssignment = summary ? ["CONFIRMED", "RESCHEDULED", "COMPLETED", "RESCHEDULE_REQUESTED"].includes(summary.status) || Boolean(summary.assignmentName) : false;
   const isPendingDeposit = summary?.status === "PENDING_DEPOSIT";
   const isRescheduleRequested = summary?.status === "RESCHEDULE_REQUESTED";
@@ -803,7 +837,7 @@ function BookingDetailDrawer({
               <div className="min-w-0">
                 <SheetTitle className="truncate text-lg font-semibold">{summary?.serviceName ?? "Booking details"}</SheetTitle>
                 <SheetDescription id="booking-drawer-description" className="mt-0.5 text-xs text-muted-foreground">
-                  {summary ? `BK-${summary.id.slice(-6).toUpperCase()} · ${summary.origin.replaceAll("_", " ").toLowerCase()}` : "Retrieving the latest booking."}
+                  {summary ? `BK-${summary.id.slice(-6).toUpperCase()} Â· ${summary.origin.replaceAll("_", " ").toLowerCase()}` : "Retrieving the latest booking."}
                 </SheetDescription>
               </div>
             </div>
@@ -1097,3 +1131,8 @@ function formatTime(value: string) {
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" });
 }
+
+
+
+
+

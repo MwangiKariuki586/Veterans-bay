@@ -3,10 +3,8 @@
 import { Menu } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  createContext,
   Fragment,
   type ReactNode,
-  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -33,7 +31,17 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useQueryClient } from "@tanstack/react-query";
+
 import { authClient } from "@/lib/auth-client";
+
+function useOptionalQueryClient() {
+  try {
+    return useQueryClient();
+  } catch {
+    return null;
+  }
+}
 import { loginHrefFor, pathWithSearch } from "@/lib/auth-redirect";
 import {
   clearAllClientResourceCaches,
@@ -49,16 +57,11 @@ import {
 
 export type { AuthenticatedShellKind };
 
+import { WorkspaceShellContext } from "./workspace-shell-context";
+export { useWorkspaceShell } from "./workspace-shell-context";
+
 const WORKSPACE_CACHE_NS = "workspace-shell";
 const WORKSPACE_CACHE_TTL_MS = 5 * 60_000;
-
-const WorkspaceShellContext = createContext({
-  workspaceLabel: "Workspace",
-});
-
-export function useWorkspaceShell() {
-  return useContext(WorkspaceShellContext);
-}
 
 function cachedLabelFor(kind: AuthenticatedShellKind) {
   return getCachedResource<string>(WORKSPACE_CACHE_NS, kind, WORKSPACE_CACHE_TTL_MS);
@@ -88,6 +91,7 @@ export function AuthenticatedShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useOptionalQueryClient();
   const scrollContainerRef = useRef<HTMLElement>(null);
   const previousPathnameRef = useRef(pathname);
   const { data: session, isPending } = authClient.useSession();
@@ -95,10 +99,13 @@ export function AuthenticatedShell({
   const [workspaceLabel, setWorkspaceLabel] = useState<string>(
     cachedLabel ?? "Workspace",
   );
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [workspaceRevision, setWorkspaceRevision] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const sessionUserId = session?.user.id;
+  const previousUserIdRef = useRef<string | null>(null);
+  const previousWorkspaceIdRef = useRef<string | null>(null);
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -134,12 +141,28 @@ export function AuthenticatedShell({
     }
 
     if (!session) {
+      void queryClient?.cancelQueries();
+      queryClient?.clear();
       clearAllClientResourceCaches();
+      previousUserIdRef.current = null;
+      previousWorkspaceIdRef.current = null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear workspace scope on sign-out
+      setWorkspaceId(null);
       router.replace(
         loginHrefFor(pathWithSearch(pathname, window.location.search)),
       );
+      return;
     }
-  }, [isPending, pathname, router, session]);
+
+    if (session?.user.id && previousUserIdRef.current && previousUserIdRef.current !== session.user.id) {
+      void queryClient?.cancelQueries();
+      queryClient?.clear();
+      clearAllClientResourceCaches();
+      previousWorkspaceIdRef.current = null;
+      setWorkspaceId(null);
+    }
+    previousUserIdRef.current = session?.user.id ?? null;
+  }, [isPending, pathname, queryClient, router, session]);
 
   useEffect(() => {
     if (isPending || !sessionUserId) return;
@@ -165,6 +188,14 @@ export function AuthenticatedShell({
       }
 
       const selected = await selectWorkspace(matching.id, controller.signal);
+      if (controller.signal.aborted) return;
+      if (previousWorkspaceIdRef.current && previousWorkspaceIdRef.current !== selected.id) {
+        void queryClient?.cancelQueries();
+        queryClient?.clear();
+        clearAllClientResourceCaches();
+      }
+      previousWorkspaceIdRef.current = selected.id;
+      setWorkspaceId(selected.id);
       setWorkspaceLabel(selected.label);
       setCachedResource(WORKSPACE_CACHE_NS, kind, selected.label);
       setError(null);
@@ -179,6 +210,14 @@ export function AuthenticatedShell({
           return;
         }
 
+        if (controller.signal.aborted) return;
+        if (previousWorkspaceIdRef.current && previousWorkspaceIdRef.current !== current.id) {
+          void queryClient?.cancelQueries();
+          queryClient?.clear();
+          clearAllClientResourceCaches();
+        }
+        previousWorkspaceIdRef.current = current.id;
+        setWorkspaceId(current.id);
         setWorkspaceLabel(current.label);
         setCachedResource(WORKSPACE_CACHE_NS, kind, current.label);
         setError(null);
@@ -209,10 +248,10 @@ export function AuthenticatedShell({
 
     void bootstrapWorkspace();
     return () => controller.abort();
-  }, [isPending, kind, router, sessionUserId]);
+  }, [isPending, kind, queryClient, router, sessionUserId]);
 
   const shell = (
-    <WorkspaceShellContext.Provider value={{ workspaceLabel }}>
+    <WorkspaceShellContext.Provider value={{ workspaceLabel, workspaceId, userId: sessionUserId ?? null }}>
       <div className="shrink-0 border-b border-black/8 px-4 py-3 sm:px-6 lg:h-[92px] lg:px-8 lg:py-[18px]">
         <SiteHeader
           variant="workspace"

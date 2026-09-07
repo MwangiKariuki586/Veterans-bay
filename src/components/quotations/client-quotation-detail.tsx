@@ -39,6 +39,8 @@ import {
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
 import { Surface } from "@/components/ui/surface";
+import { useOptionalQueryClient } from "@/lib/optional-query-client";
+
 import { cn } from "@/lib/utils";
 import type { PublicProfessionalProfile } from "@/modules/professional-services/types";
 import type {
@@ -62,6 +64,7 @@ export function ClientQuotationDetail({
 }: {
   quotationId: string;
 }) {
+  const queryClient = useOptionalQueryClient();
   const [quotation, setQuotation] = useState<QuotationDetail | null>(null);
   const [request, setRequest] = useState<ClientServiceRequest | null>(null);
   const [professional, setProfessional] =
@@ -139,6 +142,8 @@ export function ClientQuotationDetail({
       setSelectedVersionNumber(updated.currentVersionNumber);
       setNote("");
       setDecisionMode(null);
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
+      void queryClient?.invalidateQueries({ queryKey: ["client-quotation", quotation.id] });
     } catch (cause) {
       setActionError(
         cause instanceof Error

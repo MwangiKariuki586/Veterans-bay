@@ -14,6 +14,12 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/client/quotations",
   useSearchParams: () => currentSearch,
 }));
+vi.mock("@/components/workspace/workspace-shell-context", () => ({
+  useWorkspaceShell: () => ({ workspaceId: "test-workspace", workspaceLabel: "Workspace", userId: "test-user" }),
+}));
+vi.mock("@/lib/auth-client", () => ({
+  authClient: { useSession: () => ({ data: { user: { id: "test-user" } } }) },
+}));
 
 const quotation: QuotationSummary = {
   id: "00000000-0000-4000-8000-000000000020",

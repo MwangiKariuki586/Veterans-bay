@@ -14,6 +14,12 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ replace: vi.fn() }),
 }));
+vi.mock("@/components/workspace/workspace-shell-context", () => ({
+  useWorkspaceShell: () => ({ workspaceId: "workspace-1", workspaceLabel: "Workspace", userId: "user-1" }),
+}));
+vi.mock("@/lib/auth-client", () => ({
+  authClient: { useSession: () => ({ data: { user: { id: "user-1" } } }) },
+}));
 
 afterEach(() => vi.unstubAllGlobals());
 

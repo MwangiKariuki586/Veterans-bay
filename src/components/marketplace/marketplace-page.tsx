@@ -24,6 +24,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useOptionalQueryClient } from "@/lib/optional-query-client";
 import {
   FormEvent,
   useEffect,
@@ -378,6 +379,7 @@ function LocationPicker({
 export function MarketplacePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useOptionalQueryClient();
   const searchKey = searchParams.toString();
   const currentSearchParams = useMemo(
     () => new URLSearchParams(searchKey),
@@ -523,6 +525,8 @@ export function MarketplacePage() {
         else next.add(providerSlug);
         return next;
       });
+      // Invalidate client overview caches for saved and dashboard
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
       toast.success(isSaved ? "Removed from saved." : "Professional saved.");
     } catch (cause) {
       toast.error(

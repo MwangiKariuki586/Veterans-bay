@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { useOptionalQueryClient } from "@/lib/optional-query-client";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ export function WarrantyDetail({
   audience: "client" | "professional";
   warrantyId: string;
 }) {
+  const queryClient = useOptionalQueryClient();
   const [warranty, setWarranty] = useState<WarrantyDetailRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -76,6 +78,9 @@ export function WarrantyDetail({
       const next = await action();
       setWarranty(next);
       toast.success(success);
+      if (audience === "client") {
+        void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Warranty action failed.");
     } finally {
