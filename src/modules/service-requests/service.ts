@@ -236,9 +236,14 @@ export class ServiceRequestsService {
   async listProfessional(input: {
     organisationId: string;
     status?: ServiceRequestStatus;
+    bucket?: import("./types").ProfessionalEnquiryBucket;
+    category?: string;
+    urgency?: import("./types").ServiceRequestUrgency;
+    search?: string;
+    sort: import("./types").ProfessionalEnquirySort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<ClientServiceRequest>> {
+  }): Promise<PageResult<ClientServiceRequest> & { summary: import("./types").ProfessionalEnquirySummary; categories: string[] }> {
     const result = await this.store.listProfessional(input);
     return { ...result, items: result.items.map(mapRequest) };
   }

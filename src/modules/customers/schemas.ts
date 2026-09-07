@@ -14,6 +14,22 @@ export const customerListQuerySchema = paginationQuerySchema.extend({
     ])
     .optional(),
 });
+
+export const professionalCustomerListQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().max(120).optional(),
+  status: z
+    .enum([
+      "IMPORTED",
+      "INVITATION_PENDING",
+      "REGISTERED",
+      "DUPLICATE_CANDIDATE",
+      "ARCHIVED",
+    ])
+    .optional(),
+  acquisitionSource: z.enum(["MARKETPLACE_ACQUIRED", "PROFESSIONAL_INVITED", "PROFESSIONAL_IMPORTED", "CLIENT_REFERRAL", "REPEAT_CLIENT"]).optional(),
+  bucket: z.enum(["all", "active", "with-balance", "repeat", "archived"]).optional().default("all"),
+  sort: z.enum(["updated_desc", "updated_asc", "name_asc", "name_desc", "lastService_desc", "lastService_asc"]).optional().default("updated_desc"),
+});
 export const createCustomerBodySchema = z
   .object({
     displayName: z.string().trim().min(2).max(160),

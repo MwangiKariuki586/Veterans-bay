@@ -30,6 +30,16 @@ export interface CustomerPage {
   totalItems: number;
   totalPages: number;
 }
+
+export interface ProfessionalCustomerSummary {
+  total: number;
+  active: number;
+  withBalance: number;
+  repeat: number;
+  new30d: number;
+}
+
+export type ProfessionalCustomerSort = "updated_desc" | "updated_asc" | "name_asc" | "name_desc" | "lastService_desc" | "lastService_asc";
 export interface CustomerDetail extends CustomerSummary {
   accountProfileId: string | null;
   notes: Array<{

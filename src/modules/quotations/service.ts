@@ -29,9 +29,14 @@ export class QuotationsService {
   listProfessional(input: {
     organisationId: string;
     status?: QuotationStatus;
+    bucket?: import("./types").ProfessionalQuotationBucket;
+    category?: string;
+    search?: string;
+    validity?: import("./types").ClientQuotationValidity;
+    sort: import("./types").ProfessionalQuotationSort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<QuotationSummary>> {
+  }): Promise<PageResult<QuotationSummary> & { summary: import("./types").ProfessionalQuotationSummary; categories: string[] }> {
     return this.store.listProfessional(input);
   }
 

@@ -93,7 +93,8 @@ export function createQuotationRoutes() {
     "/v1/professional/quotations",
     ...professionalRead,
     async (context) => {
-      const query = parseQuery(quotationListQuerySchema, context.req.url);
+      const { professionalQuotationListQuerySchema } = await import("./schemas");
+      const query = parseQuery(professionalQuotationListQuerySchema, context.req.url);
       const selection = organisationSelection(context);
       const { client, service } = createService(
         context.get("environment").DATABASE_URL,
@@ -103,7 +104,7 @@ export function createQuotationRoutes() {
           organisationId: selection.organisationId,
           ...query,
         });
-        return context.json<ApiSuccessBody<PageResult<QuotationSummary>>>({
+        return context.json<ApiSuccessBody<PageResult<QuotationSummary> & { summary: import("./types").ProfessionalQuotationSummary; categories: string[] }>>({
           data,
           requestId: context.get("requestId"),
         });

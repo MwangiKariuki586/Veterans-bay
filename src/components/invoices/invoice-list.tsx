@@ -211,12 +211,12 @@ export function InvoiceList({ audience }: { audience: Audience }) {
             {audience === "client" ? "Financial records" : "Accounts workspace"}
           </p>
           <h1 className="mt-1 text-[1.75rem] font-semibold leading-tight tracking-title sm:text-[2rem]">
-            {audience === "client" ? "Your invoices" : "Invoices"}
+            {audience === "client" ? "Your invoices" : "Finance"}
           </h1>
           <p className="mt-1.5 max-w-2xl text-[0.78rem] text-muted-foreground">
             {audience === "client"
               ? "See what was charged, what your professional recorded as paid, and any balance still due."
-              : "Track drafts, outstanding balances, due dates, and auditable payment records from completed work."}
+              : "Monitor outstanding balances, overdue invoices, drafts awaiting issue, and collected payments from completed work."}
           </p>
         </div>
         {audience === "professional" ? (
@@ -227,9 +227,7 @@ export function InvoiceList({ audience }: { audience: Audience }) {
         ) : null}
       </header>
 
-      {isInitialLoading && audience !== "client" ? (
-        <InvoiceListSkeleton />
-      ) : isInitialLoading && invoiceQuery.isError && !hasData ? (
+      {isInitialLoading && invoiceQuery.isError && !hasData ? (
         <InlineAlert
           className="mt-5"
           variant="error"
@@ -238,14 +236,14 @@ export function InvoiceList({ audience }: { audience: Audience }) {
         >
           <button type="button" onClick={() => void invoiceQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
         </InlineAlert>
-      ) : result || audience === "client" ? (
+      ) : (
         <>
           {hasData && isBackgroundError ? (
             <InlineAlert className="mt-4" variant="error" title="Invoices update failed" description={invoiceQuery.error instanceof Error ? invoiceQuery.error.message : "Invoices could not be refreshed."} >
               <button type="button" onClick={() => void invoiceQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
             </InlineAlert>
           ) : null}
-          <InvoiceMetrics audience={audience} summary={result?.summary} />
+          <InvoiceMetrics audience={audience} summary={result?.summary} isLoading={isInitialLoading} />
           <nav className="mt-3 flex gap-1 overflow-x-auto border-b border-black/6" aria-label="Invoice status views">
             {(audience === "client" ? clientTabs : professionalTabs).map((tab) => {
               const active = queryState.bucket === tab.value;
@@ -361,25 +359,26 @@ export function InvoiceList({ audience }: { audience: Audience }) {
             <InvoiceDrawer audience={audience} selected={selected} onClose={closeInvoice} />
           ) : null}
         </>
-      ) : null}
+      )}
     </div>
   );
 }
 
-function InvoiceMetrics({ audience, summary }: { audience: Audience; summary?: InvoiceSummaryStats }) {
+function InvoiceMetrics({ audience, summary, isLoading }: { audience: Audience; summary?: InvoiceSummaryStats; isLoading?: boolean }) {
   const base = `/${audience}/invoices`;
+  const loading = isLoading ?? !summary;
   return (
     <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Invoice summary">
       <WorkspaceMetricCard
-        loading={!summary}
+        loading={loading}
         icon={audience === "client" ? FileText : WalletCards}
         tone="green"
         label={audience === "client" ? "Total invoices" : "Outstanding balance"}
         value={audience === "client" ? summary?.total : (summary ? formatSummaryMoney(summary, "outstandingMinor") : undefined)}
-        hint={audience === "client" ? "Your complete financial record" : `${summary?.outstanding} open invoice${summary?.outstanding === 1 ? "" : "s"}`}
+        hint={audience === "client" ? "Your complete financial record" : `${summary?.outstanding ?? 0} open invoice${summary?.outstanding === 1 ? "" : "s"}`}
       />
       <WorkspaceMetricCard
-        loading={!summary}
+        loading={loading}
         icon={CircleAlert}
         tone="orange"
         label="Overdue invoices"
@@ -388,7 +387,7 @@ function InvoiceMetrics({ audience, summary }: { audience: Audience; summary?: I
         hintTone={summary?.overdue ? "danger" : "muted"}
       />
       <WorkspaceMetricCard
-        loading={!summary}
+        loading={loading}
         icon={audience === "client" ? Banknote : FileClock}
         tone="blue"
         label={audience === "client" ? "Balance remaining" : "Draft invoices"}
@@ -396,7 +395,7 @@ function InvoiceMetrics({ audience, summary }: { audience: Audience; summary?: I
         hint={audience === "client" ? (summary?.outstanding ? `${summary?.outstanding} invoice${summary?.outstanding === 1 ? "" : "s"} still open` : "No balance remaining") : "Ready to review and issue"}
       />
       <WorkspaceMetricCard
-        loading={!summary}
+        loading={loading}
         icon={CheckCircle2}
         tone="purple"
         label="Payments recorded"
@@ -554,8 +553,12 @@ function formatSummaryMoney(
   summary: InvoiceSummaryStats,
   field: "paidMinor" | "outstandingMinor",
 ) {
-  if (summary.amounts.length === 0) return "â€”";
-  if (summary.amounts.length > 1) return `${summary.amounts.length} currencies`;
+  if (summary.amounts.length === 0) return "—";
+  if (summary.amounts.length > 1) {
+    const primary = summary.amounts[0]!.currency;
+    const total = summary.amounts.reduce((acc, amount) => acc + amount[field], 0);
+    return formatMoney(total, primary);
+  }
   const amount = summary.amounts[0]!;
   return formatMoney(amount[field], amount.currency);
 }

@@ -28,9 +28,12 @@ export class JobsService {
   listProfessional(input: {
     scope: ProfessionalJobScope;
     status?: JobStatus;
+    bucket?: import("./types").ProfessionalJobBucket;
+    search?: string;
+    sort?: import("./types").ProfessionalJobSort;
     page: number;
     pageSize: number;
-  }): Promise<JobPage> {
+  }): Promise<JobPage & { summary: import("./types").ProfessionalJobSummary }> {
     return this.store.listProfessional(input);
   }
 

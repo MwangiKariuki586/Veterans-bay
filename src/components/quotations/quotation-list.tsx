@@ -55,9 +55,12 @@ import type {
 import {
   getQuotation,
   listClientQuotations,
+  listProfessionalQuotations,
   listQuotations,
   type ClientQuotationPage,
   type ClientQuotationQuery,
+  type ProfessionalQuotationPage,
+  type ProfessionalQuotationQuery,
   type QuotationPage,
 } from "./quotation-api";
 import { formatQuotationMoney } from "./quotation-view";
@@ -536,100 +539,393 @@ function ClientQuotationList() {
 }
 
 function ProfessionalQuotationList() {
-  const [result, setResult] = useState<QuotationPage | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const [queryState, setQueryState] = useState<ProfessionalQuotationQuery>(() => professionalQueryFromParams(searchParams));
+  const [search, setSearch] = useState(queryState.search);
+  const [selected, setSelected] = useState<SelectedQuotation | null>(null);
+
+  const updateParams = useCallback(
+    (changes: Partial<ProfessionalQuotationQuery>, resetPage = true) => {
+      const next = {
+        ...queryState,
+        ...changes,
+        page: resetPage ? 1 : (changes.page ?? queryState.page),
+      };
+      setQueryState(next);
+      replaceUrl(pathname, professionalQueryString(next));
+    },
+    [pathname, queryState],
+  );
+
   useEffect(() => {
-    void listQuotations("professional")
-      .then(setResult)
-      .catch((cause: unknown) =>
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "Quotations could not be loaded.",
+    const normalized = search.trim();
+    if (normalized === queryState.search) return;
+    const timeout = window.setTimeout(() => updateParams({ search: normalized }), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeout);
+  }, [queryState.search, search, updateParams]);
+
+  const quotationQuery: any = useQuery({
+    queryKey: ["professional-quotations", queryState] as unknown as readonly unknown[],
+    queryFn: ({ signal }: { signal: AbortSignal }) => listProfessionalQuotations(queryState, signal),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+    gcTime: 15 * 60_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: 2,
+  } as never);
+
+  const result = quotationQuery.data;
+  const normalizedSearch = search.trim();
+  const searchPending = normalizedSearch !== queryState.search;
+  const showProgress = searchPending || (quotationQuery.isFetching && quotationQuery.isPlaceholderData);
+  const hasData = Boolean(result);
+  const isInitialLoading = quotationQuery.isPending;
+  const isBackgroundError = hasData && quotationQuery.isError;
+  useWorkspaceContentReady(!isInitialLoading);
+
+  const setSort = useCallback(
+    (column: "updated" | "total" | "valid_until") => {
+      updateParams({
+        sort: queryState.sort === `${column}_asc` ? `${column}_desc` : `${column}_asc`,
+      });
+    },
+    [queryState.sort, updateParams],
+  );
+
+  const columns = useMemo<DataTableColumnDef<QuotationSummary, unknown>[]>(
+    () => [
+      {
+        id: "quotation",
+        header: "Quotation",
+        cell: ({ row }) => <QuotationIdentity quotation={row.original} />,
+      },
+      {
+        id: "client",
+        header: "Client",
+        cell: ({ row }) => (
+          <span className="flex min-w-[135px] items-center gap-2">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#0c1620] text-[0.62rem] font-semibold text-white">
+              {row.original.clientName
+                .split(/\s+/)
+                .map((part) => part[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()}
+            </span>
+            <span className="max-w-32 truncate font-semibold">{row.original.clientName}</span>
+          </span>
         ),
-      );
-  }, []);
+      },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => <QuotationStatusBadge status={row.original.status} />,
+      },
+      {
+        id: "total",
+        header: () => <SortHeader label="Total" column="total" sort={queryState.sort} onSort={setSort} />,
+        cell: ({ row }) => <MoneyCell quotation={row.original} />,
+      },
+      {
+        id: "validUntil",
+        header: () => <SortHeader label="Valid until" column="valid_until" sort={queryState.sort} onSort={setSort} />,
+        cell: ({ row }) => <ValidityCell quotation={row.original} />,
+      },
+      {
+        id: "updated",
+        header: () => <SortHeader label="Updated" column="updated" sort={queryState.sort} onSort={setSort} />,
+        cell: ({ row }) => <UpdatedCell iso={row.original.updatedAt} />,
+      },
+      {
+        id: "action",
+        header: "Action",
+        cell: ({ row }) => (
+          <Link href={`/professional/quotations/${row.original.id}`} className="font-semibold text-trust transition-colors hover:text-foreground">
+            Open
+          </Link>
+        ),
+      },
+    ],
+    [queryState.sort, setSort],
+  );
+
+  const clearFilters = () => {
+    setSearch("");
+    setQueryState(professionalDefaultQuery);
+    replaceUrl(pathname, "");
+  };
+
+  const closeDrawer = useCallback(() => setSelected(null), []);
+
+  const professionalTabs: Array<{ value: import("@/modules/quotations/types").ProfessionalQuotationBucket; label: string; count?: keyof import("@/modules/quotations/types").ProfessionalQuotationSummary }> = [
+    { value: "all", label: "All" },
+    { value: "drafts", label: "Drafts", count: "drafts" },
+    { value: "awaiting-decision", label: "Awaiting decision", count: "awaitingDecision" },
+    { value: "in-revision", label: "In revision", count: "inRevision" },
+    { value: "accepted", label: "Accepted", count: "accepted" },
+    { value: "closed", label: "Closed", count: "closed" },
+  ];
+
+  if (isInitialLoading && quotationQuery.isError && !hasData) {
+    return (
+      <div className="mx-auto w-full max-w-[1370px] pb-3">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold text-[#6b9f16]">Professional workspace</p>
+            <h1 className="mt-1 text-[1.75rem] font-semibold leading-tight tracking-title sm:text-[2rem]">Quotations</h1>
+          </div>
+          <Link href="/professional/enquiries" className={buttonVariants({ variant: "primary" })}>
+            Select an enquiry
+          </Link>
+        </header>
+        <InlineAlert className="mt-5" variant="error" title="Quotations unavailable" description={quotationQuery.error instanceof Error ? quotationQuery.error.message : "Quotations could not be loaded."}>
+          <button type="button" onClick={() => void quotationQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">
+            Try again
+          </button>
+        </InlineAlert>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="mx-auto w-full max-w-[1370px] pb-3">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-[#5f8d11]">
-            Professional workspace
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-title">
-            Quotations
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
-            Prepare versioned commercial terms and track client decisions.
-          </p>
+          <p className="text-xs font-semibold text-[#6b9f16]">Professional workspace</p>
+          <h1 className="mt-1 text-[1.75rem] font-semibold leading-tight tracking-title sm:text-[2rem]">Quotations</h1>
+          <p className="mt-1.5 max-w-2xl text-[0.78rem] text-muted-foreground">Prepare versioned commercial terms and track client decisions before they expire.</p>
         </div>
-        <Link
-          href="/professional/enquiries"
-          className={buttonVariants({ variant: "primary" })}
-        >
+        <Link href="/professional/enquiries" className={buttonVariants({ variant: "primary" })}>
           Select an enquiry
         </Link>
-      </div>
-      {error ? (
-        <InlineAlert
-          className="mt-6"
-          variant="error"
-          title="Quotations unavailable"
-          description={error}
+      </header>
+
+      {isBackgroundError ? (
+        <InlineAlert className="mt-4" variant="error" title="Quotations update failed" description={quotationQuery.error instanceof Error ? quotationQuery.error.message : "Quotations could not be refreshed."}>
+          <button type="button" onClick={() => void quotationQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">
+            Try again
+          </button>
+        </InlineAlert>
+      ) : null}
+
+      <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Quotation summary">
+        <WorkspaceMetricCard loading={isInitialLoading} icon={FileText} tone="yellow" label="Drafts" value={result?.summary.drafts} hint="Ready to send" />
+        <WorkspaceMetricCard
+          loading={isInitialLoading}
+          icon={CircleAlert}
+          tone="orange"
+          label="Awaiting decision"
+          value={result?.summary.awaitingDecision}
+          hint={result?.summary.awaitingDecision ? "Client response needed" : "No awaiting decisions"}
+          hintTone={result?.summary.awaitingDecision ? "danger" : "muted"}
         />
-      ) : !result ? (
-        <div className="mt-6 grid gap-4" aria-busy="true">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-28 w-full rounded-[22px]" />
-          ))}
-        </div>
-      ) : result.items.length === 0 ? (
-        <StatePanel
-          className="mt-6"
-          variant="empty"
-          icon={<FileText className="size-5" />}
-          title="No quotations yet"
-          description="Open an eligible enquiry to prepare the first quotation."
+        <WorkspaceMetricCard loading={isInitialLoading} icon={CheckCircle2} tone="green" label="Accepted" value={result?.summary.accepted} hint="Won quotations" />
+        <WorkspaceMetricCard
+          loading={isInitialLoading}
+          icon={Clock3}
+          tone="purple"
+          label="Expiring soon"
+          value={result?.summary.expiringSoon}
+          hint={result?.summary.expiringSoon ? "Within 7 days" : "No urgent expiries"}
+          hintTone={result?.summary.expiringSoon ? "danger" : "muted"}
         />
-      ) : (
-        <Surface className="mt-6 overflow-hidden p-0 shadow-none">
-          {result.items.map((quotation) => (
-            <Link
-              key={quotation.id}
-              href={`/professional/quotations/${quotation.id}`}
-              className="group grid gap-4 border-b border-black/8 p-5 last:border-0 hover:bg-[#fbfcf9] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+      </section>
+
+      <nav className="mt-3 flex gap-1 overflow-x-auto border-b border-black/6" aria-label="Quotation status views">
+        {professionalTabs.map((tab) => {
+          const active = queryState.bucket === tab.value;
+          const count = tab.count ? result?.summary[tab.count] : null;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => updateParams({ bucket: tab.value, status: "" })}
+              className={cn(
+                "inline-flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-4 text-[0.72rem] font-medium transition",
+                active ? "border-[#83b72c] text-[#426d08]" : "border-transparent text-[#536170] hover:text-foreground",
+              )}
+              aria-current={active ? "page" : undefined}
             >
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <QuotationStatusBadge status={quotation.status} />
-                  <span className="text-xs text-[#7a838c]">
-                    Version {quotation.currentVersionNumber}
-                  </span>
-                </div>
-                <h2 className="mt-3 text-lg font-semibold">
-                  {quotation.requestCategory}
-                </h2>
-                <p className="mt-1 text-sm text-[#68717b]">
-                  {quotation.clientName}
-                </p>
-              </div>
-              <div className="sm:text-right">
-                <p className="font-semibold">
-                  {formatQuotationMoney(
-                    quotation.currentTotalMinor,
-                    quotation.currency,
-                  )}
-                </p>
-                <span className="mt-2 inline-flex items-center gap-2 text-sm font-semibold">
-                  Open
-                  <ArrowRight className="size-4 transition group-hover:translate-x-1" />
-                </span>
-              </div>
-            </Link>
-          ))}
-        </Surface>
-      )}
+              {tab.label}
+              {count !== null ? (
+                <span className="rounded-full bg-[#edf1f3] px-2 py-0.5 text-[0.64rem] font-semibold text-[#536170]">{count ?? <Skeleton className="h-3 w-4 rounded-full" />}</span>
+              ) : null}
+            </button>
+          );
+        })}
+      </nav>
+
+      <section className="mt-2 overflow-hidden rounded-[15px] border border-black/8 bg-white shadow-[0_5px_18px_rgba(15,31,43,0.035)]" aria-label="Professional quotations">
+        <div className="flex flex-wrap items-center gap-2 border-b border-black/6 p-3">
+          <label className="relative min-w-[220px] flex-1 lg:max-w-[280px]">
+            <span className="sr-only">Search quotations</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6f7d8b]" aria-hidden="true" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="h-10 w-full rounded-[11px] border border-black/8 bg-white pl-9 pr-3 text-[0.72rem] outline-none placeholder:text-[#83909c] focus:border-ring"
+              placeholder="Search client or category..."
+            />
+          </label>
+          <FilterSelect label="Category" value={queryState.category} onChange={(category) => updateParams({ category })}>
+            <option value="">Category</option>
+            {result?.categories.map((item: string) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </FilterSelect>
+          <FilterSelect label="Status" value={queryState.status} onChange={(status) => updateParams({ status, bucket: "all" })}>
+            <option value="">Status</option>
+            {Object.entries(statusMeta)
+              .filter(([status]) => status !== "DRAFT" || queryState.bucket === "drafts" || queryState.bucket === "all")
+              .map(([status, meta]) => (
+                <option key={status} value={status}>
+                  {meta.label}
+                </option>
+              ))}
+          </FilterSelect>
+          <FilterSelect label="Validity" value={queryState.validity} onChange={(validity) => updateParams({ validity: validity as "" | ClientQuotationValidity })}>
+            <option value="">Validity</option>
+            <option value="valid">Currently valid</option>
+            <option value="expiring">Expiring soon</option>
+            <option value="expired">Expired</option>
+          </FilterSelect>
+          {showProgress ? (
+            <span className="inline-flex min-h-10 items-center gap-2 px-2 text-[0.68rem] font-medium text-[#64717d]" role="status" aria-live="polite">
+              <Spinner className="size-3.5 text-[#6b9f16]" />
+              Updating quotations…
+            </span>
+          ) : null}
+          <button type="button" onClick={clearFilters} className="ml-auto min-h-10 rounded-[10px] border border-black/8 px-4 text-[0.7rem] font-medium text-[#536170] transition hover:bg-muted">
+            Clear filters
+          </button>
+        </div>
+
+        <div className="relative" aria-busy={showProgress}>
+          <DataTable
+            loading={isInitialLoading}
+            loadingLabel="Loading quotations"
+            columns={columns}
+            data={result?.items ?? []}
+            getRowId={(row) => row.id}
+            getRowLabel={(row) => `View quotation for ${row.requestCategory} from ${row.clientName}`}
+            onRowClick={(row) => setSelected({ id: row.id, placeholder: row })}
+            mobileRow={(row) => <ProfessionalQuotationMobileCard quotation={row} />}
+            empty={
+              result ? (
+                <StatePanel
+                  className="m-4 border-dashed shadow-none"
+                  title={result.summary.total === 0 ? "No quotations yet" : "No quotations match these filters"}
+                  description={result.summary.total === 0 ? "Open an eligible enquiry to prepare the first quotation." : "Clear a filter or try a different search."}
+                >
+                  {result.summary.total > 0 ? (
+                    <Button size="sm" variant="outline" onClick={clearFilters}>
+                      Clear filters
+                    </Button>
+                  ) : null}
+                </StatePanel>
+              ) : null
+            }
+          />
+        </div>
+        {result ? (
+          <QuotationPagination
+            page={result.page}
+            pageSize={result.pageSize}
+            totalItems={result.totalItems}
+            totalPages={result.totalPages}
+            onPage={(page) => updateParams({ page }, false)}
+            onPageSize={(pageSize) => updateParams({ pageSize, page: 1 }, false)}
+          />
+        ) : null}
+      </section>
+      {selected ? <ProfessionalQuotationDrawer selected={selected} onClose={closeDrawer} /> : null}
     </div>
+  );
+}
+
+function ProfessionalQuotationDrawer({ selected, onClose }: { selected: SelectedQuotation; onClose: () => void }) {
+  const detailQuery: any = useQuery({
+    queryKey: ["professional-quotation", selected.id] as unknown as readonly unknown[],
+    queryFn: ({ signal }: { signal: AbortSignal }) => getQuotation("professional", selected.id, signal),
+    staleTime: 30_000,
+    retry: 2,
+  } as never);
+  const detail = detailQuery.data as import("@/modules/quotations/types").QuotationDetail | undefined;
+  const summary = detail ?? selected.placeholder;
+  const isLoading = detailQuery.isPending && !detail;
+  const isRefreshing = detailQuery.isFetching && !!detail;
+  const currentVersion = detail?.versions.find((v) => v.versionNumber === detail.currentVersionNumber);
+  return (
+    <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent className="flex h-full w-[min(36rem,94vw)] flex-col overflow-hidden p-0" aria-describedby="professional-quotation-drawer-description">
+        <div className="shrink-0 border-b border-black/7 px-5 pb-4 pt-5 pr-16 sm:px-6 sm:pr-16 sm:pt-6">
+          <div className="flex items-start gap-3">
+            <span className="grid size-12 shrink-0 place-items-center rounded-full bg-[#edf7dd] text-[#6d9f16]">
+              <FileText className="size-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <SheetTitle className="truncate text-xl font-semibold tracking-title">{summary?.requestCategory ?? "Quotation"}</SheetTitle>
+                  <SheetDescription id="professional-quotation-drawer-description" className="mt-1 text-[0.68rem] text-muted-foreground">
+                    {summary ? `QUO-${summary.id.slice(-6).toUpperCase()} · v${summary.currentVersionNumber} · ${summary.clientName}` : "Retrieving quotation."}
+                  </SheetDescription>
+                </div>
+                {summary ? <QuotationStatusBadge status={summary.status} /> : null}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto bg-[#fbfcfd] px-4 py-4 sm:px-5">
+          {isLoading ? (
+            <ProfessionalQuotationDrawerSkeleton />
+          ) : detailQuery.isError && !detail ? (
+            <InlineAlert variant="error" title="Quotation unavailable" description={detailQuery.error instanceof Error ? detailQuery.error.message : "The quotation could not be loaded."}>
+              <button type="button" onClick={() => void detailQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
+            </InlineAlert>
+          ) : isRefreshing ? (
+            <ProfessionalQuotationDrawerRefreshingSkeleton />
+          ) : summary ? (
+            <div className="space-y-4">
+              <section>
+                <div className="flex items-center gap-2"><span className="grid size-6 place-items-center rounded-full bg-[#edf7dd] text-[0.68rem] font-semibold text-[#5f8d11]">1</span><h3 className="text-xs font-semibold tracking-wide text-[#536170]">Overview</h3></div>
+                <div className="mt-2 rounded-[12px] border border-black/8 bg-white p-4 shadow-[0_3px_12px_rgba(15,31,43,0.035)]">
+                  <dl className="grid grid-cols-2 gap-3 text-xs">
+                    <div><dt className="text-muted-foreground">Total</dt><dd className="mt-1 font-semibold">{formatQuotationMoney(summary.currentTotalMinor, summary.currency)}</dd></div>
+                    <div><dt className="text-muted-foreground">Valid until</dt><dd className="mt-1 font-medium">{summary.validUntil ? new Date(summary.validUntil).toLocaleDateString("en-KE", { dateStyle: "medium" }) : "Not set"}</dd></div>
+                    <div><dt className="text-muted-foreground">Client</dt><dd className="mt-1 font-medium">{summary.clientName}</dd></div>
+                    <div><dt className="text-muted-foreground">Updated</dt><dd className="mt-1 font-medium">{new Date(summary.updatedAt).toLocaleDateString("en-KE", { dateStyle: "medium" })}</dd></div>
+                    {currentVersion ? (<><div><dt className="text-muted-foreground">Deposit</dt><dd className="mt-1 font-medium">{formatQuotationMoney(currentVersion.depositMinor, currentVersion.currency)}</dd></div><div><dt className="text-muted-foreground">Duration</dt><dd className="mt-1 font-medium">{currentVersion.expectedDurationMinutes} min</dd></div></>) : null}
+                  </dl>
+                  {currentVersion ? <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-[#4f5963]">{currentVersion.scope}</p> : null}
+                </div>
+              </section>
+              <section>
+                <div className="flex items-center gap-2"><span className="grid size-6 place-items-center rounded-full bg-[#edf7dd] text-[0.68rem] font-semibold text-[#5f8d11]">2</span><h3 className="text-xs font-semibold tracking-wide text-[#536170]">Actions</h3></div>
+                <div className="mt-2 grid gap-2">
+                  <Link href={`/professional/quotations/${summary.id}`} className={buttonVariants({ variant: "primary" })}>View details</Link>
+                  <Link href={`/professional/quotations/${summary.id}#versions`} className={buttonVariants({ variant: "outline" })}>Compare versions</Link>
+                  <p className="text-[0.68rem] leading-4 text-muted-foreground">The drawer shows the most important commercial summary. Use View details for full version history, line items, and submit/revise.</p>
+                </div>
+              </section>
+            </div>
+          ) : null}
+        </div>
+        {summary ? (
+          <div className="shrink-0 border-t border-black/8 bg-white px-4 py-4 sm:px-6">
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={onClose}>Close</Button>
+              <Link href={`/professional/quotations/${summary.id}`} className={buttonVariants({ variant: "primary" })}>View details</Link>
+            </div>
+          </div>
+        ) : null}
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -1449,6 +1745,91 @@ function formatDuration(minutes: number) {
   return hours
     ? `${hours} hr${hours === 1 ? "" : "s"}${remaining ? ` ${remaining} min` : ""}`
     : `${minutes} min`;
+}
+
+const professionalDefaultQuery: ProfessionalQuotationQuery = {
+  page: 1,
+  pageSize: 10,
+  bucket: "all",
+  category: "",
+  status: "",
+  validity: "",
+  search: "",
+  sort: "updated_desc",
+};
+
+function professionalQueryFromParams(searchParams: URLSearchParams): ProfessionalQuotationQuery {
+  const pageSize = Number(searchParams.get("pageSize"));
+  return {
+    page: Math.max(1, Number(searchParams.get("page")) || 1),
+    pageSize: [10, 20, 50].includes(pageSize) ? pageSize : 10,
+    bucket: (searchParams.get("bucket") as ProfessionalQuotationQuery["bucket"]) ?? "all",
+    category: searchParams.get("category") ?? "",
+    status: searchParams.get("status") ?? "",
+    validity: (searchParams.get("validity") ?? "") as ProfessionalQuotationQuery["validity"],
+    search: searchParams.get("search") ?? "",
+    sort: (searchParams.get("sort") ?? "updated_desc") as ProfessionalQuotationQuery["sort"],
+  };
+}
+
+function professionalQueryString(state: ProfessionalQuotationQuery) {
+  const params = new URLSearchParams();
+  if (state.page > 1) params.set("page", String(state.page));
+  if (state.pageSize !== 10) params.set("pageSize", String(state.pageSize));
+  if (state.bucket !== "all") params.set("bucket", state.bucket);
+  if (state.category) params.set("category", state.category);
+  if (state.status) params.set("status", state.status);
+  if (state.validity) params.set("validity", state.validity);
+  if (state.search) params.set("search", state.search);
+  if (state.sort !== "updated_desc") params.set("sort", state.sort);
+  return params.toString();
+}
+
+function ProfessionalQuotationMobileCard({ quotation }: { quotation: QuotationSummary }) {
+  return (
+    <article className="rounded-[14px] border border-black/8 bg-white p-4 shadow-[0_3px_12px_rgba(15,31,43,0.03)]">
+      <div className="flex items-start justify-between gap-3">
+        <QuotationIdentity quotation={quotation} />
+        <QuotationStatusBadge status={quotation.status} />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-black/6 pt-3 text-xs">
+        <div>
+          <p className="text-muted-foreground">Client</p>
+          <p className="mt-1 truncate font-semibold">{quotation.clientName}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Total</p>
+          <p className="mt-1 font-semibold">{formatQuotationMoney(quotation.currentTotalMinor, quotation.currency)}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Valid until</p>
+          <p className="mt-1 font-medium">{formatDate(quotation.validUntil)}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Updated</p>
+          <p className="mt-1 font-medium">{formatDate(quotation.updatedAt)}</p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ProfessionalQuotationDrawerSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" role="status" aria-label="Loading quotation details">
+      <section><div className="flex items-center gap-2"><span className="grid size-6 place-items-center rounded-full bg-[#edf7dd] text-[0.68rem] font-semibold text-[#5f8d11]">1</span><h3 className="text-xs font-semibold tracking-wide text-[#536170]">Overview</h3></div><div className="mt-2 rounded-[12px] border border-black/8 bg-white p-4 shadow-[0_3px_12px_rgba(15,31,43,0.035)]"><dl className="grid grid-cols-2 gap-3 text-xs"><div><dt className="text-muted-foreground">Total</dt><dd className="mt-1"><Skeleton className="h-4 w-20 rounded-md" /></dd></div><div><dt className="text-muted-foreground">Valid until</dt><dd className="mt-1"><Skeleton className="h-4 w-24 rounded-md" /></dd></div><div><dt className="text-muted-foreground">Client</dt><dd className="mt-1"><Skeleton className="h-4 w-28 rounded-md" /></dd></div><div><dt className="text-muted-foreground">Updated</dt><dd className="mt-1"><Skeleton className="h-4 w-24 rounded-md" /></dd></div><div><dt className="text-muted-foreground">Deposit</dt><dd className="mt-1"><Skeleton className="h-4 w-16 rounded-md" /></dd></div><div><dt className="text-muted-foreground">Duration</dt><dd className="mt-1"><Skeleton className="h-4 w-20 rounded-md" /></dd></div></dl><Skeleton className="mt-3 h-12 w-full rounded-md" /></div></section>
+      <section><div className="flex items-center gap-2"><span className="grid size-6 place-items-center rounded-full bg-[#edf7dd] text-[0.68rem] font-semibold text-[#5f8d11]">2</span><h3 className="text-xs font-semibold tracking-wide text-[#536170]">Actions</h3></div><div className="mt-2 rounded-[12px] border border-black/8 bg-white p-3 shadow-[0_3px_12px_rgba(15,31,43,0.035)]"><Skeleton className="h-9 w-full rounded-full" /><Skeleton className="mt-2 h-9 w-full rounded-full" /></div></section>
+    </div>
+  );
+}
+
+function ProfessionalQuotationDrawerRefreshingSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" role="status" aria-label="Loading quotation details">
+      <section><div className="flex items-center gap-2"><span className="grid size-6 place-items-center rounded-full bg-[#edf7dd] text-[0.68rem] font-semibold text-[#5f8d11]">1</span><h3 className="text-xs font-semibold tracking-wide text-[#536170]">Overview</h3></div><div className="mt-2 rounded-[12px] border border-black/8 bg-white p-4 shadow-[0_3px_12px_rgba(15,31,43,0.035)]"><dl className="grid grid-cols-2 gap-3 text-xs"><div><dt className="text-muted-foreground">Total</dt><dd className="mt-1"><Skeleton className="h-4 w-16 rounded-md" /></dd></div><div><dt className="text-muted-foreground">Valid until</dt><dd className="mt-1"><Skeleton className="h-4 w-20 rounded-md" /></dd></div></dl></div></section>
+      <section><div className="flex items-center gap-2"><span className="grid size-6 place-items-center rounded-full bg-[#edf7dd] text-[0.68rem] font-semibold text-[#5f8d11]">2</span><h3 className="text-xs font-semibold tracking-wide text-[#536170]">Actions</h3></div><div className="mt-2 rounded-[12px] border border-black/8 bg-white p-3 shadow-[0_3px_12px_rgba(15,31,43,0.035)]"><Skeleton className="h-8 w-full rounded-full" /></div></section>
+    </div>
+  );
 }
 
 

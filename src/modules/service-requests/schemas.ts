@@ -89,3 +89,36 @@ export const clientServiceRequestListQuerySchema = paginationQuerySchema.extend(
     ])
     .default("updated_desc"),
 });
+
+export const professionalEnquiryListQuerySchema = paginationQuerySchema.extend({
+  status: z
+    .enum([
+      "SUBMITTED",
+      "UNDER_REVIEW",
+      "MORE_INFORMATION_REQUIRED",
+      "ASSESSMENT_REQUIRED",
+      "QUOTED",
+      "CONVERTED",
+      "DECLINED",
+      "CANCELLED",
+      "EXPIRED",
+    ])
+    .optional(),
+  bucket: z
+    .enum(["all", "new", "in-review", "awaiting-info", "converted", "closed"])
+    .optional()
+    .default("all"),
+  category: z.string().trim().min(1).max(120).optional(),
+  urgency: z.enum(["FLEXIBLE", "SOON", "URGENT"]).optional(),
+  search: z.string().trim().max(120).optional(),
+  sort: z
+    .enum([
+      "updated_desc",
+      "updated_asc",
+      "category_asc",
+      "category_desc",
+      "status_asc",
+      "status_desc",
+    ])
+    .default("updated_desc"),
+});

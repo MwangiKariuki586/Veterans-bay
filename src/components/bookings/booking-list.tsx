@@ -308,9 +308,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
         ) : null}
       </header>
 
-      {isInitialLoading && audience !== "client" ? (
-        <BookingsSkeleton />
-      ) : isInitialLoading && bookingQuery.isError && !hasData ? (
+      {isInitialLoading && bookingQuery.isError && !hasData ? (
         <InlineAlert
           className="mt-5"
           variant="error"
@@ -319,7 +317,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
         >
           <button type="button" onClick={() => void bookingQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">Try again</button>
         </InlineAlert>
-      ) : result || audience === "client" ? (
+      ) : (
         <>
           {hasData && isBackgroundError ? (
             <InlineAlert className="mt-4" variant="error" title="Bookings update failed" description={bookingQuery.error instanceof Error ? bookingQuery.error.message : "Bookings could not be refreshed."} >
@@ -488,7 +486,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
             <BookingDetailDrawer selected={selected} audience={audience} onOpenChange={(open) => { if (!open) closeBooking(); }} />
           ) : null}
         </>
-      ) : null}
+      )}
     </div>
   );
 }

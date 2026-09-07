@@ -9,6 +9,13 @@ export const jobListQuerySchema = paginationQuerySchema.extend({
   status: z.enum(jobStatuses).optional(),
 });
 
+export const professionalJobListQuerySchema = paginationQuerySchema.extend({
+  status: z.enum(jobStatuses).optional(),
+  bucket: z.enum(["all", "scheduled", "in-progress", "awaiting-confirmation", "completed", "needs-attention"]).optional().default("all"),
+  search: z.string().trim().max(120).optional(),
+  sort: z.enum(["updated_desc", "updated_asc", "scheduled_desc", "scheduled_asc", "total_desc", "total_asc"]).optional().default("updated_desc"),
+});
+
 export const jobActionBodySchema = z.object({
   lockVersion: z.number().int().positive(),
   reason: z.string().trim().min(3).max(1000).optional(),

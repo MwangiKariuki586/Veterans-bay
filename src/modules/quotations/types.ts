@@ -18,6 +18,14 @@ export type ClientQuotationBucket =
   | "in-revision"
   | "closed";
 
+export type ProfessionalQuotationBucket =
+  | "all"
+  | "drafts"
+  | "awaiting-decision"
+  | "in-revision"
+  | "accepted"
+  | "closed";
+
 export type ClientQuotationValidity = "valid" | "expiring" | "expired";
 
 export type ClientQuotationSort =
@@ -28,8 +36,20 @@ export type ClientQuotationSort =
   | "valid_until_desc"
   | "valid_until_asc";
 
+export type ProfessionalQuotationSort = ClientQuotationSort;
+
 export interface ClientQuotationSummary {
   total: number;
+  awaitingDecision: number;
+  accepted: number;
+  expiringSoon: number;
+  inRevision: number;
+  closed: number;
+}
+
+export interface ProfessionalQuotationSummary {
+  total: number;
+  drafts: number;
   awaitingDecision: number;
   accepted: number;
   expiringSoon: number;

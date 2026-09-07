@@ -6,6 +6,7 @@ import {
   eq,
   getTableColumns,
   gt,
+  ilike,
   inArray,
   ne,
   or,
@@ -91,15 +92,50 @@ export class JobsRepository {
   async listProfessional(input: {
     scope: ProfessionalJobScope;
     status?: JobStatus;
+    bucket?: import("./types").ProfessionalJobBucket;
+    search?: string;
+    sort?: import("./types").ProfessionalJobSort;
     page: number;
     pageSize: number;
-  }): Promise<JobPage> {
-    return this.list({
+  }): Promise<JobPage & { summary: import("./types").ProfessionalJobSummary }> {
+    const bucket = input.bucket ?? "all";
+    const bucketStatuses: Record<import("./types").ProfessionalJobBucket, JobStatus[]> = {
+      all: [],
+      scheduled: ["CREATED", "SCHEDULED", "TEAM_ASSIGNED"],
+      "in-progress": ["EN_ROUTE", "IN_PROGRESS"],
+      "awaiting-confirmation": ["AWAITING_CLIENT_CONFIRMATION"],
+      completed: ["COMPLETED"],
+      "needs-attention": ["ON_HOLD", "RETURN_VISIT_REQUIRED", "DISPUTED", "CANCELLED"],
+    };
+    const bucketFilter = bucket !== "all" ? inArray(jobs.status, bucketStatuses[bucket]) : undefined;
+    const result = await this.list({
       scope: professionalScope(input.scope),
       status: input.status,
+      bucketFilter,
+      search: input.search,
+      sort: input.sort ?? "updated_desc",
       page: input.page,
       pageSize: input.pageSize,
     });
+    const summaryScope = professionalScope(input.scope);
+    const [statusCounts, todayCounts] = await Promise.all([
+      this.db.select({ status: jobs.status, total: count() }).from(jobs).where(summaryScope).groupBy(jobs.status),
+      this.db.select({ total: count() }).from(jobs).where(and(summaryScope, inArray(jobs.status, ["CREATED", "SCHEDULED", "TEAM_ASSIGNED"] as JobStatus[]), sql`${jobs.scheduledStartsAt}::date = current_date`)),
+    ]);
+    const map = new Map(statusCounts.map((r) => [r.status, r.total]));
+    const sum = (statuses: JobStatus[]) => statuses.reduce((acc, s) => acc + (map.get(s) ?? 0), 0);
+    const total = statusCounts.reduce((acc, r) => acc + r.total, 0);
+    return {
+      ...result,
+      summary: {
+        total,
+        scheduledToday: todayCounts[0]?.total ?? 0,
+        inProgress: sum(["EN_ROUTE", "IN_PROGRESS"]),
+        awaitingConfirmation: sum(["AWAITING_CLIENT_CONFIRMATION"]),
+        needsAttention: sum(["ON_HOLD", "RETURN_VISIT_REQUIRED", "DISPUTED", "CANCELLED"]),
+        completed: sum(["COMPLETED"]),
+      },
+    };
   }
 
   async listClient(input: {
@@ -1196,12 +1232,33 @@ export class JobsRepository {
   private async list(input: {
     scope: SQL<unknown>;
     status?: JobStatus;
+    bucketFilter?: SQL<unknown>;
+    search?: string;
+    sort?: import("./types").ProfessionalJobSort;
     page: number;
     pageSize: number;
   }): Promise<JobPage> {
+    const sort = input.sort ?? "updated_desc";
+    const orderBy = {
+      updated_desc: [desc(jobs.updatedAt), desc(jobs.id)],
+      updated_asc: [asc(jobs.updatedAt), asc(jobs.id)],
+      scheduled_desc: [desc(jobs.scheduledStartsAt), desc(jobs.updatedAt)],
+      scheduled_asc: [asc(jobs.scheduledStartsAt), desc(jobs.updatedAt)],
+      total_desc: [desc(jobs.totalMinor), desc(jobs.updatedAt)],
+      total_asc: [asc(jobs.totalMinor), desc(jobs.updatedAt)],
+    }[sort];
     const filter = and(
       input.scope,
       ...(input.status ? [eq(jobs.status, input.status)] : []),
+      ...(input.bucketFilter ? [input.bucketFilter] : []),
+      ...(input.search
+        ? [
+            or(
+              ilike(jobs.serviceName, `%${input.search}%`),
+              ilike(clientProfile.displayName, `%${input.search}%`),
+            )!,
+          ]
+        : []),
     );
     const [rows, totals] = await Promise.all([
       this.db
@@ -1229,7 +1286,7 @@ export class JobsRepository {
           eq(clientProfile.id, jobs.clientAccountId),
         )
         .where(filter)
-        .orderBy(desc(jobs.updatedAt), desc(jobs.id))
+        .orderBy(...orderBy)
         .limit(input.pageSize)
         .offset(paginationOffset(input)),
       this.db.select({ value: count() }).from(jobs).where(filter),

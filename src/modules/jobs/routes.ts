@@ -107,16 +107,22 @@ export function createJobRoutes() {
 
   routes.get("/v1/professional/jobs", ...professionalRead, async (context) => {
     const selection = professionalSelection(context);
-    const query = parseQuery(jobListQuerySchema, context.req.url);
+    const { professionalJobListQuerySchema } = await import("./schemas");
+    const query = parseQuery(professionalJobListQuerySchema, context.req.url);
     const { client, service } = createService(
       context.get("environment").DATABASE_URL,
     );
     try {
       const data = await service.listProfessional({
         scope: selection.scope,
-        ...query,
+        status: query.status,
+        bucket: query.bucket,
+        search: query.search,
+        sort: query.sort,
+        page: query.page,
+        pageSize: query.pageSize,
       });
-      return context.json<ApiSuccessBody<PageResult<JobSummary>>>({
+      return context.json<ApiSuccessBody<PageResult<JobSummary> & { summary: import("./types").ProfessionalJobSummary }>>({
         data,
         requestId: context.get("requestId"),
       });

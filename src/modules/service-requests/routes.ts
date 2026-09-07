@@ -329,8 +329,9 @@ export function createServiceRequestRoutes() {
       if (!selection?.workspace.organisationId) {
         throw new Error("Organisation workspace is required.");
       }
+      const { professionalEnquiryListQuerySchema } = await import("./schemas");
       const query = parseQuery(
-        clientServiceRequestListQuerySchema,
+        professionalEnquiryListQuerySchema,
         context.req.url,
       );
       const { client, service } = createService(

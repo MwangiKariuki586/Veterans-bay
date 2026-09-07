@@ -58,7 +58,8 @@ export function createCustomerRoutes() {
   ] as const;
   routes.get("/v1/professional/customers", ...view, async (context) => {
     const scope = selected(context);
-    const query = parseQuery(customerListQuerySchema, context.req.url);
+    const { professionalCustomerListQuerySchema } = await import("./schemas");
+    const query = parseQuery(professionalCustomerListQuerySchema, context.req.url);
     const { client, service } = setup(context.get("environment").DATABASE_URL);
     try {
       return context.json<ApiSuccessBody<unknown>>({

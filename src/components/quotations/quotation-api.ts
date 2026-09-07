@@ -38,6 +38,22 @@ export type ClientQuotationQuery = {
   sort: ClientQuotationSort;
 };
 
+export type ProfessionalQuotationQuery = {
+  page: number;
+  pageSize: number;
+  bucket: "all" | import("@/modules/quotations/types").ProfessionalQuotationBucket;
+  category: string;
+  status: string;
+  validity: "" | ClientQuotationValidity;
+  search: string;
+  sort: ClientQuotationSort;
+};
+
+export type ProfessionalQuotationPage = QuotationPage & {
+  summary: import("@/modules/quotations/types").ProfessionalQuotationSummary;
+  categories: string[];
+};
+
 export function listQuotations(
   audience: "client" | "professional",
   status?: QuotationStatus,
@@ -65,6 +81,26 @@ export function listClientQuotations(
   if (query.search) params.set("search", query.search);
   return requestApi<ClientQuotationPage>(
     `/api/v1/client/quotations?${params.toString()}`,
+    { signal },
+  );
+}
+
+export function listProfessionalQuotations(
+  query: ProfessionalQuotationQuery,
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams({
+    page: String(query.page),
+    pageSize: String(query.pageSize),
+    sort: query.sort,
+  });
+  if (query.bucket !== "all") params.set("bucket", query.bucket);
+  if (query.category) params.set("category", query.category);
+  if (query.status) params.set("status", query.status);
+  if (query.validity) params.set("validity", query.validity);
+  if (query.search) params.set("search", query.search);
+  return requestApi<ProfessionalQuotationPage>(
+    `/api/v1/professional/quotations?${params.toString()}`,
     { signal },
   );
 }

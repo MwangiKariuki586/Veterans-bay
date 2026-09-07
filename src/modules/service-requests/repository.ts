@@ -146,9 +146,14 @@ export interface ServiceRequestsStore {
   listProfessional(input: {
     organisationId: string;
     status?: ServiceRequestStatus;
+    bucket?: import("./types").ProfessionalEnquiryBucket;
+    category?: string;
+    urgency?: import("./types").ServiceRequestUrgency;
+    search?: string;
+    sort: import("./types").ProfessionalEnquirySort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<ServiceRequestRecord>>;
+  }): Promise<PageResult<ServiceRequestRecord> & { summary: import("./types").ProfessionalEnquirySummary; categories: string[] }>;
   getProfessional(
     organisationId: string,
     requestId: string,
@@ -348,30 +353,93 @@ export class ServiceRequestsRepository implements ServiceRequestsStore {
   async listProfessional(input: {
     organisationId: string;
     status?: ServiceRequestStatus;
+    bucket?: import("./types").ProfessionalEnquiryBucket;
+    category?: string;
+    urgency?: import("./types").ServiceRequestUrgency;
+    search?: string;
+    sort: import("./types").ProfessionalEnquirySort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<ServiceRequestRecord>> {
-    const filters = [
+  }): Promise<PageResult<ServiceRequestRecord> & { summary: import("./types").ProfessionalEnquirySummary; categories: string[] }> {
+    const bucketStatuses: Record<import("./types").ProfessionalEnquiryBucket, ServiceRequestStatus[]> = {
+      all: [],
+      new: ["SUBMITTED"],
+      "in-review": ["UNDER_REVIEW"],
+      "awaiting-info": ["MORE_INFORMATION_REQUIRED", "ASSESSMENT_REQUIRED"],
+      converted: ["QUOTED", "CONVERTED"],
+      closed: ["DECLINED", "CANCELLED", "EXPIRED"],
+    };
+    const bucketFilter = input.bucket && input.bucket !== "all" ? inArray(serviceRequests.status, bucketStatuses[input.bucket]) : undefined;
+    const baseFilters = [
       eq(serviceRequests.organisationId, input.organisationId),
-      notInArray(serviceRequests.status, ["DRAFT"]),
+      notInArray(serviceRequests.status, ["DRAFT"] as ServiceRequestStatus[]),
       ...(input.status ? [eq(serviceRequests.status, input.status)] : []),
+      ...(bucketFilter ? [bucketFilter] : []),
+      ...(input.category ? [eq(serviceRequests.category, input.category)] : []),
+      ...(input.urgency ? [eq(serviceRequests.urgency, input.urgency)] : []),
+      ...(input.search
+        ? [
+            or(
+              ilike(serviceRequests.description, `%${input.search}%`),
+              ilike(serviceRequests.category, `%${input.search}%`),
+              ilike(serviceRequests.location, `%${input.search}%`),
+            )!,
+          ]
+        : []),
     ];
-    const [items, [{ total }]] = await Promise.all([
+    const orderBy = {
+      updated_desc: [desc(serviceRequests.updatedAt), desc(serviceRequests.id)],
+      updated_asc: [asc(serviceRequests.updatedAt), asc(serviceRequests.id)],
+      category_asc: [asc(serviceRequests.category), desc(serviceRequests.updatedAt)],
+      category_desc: [desc(serviceRequests.category), desc(serviceRequests.updatedAt)],
+      status_asc: [asc(serviceRequests.status), desc(serviceRequests.updatedAt)],
+      status_desc: [desc(serviceRequests.status), desc(serviceRequests.updatedAt)],
+    }[input.sort];
+    const [items, [{ total }], statusTotals, urgentTotals, categoryRows] = await Promise.all([
       this.selectBase()
-        .where(and(...filters))
-        .orderBy(desc(serviceRequests.updatedAt), desc(serviceRequests.id))
+        .where(and(...baseFilters))
+        .orderBy(...orderBy)
         .limit(input.pageSize)
         .offset(paginationOffset(input)),
       this.db
         .select({ total: count() })
         .from(serviceRequests)
-        .where(and(...filters)),
+        .where(and(...baseFilters)),
+      this.db
+        .select({ status: serviceRequests.status, total: count() })
+        .from(serviceRequests)
+        .where(and(eq(serviceRequests.organisationId, input.organisationId), notInArray(serviceRequests.status, ["DRAFT"] as ServiceRequestStatus[])))
+        .groupBy(serviceRequests.status),
+      this.db
+        .select({ total: count() })
+        .from(serviceRequests)
+        .where(and(eq(serviceRequests.organisationId, input.organisationId), notInArray(serviceRequests.status, ["DRAFT"] as ServiceRequestStatus[]), eq(serviceRequests.urgency, "URGENT"))),
+      this.db
+        .select({ category: serviceRequests.category })
+        .from(serviceRequests)
+        .where(and(eq(serviceRequests.organisationId, input.organisationId), notInArray(serviceRequests.status, ["DRAFT"] as ServiceRequestStatus[]), isNotNull(serviceRequests.category)))
+        .groupBy(serviceRequests.category)
+        .orderBy(asc(serviceRequests.category)),
     ]);
-    return buildPageResult(
-      items.map((item) => this.mapRecord(item)),
-      total,
-      input,
-    );
+    const totals = new Map(statusTotals.map((row) => [row.status, row.total]));
+    const sum = (statuses: ServiceRequestStatus[]) => statuses.reduce((acc, s) => acc + (totals.get(s) ?? 0), 0);
+    return {
+      ...buildPageResult(
+        items.map((item) => this.mapRecord(item)),
+        total,
+        input,
+      ),
+      summary: {
+        total: sum(["SUBMITTED", "UNDER_REVIEW", "MORE_INFORMATION_REQUIRED", "ASSESSMENT_REQUIRED", "QUOTED", "CONVERTED", "DECLINED", "CANCELLED", "EXPIRED"]),
+        newEnquiries: sum(["SUBMITTED"]),
+        awaitingReview: sum(["UNDER_REVIEW"]),
+        needsInfo: sum(["MORE_INFORMATION_REQUIRED", "ASSESSMENT_REQUIRED"]),
+        converted: sum(["QUOTED", "CONVERTED"]),
+        closed: sum(["DECLINED", "CANCELLED", "EXPIRED"]),
+        urgent: urgentTotals[0]?.total ?? 0,
+      },
+      categories: categoryRows.flatMap((row) => row.category ? [row.category] : []),
+    };
   }
 
   async getProfessional(

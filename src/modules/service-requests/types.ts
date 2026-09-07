@@ -109,3 +109,29 @@ export interface ServiceRequestProfessionalOption {
   name: string;
   categories: string[];
 }
+
+export type ProfessionalEnquiryBucket =
+  | "all"
+  | "new"
+  | "in-review"
+  | "awaiting-info"
+  | "converted"
+  | "closed";
+
+export type ProfessionalEnquirySort =
+  | "updated_desc"
+  | "updated_asc"
+  | "category_asc"
+  | "category_desc"
+  | "status_asc"
+  | "status_desc";
+
+export interface ProfessionalEnquirySummary {
+  total: number;
+  newEnquiries: number;
+  awaitingReview: number;
+  needsInfo: number;
+  converted: number;
+  closed: number;
+  urgent: number;
+}

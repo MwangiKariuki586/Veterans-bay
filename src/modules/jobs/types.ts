@@ -17,6 +17,16 @@ export const jobStatuses = [
 export type JobStatus = (typeof jobStatuses)[number];
 export type JobAudience = "client" | "professional";
 export type JobPage = PageResult<JobSummary>;
+export type ProfessionalJobBucket = "all" | "scheduled" | "in-progress" | "awaiting-confirmation" | "completed" | "needs-attention";
+export type ProfessionalJobSort = "updated_desc" | "updated_asc" | "scheduled_desc" | "scheduled_asc" | "total_desc" | "total_asc";
+export interface ProfessionalJobSummary {
+  total: number;
+  scheduledToday: number;
+  inProgress: number;
+  awaitingConfirmation: number;
+  needsAttention: number;
+  completed: number;
+}
 
 export interface JobSummary {
   id: string;

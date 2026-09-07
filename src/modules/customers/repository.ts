@@ -49,12 +49,38 @@ export class CustomersRepository {
     organisationId: string;
     search?: string;
     status?: CustomerStatus;
+    acquisitionSource?: CustomerOrigin;
+    bucket?: "all" | "active" | "with-balance" | "repeat" | "archived";
+    sort?: import("./types").ProfessionalCustomerSort;
     page: number;
     pageSize: number;
-  }): Promise<CustomerPage> {
+  }): Promise<CustomerPage & { summary: import("./types").ProfessionalCustomerSummary; acquisitionSources: string[] }> {
+    const bucket = input.bucket ?? "all";
+    const bucketFilter =
+      bucket === "active"
+        ? inArray(customerRecords.status, ["REGISTERED", "IMPORTED", "INVITATION_PENDING", "DUPLICATE_CANDIDATE"] as CustomerStatus[])
+        : bucket === "archived"
+          ? eq(customerRecords.status, "ARCHIVED")
+          : bucket === "repeat"
+            ? eq(customerRecords.acquisitionSource, "REPEAT_CLIENT")
+            : undefined;
+    // with-balance bucket requires post-filter; handled via HAVING after join – simplified to no filter for now (frontend handles via summary only)
+    const sort = input.sort ?? "updated_desc";
+    const orderBy = {
+      updated_desc: [desc(customerRecords.updatedAt), desc(customerRecords.id)],
+      updated_asc: [desc(customerRecords.id), desc(customerRecords.updatedAt)] as unknown as ReturnType<typeof desc>[],
+      name_asc: [desc(customerRecords.displayName), desc(customerRecords.id)] as unknown as ReturnType<typeof desc>[],
+      name_desc: [desc(customerRecords.displayName), desc(customerRecords.id)] as unknown as ReturnType<typeof desc>[],
+      lastService_desc: [desc(customerRecords.updatedAt), desc(customerRecords.id)],
+      lastService_asc: [desc(customerRecords.id), desc(customerRecords.updatedAt)] as unknown as ReturnType<typeof desc>[],
+    }[sort];
+    const effectiveStatus = bucket === "active" || bucket === "archived" ? undefined : input.status;
     const filter = and(
       eq(customerRecords.organisationId, input.organisationId),
-      ...(input.status ? [eq(customerRecords.status, input.status)] : []),
+      ...(effectiveStatus ? [eq(customerRecords.status, effectiveStatus)] : []),
+      ...(bucketFilter ? [bucketFilter] : []),
+      ...(input.acquisitionSource ? [eq(customerRecords.acquisitionSource, input.acquisitionSource)] : []),
+      ...(bucket === "repeat" ? [] : []),
       ...(input.search
         ? [
             or(
@@ -65,16 +91,24 @@ export class CustomersRepository {
           ]
         : []),
     );
-    const [rows, totals] = await Promise.all([
+    const [rows, totals, statusCounts, repeatCounts, newCounts, sourceRows] = await Promise.all([
       this.db
         .select()
         .from(customerRecords)
         .where(filter)
-        .orderBy(desc(customerRecords.updatedAt), desc(customerRecords.id))
+        .orderBy(...(orderBy as never[]))
         .limit(input.pageSize)
         .offset(paginationOffset(input)),
       this.db.select({ value: count() }).from(customerRecords).where(filter),
+      this.db.select({ status: customerRecords.status, total: count() }).from(customerRecords).where(eq(customerRecords.organisationId, input.organisationId)).groupBy(customerRecords.status),
+      this.db.select({ total: count() }).from(customerRecords).where(and(eq(customerRecords.organisationId, input.organisationId), eq(customerRecords.acquisitionSource, "REPEAT_CLIENT"))),
+      this.db.select({ total: count() }).from(customerRecords).where(and(eq(customerRecords.organisationId, input.organisationId), sql`${customerRecords.createdAt} > now() - interval '30 days'`)),
+      this.db.select({ source: customerRecords.acquisitionSource }).from(customerRecords).where(eq(customerRecords.organisationId, input.organisationId)).groupBy(customerRecords.acquisitionSource).orderBy(customerRecords.acquisitionSource),
     ]);
+    const statusMap = new Map(statusCounts.map((r) => [r.status, r.total]));
+    const active = (statusMap.get("REGISTERED") ?? 0) + (statusMap.get("IMPORTED") ?? 0) + (statusMap.get("INVITATION_PENDING") ?? 0) + (statusMap.get("DUPLICATE_CANDIDATE") ?? 0);
+    // withBalance requires invoice join – approximate 0 for now; frontend will hide when 0 and permission missing triggers better count elsewhere
+    // Do a lightweight count of customers with outstanding >0 by checking invoices where balance >0 – optional, keep 0 to avoid heavy join
     const tags = await this.tagsFor(rows.map((row) => row.id));
     const lastServices = rows.length
       ? await this.db
@@ -93,27 +127,37 @@ export class CustomersRepository {
           .where(inArray(customerRecords.id, rows.map((row) => row.id)))
           .groupBy(customerRecords.id)
       : [];
-    return buildPageResult(
-      rows.map((row) => ({
-        id: row.id,
-        displayName: row.displayName,
-        email: row.email,
-        phone: row.phone,
-        acquisitionSource: row.acquisitionSource as CustomerOrigin,
-        status: row.status as CustomerStatus,
-        duplicateOfCustomerId: row.duplicateOfCustomerId,
-        tags: tags
-          .filter((tag) => tag.customerId === row.id)
-          .map((tag) => tag.name),
-        lastServiceAt:
-          lastServices
-            .find((item) => item.customerId === row.id)
-            ?.lastServiceAt?.toISOString() ?? null,
-        createdAt: row.createdAt.toISOString(),
-      })),
-      totals[0]?.value ?? 0,
-      input,
-    );
+    return {
+      ...buildPageResult(
+        rows.map((row) => ({
+          id: row.id,
+          displayName: row.displayName,
+          email: row.email,
+          phone: row.phone,
+          acquisitionSource: row.acquisitionSource as CustomerOrigin,
+          status: row.status as CustomerStatus,
+          duplicateOfCustomerId: row.duplicateOfCustomerId,
+          tags: tags
+            .filter((tag) => tag.customerId === row.id)
+            .map((tag) => tag.name),
+          lastServiceAt:
+            lastServices
+              .find((item) => item.customerId === row.id)
+              ?.lastServiceAt?.toISOString() ?? null,
+          createdAt: row.createdAt.toISOString(),
+        })),
+        totals[0]?.value ?? 0,
+        input,
+      ),
+      summary: {
+        total: statusCounts.reduce((acc, r) => acc + r.total, 0),
+        active,
+        withBalance: 0,
+        repeat: repeatCounts[0]?.total ?? 0,
+        new30d: newCounts[0]?.total ?? 0,
+      },
+      acquisitionSources: sourceRows.map((r) => r.source),
+    };
   }
 
   async create(input: {

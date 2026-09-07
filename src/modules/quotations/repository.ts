@@ -61,9 +61,14 @@ export interface QuotationsStore {
   listProfessional(input: {
     organisationId: string;
     status?: QuotationStatus;
+    bucket?: import("./types").ProfessionalQuotationBucket;
+    category?: string;
+    search?: string;
+    validity?: import("./types").ClientQuotationValidity;
+    sort: import("./types").ProfessionalQuotationSort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<QuotationSummary>>;
+  }): Promise<PageResult<QuotationSummary> & { summary: import("./types").ProfessionalQuotationSummary; categories: string[] }>;
   listClient(input: {
     clientAccountId: string;
     status?: QuotationStatus;
@@ -141,13 +146,180 @@ export class QuotationsRepository implements QuotationsStore {
   async listProfessional(input: {
     organisationId: string;
     status?: QuotationStatus;
+    bucket?: import("./types").ProfessionalQuotationBucket;
+    category?: string;
+    search?: string;
+    validity?: import("./types").ClientQuotationValidity;
+    sort: import("./types").ProfessionalQuotationSort;
     page: number;
     pageSize: number;
-  }): Promise<PageResult<QuotationSummary>> {
-    return this.list({
-      scope: eq(quotations.organisationId, input.organisationId),
-      ...input,
-    });
+  }): Promise<PageResult<QuotationSummary> & { summary: import("./types").ProfessionalQuotationSummary; categories: string[] }> {
+    const professionalBuckets: Record<import("./types").ProfessionalQuotationBucket, QuotationStatus[]> = {
+      all: [],
+      drafts: ["DRAFT"],
+      "awaiting-decision": ["SUBMITTED", "VIEWED"],
+      "in-revision": ["REVISION_REQUESTED"],
+      accepted: ["ACCEPTED"],
+      closed: ["DECLINED", "REPLACED", "EXPIRED", "CANCELLED"],
+    };
+    const now = new Date();
+    const expiringAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1_000);
+    const validityFilter = input.validity === "valid"
+      ? gt(quotationVersions.validUntil, now)
+      : input.validity === "expiring"
+        ? and(
+            inArray(quotations.status, professionalBuckets["awaiting-decision"]),
+            gt(quotationVersions.validUntil, now),
+            lte(quotationVersions.validUntil, expiringAt),
+          )
+        : input.validity === "expired"
+          ? or(
+              eq(quotations.status, "EXPIRED"),
+              lt(quotationVersions.validUntil, now),
+            )
+          : undefined;
+    const awaitingDecisionFilter = and(
+      inArray(quotations.status, professionalBuckets["awaiting-decision"]),
+      gt(quotationVersions.validUntil, now),
+    )!;
+    const bucket = input.bucket ?? "all";
+    const bucketFilter = bucket === "all"
+      ? undefined
+      : bucket === "awaiting-decision"
+        ? awaitingDecisionFilter
+        : bucket === "closed"
+          ? or(
+              inArray(quotations.status, professionalBuckets.closed),
+              and(
+                inArray(quotations.status, professionalBuckets["awaiting-decision"]),
+                lte(quotationVersions.validUntil, now),
+              ),
+            )!
+          : inArray(quotations.status, professionalBuckets[bucket]);
+    const filters = [
+      eq(quotations.organisationId, input.organisationId),
+      ...(input.status ? [eq(quotations.status, input.status)] : []),
+      ...(bucketFilter ? [bucketFilter] : []),
+      ...(input.category ? [eq(serviceRequests.category, input.category)] : []),
+      ...(input.search
+        ? [
+            or(
+              ilike(serviceRequests.category, `%${input.search}%`),
+              ilike(accountProfiles.displayName, `%${input.search}%`),
+              ilike(organisations.name, `%${input.search}%`),
+            )!,
+          ]
+        : []),
+      ...(validityFilter ? [validityFilter] : []),
+    ];
+    const orderBy = {
+      updated_desc: [desc(quotations.updatedAt), desc(quotations.id)],
+      updated_asc: [asc(quotations.updatedAt), asc(quotations.id)],
+      total_desc: [desc(quotationVersions.totalMinor), desc(quotations.updatedAt)],
+      total_asc: [asc(quotationVersions.totalMinor), desc(quotations.updatedAt)],
+      valid_until_desc: [desc(quotationVersions.validUntil), desc(quotations.updatedAt)],
+      valid_until_asc: [asc(quotationVersions.validUntil), desc(quotations.updatedAt)],
+    }[input.sort];
+    const joined = () => this.db
+      .select(summarySelection)
+      .from(quotations)
+      .innerJoin(
+        quotationVersions,
+        and(
+          eq(quotationVersions.quotationId, quotations.id),
+          eq(quotationVersions.versionNumber, quotations.currentVersionNumber),
+        ),
+      )
+      .innerJoin(serviceRequests, eq(serviceRequests.id, quotations.requestId))
+      .innerJoin(organisations, eq(organisations.id, quotations.organisationId))
+      .innerJoin(accountProfiles, eq(accountProfiles.id, quotations.clientAccountId));
+    const [rows, [{ totalItems }], statusTotals, [{ expiringSoon }], [{ expiredAwaiting }], categoryRows] = await Promise.all([
+      joined()
+        .where(and(...filters))
+        .orderBy(...orderBy)
+        .limit(input.pageSize)
+        .offset(paginationOffset(input)),
+      this.db
+        .select({ totalItems: count() })
+        .from(quotations)
+        .innerJoin(
+          quotationVersions,
+          and(
+            eq(quotationVersions.quotationId, quotations.id),
+            eq(quotationVersions.versionNumber, quotations.currentVersionNumber),
+          ),
+        )
+        .innerJoin(serviceRequests, eq(serviceRequests.id, quotations.requestId))
+        .innerJoin(organisations, eq(organisations.id, quotations.organisationId))
+        .where(and(...filters)),
+      this.db
+        .select({ status: quotations.status, total: count() })
+        .from(quotations)
+        .where(eq(quotations.organisationId, input.organisationId))
+        .groupBy(quotations.status),
+      this.db
+        .select({ expiringSoon: count() })
+        .from(quotations)
+        .innerJoin(
+          quotationVersions,
+          and(
+            eq(quotationVersions.quotationId, quotations.id),
+            eq(quotationVersions.versionNumber, quotations.currentVersionNumber),
+          ),
+        )
+        .where(and(
+          eq(quotations.organisationId, input.organisationId),
+          inArray(quotations.status, professionalBuckets["awaiting-decision"]),
+          gt(quotationVersions.validUntil, now),
+          lte(quotationVersions.validUntil, expiringAt),
+        )),
+      this.db
+        .select({ expiredAwaiting: count() })
+        .from(quotations)
+        .innerJoin(
+          quotationVersions,
+          and(
+            eq(quotationVersions.quotationId, quotations.id),
+            eq(quotationVersions.versionNumber, quotations.currentVersionNumber),
+          ),
+        )
+        .where(and(
+          eq(quotations.organisationId, input.organisationId),
+          inArray(quotations.status, professionalBuckets["awaiting-decision"]),
+          lte(quotationVersions.validUntil, now),
+        )),
+      this.db
+        .select({ category: serviceRequests.category })
+        .from(quotations)
+        .innerJoin(serviceRequests, eq(serviceRequests.id, quotations.requestId))
+        .where(and(
+          eq(quotations.organisationId, input.organisationId),
+          isNotNull(serviceRequests.category),
+        ))
+        .groupBy(serviceRequests.category)
+        .orderBy(asc(serviceRequests.category)),
+    ]);
+    const totals = new Map(statusTotals.map((row) => [row.status, row.total]));
+    const sum = (statuses: readonly QuotationStatus[]) => statuses.reduce((acc, s) => acc + (totals.get(s) ?? 0), 0);
+    const drafts = sum(professionalBuckets.drafts);
+    const awaitingDecision = sum(professionalBuckets["awaiting-decision"]) - expiredAwaiting;
+    const inRevision = sum(professionalBuckets["in-revision"]);
+    const accepted = sum(professionalBuckets.accepted);
+    const closed = sum(professionalBuckets.closed) + expiredAwaiting;
+    const total = drafts + awaitingDecision + inRevision + accepted + closed;
+    return {
+      ...buildPageResult(rows.map(mapSummary), totalItems, input),
+      summary: {
+        total,
+        drafts,
+        awaitingDecision,
+        accepted,
+        expiringSoon,
+        inRevision,
+        closed,
+      },
+      categories: categoryRows.flatMap((row) => row.category ? [row.category] : []),
+    };
   }
 
   async listClient(input: {

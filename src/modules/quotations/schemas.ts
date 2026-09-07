@@ -96,6 +96,29 @@ export const quotationListQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(50).default(10),
 });
 
+export const professionalQuotationListQuerySchema = z.object({
+  status: z.enum(quotationStatuses).optional(),
+  bucket: z
+    .enum(["all", "drafts", "awaiting-decision", "in-revision", "accepted", "closed"])
+    .optional()
+    .default("all"),
+  category: z.string().trim().min(1).max(120).optional(),
+  search: z.string().trim().min(1).max(120).optional(),
+  validity: z.enum(["valid", "expiring", "expired"]).optional(),
+  sort: z
+    .enum([
+      "updated_desc",
+      "updated_asc",
+      "total_desc",
+      "total_asc",
+      "valid_until_desc",
+      "valid_until_asc",
+    ])
+    .default("updated_desc"),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(10),
+});
+
 export const quotationComparisonQuerySchema = z.object({
   fromVersion: z.coerce.number().int().positive(),
   toVersion: z.coerce.number().int().positive(),

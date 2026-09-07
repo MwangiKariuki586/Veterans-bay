@@ -1,7 +1,5 @@
-import { PaymentList } from "@/components/invoices/payment-list";
+import { redirect } from "next/navigation";
 
 export default function ProfessionalPaymentsPage() {
-  return (
-    <PaymentList />
-  );
+  redirect("/professional/invoices");
 }
