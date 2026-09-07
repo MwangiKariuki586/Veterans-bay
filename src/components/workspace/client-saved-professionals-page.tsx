@@ -354,11 +354,7 @@ export function ClientSavedProfessionalsPage() {
 
   const stats = useMemo(() => {
     const isIllustrativeProfessionals = hasData && (savedProfessionals?.length ?? 0) === 0 && !error;
-    const professionalsCount = isLoading
-      ? 12
-      : isIllustrativeProfessionals
-        ? 12
-        : professionals.length;
+    const professionalsCount = isIllustrativeProfessionals ? 12 : professionals.length;
     const servicesCount = 18;
     const readyCount = 5;
     const recentlyAdded = 6;
@@ -369,13 +365,7 @@ export function ClientSavedProfessionalsPage() {
       readyCount,
       recentlyAdded,
     };
-  }, [
-    isLoading,
-    savedProfessionals?.length,
-    professionals.length,
-    hasData,
-    error,
-  ]);
+  }, [savedProfessionals?.length, professionals.length, hasData, error]);
 
   type Unified =
     | {
@@ -519,9 +509,13 @@ export function ClientSavedProfessionalsPage() {
               <span className="block text-xs font-semibold leading-4 text-foreground">
                 Saved professionals
               </span>
-              <span className="block text-2xl font-semibold leading-7 tracking-tight text-foreground numeric-tabular">
-                {stats.professionalsCount}
-              </span>
+              {isLoading ? (
+                <Skeleton className="mt-1 h-7 w-16 rounded-md" aria-label="Loading saved professionals" role="status" />
+              ) : (
+                <span className="block text-2xl font-semibold leading-7 tracking-tight text-foreground numeric-tabular">
+                  {stats.professionalsCount}
+                </span>
+              )}
             </span>
           </div>
           <p className="mt-3 text-[11px] leading-4 text-[#68717b]">
@@ -537,9 +531,13 @@ export function ClientSavedProfessionalsPage() {
               <span className="block text-xs font-semibold leading-4 text-foreground">
                 Saved services
               </span>
-              <span className="block text-2xl font-semibold leading-7 tracking-tight text-foreground numeric-tabular">
-                {stats.servicesCount}
-              </span>
+              {isLoading ? (
+                <Skeleton className="mt-1 h-7 w-16 rounded-md" aria-label="Loading saved services" role="status" />
+              ) : (
+                <span className="block text-2xl font-semibold leading-7 tracking-tight text-foreground numeric-tabular">
+                  {stats.servicesCount}
+                </span>
+              )}
             </span>
           </div>
           <p className="mt-3 text-[11px] leading-4 text-[#68717b]">
@@ -555,9 +553,13 @@ export function ClientSavedProfessionalsPage() {
               <span className="block text-xs font-semibold leading-4 text-foreground">
                 Ready to book
               </span>
-              <span className="block text-2xl font-semibold leading-7 tracking-tight text-foreground numeric-tabular">
-                {stats.readyCount}
-              </span>
+              {isLoading ? (
+                <Skeleton className="mt-1 h-7 w-12 rounded-md" aria-label="Loading ready to book" role="status" />
+              ) : (
+                <span className="block text-2xl font-semibold leading-7 tracking-tight text-foreground numeric-tabular">
+                  {stats.readyCount}
+                </span>
+              )}
             </span>
           </div>
           <p className="mt-3 text-[11px] leading-4 text-[#68717b]">
@@ -573,9 +575,13 @@ export function ClientSavedProfessionalsPage() {
               <span className="block text-xs font-semibold leading-4 text-foreground">
                 Recently added
               </span>
-              <span className="block text-2xl font-semibold leading-7 tracking-tight text-foreground numeric-tabular">
-                {stats.recentlyAdded}
-              </span>
+              {isLoading ? (
+                <Skeleton className="mt-1 h-7 w-12 rounded-md" aria-label="Loading recently added" role="status" />
+              ) : (
+                <span className="block text-2xl font-semibold leading-7 tracking-tight text-foreground numeric-tabular">
+                  {stats.recentlyAdded}
+                </span>
+              )}
             </span>
           </div>
           <p className="mt-3 text-[11px] leading-4 text-[#68717b]">

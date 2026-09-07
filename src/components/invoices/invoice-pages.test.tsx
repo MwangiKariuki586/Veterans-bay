@@ -200,10 +200,10 @@ describe("invoice workspaces", () => {
 
     const drawer = await screen.findByRole("dialog");
     expect(
-      await within(drawer).findByText("1. Financial summary"),
+      await within(drawer).findByText(/1\. Financial summary/),
     ).toBeInTheDocument();
-    expect(within(drawer).getByText("3. Line items")).toBeInTheDocument();
-    expect(within(drawer).getByText("4. Payment history")).toBeInTheDocument();
+    expect(within(drawer).getByText(/3\. Line items/)).toBeInTheDocument();
+    expect(within(drawer).getByText(/4\. Payment history/)).toBeInTheDocument();
     expect(within(drawer).getByText("5. Timeline / status")).toBeInTheDocument();
     expect(within(drawer).getByText(/does not confirm or process/i)).toBeInTheDocument();
     expect(within(drawer).getByRole("link", { name: /Download invoice/i })).toHaveAttribute(
