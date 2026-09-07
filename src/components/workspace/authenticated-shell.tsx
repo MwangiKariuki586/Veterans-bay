@@ -251,7 +251,7 @@ export function AuthenticatedShell({
   }, [isPending, kind, queryClient, router, sessionUserId]);
 
   const shell = (
-    <WorkspaceShellContext.Provider value={{ workspaceLabel, workspaceId, userId: sessionUserId ?? null }}>
+    <>
       <div className="shrink-0 border-b border-black/8 px-4 py-3 sm:px-6 lg:h-[92px] lg:px-8 lg:py-[18px]">
         <SiteHeader
           variant="workspace"
@@ -307,7 +307,7 @@ export function AuthenticatedShell({
           )}
         </main>
       </div>
-    </WorkspaceShellContext.Provider>
+    </>
   );
 
   const content = kind === "professional" ? (
@@ -325,7 +325,9 @@ export function AuthenticatedShell({
   return (
     <div className={`${pageBackdropSurfaceClass} fixed inset-0 overflow-hidden`}>
       <div className="flex h-full w-full min-w-0 flex-col overflow-hidden bg-white">
-        {content}
+        <WorkspaceShellContext.Provider value={{ workspaceLabel, workspaceId, userId: sessionUserId ?? null }}>
+          {content}
+        </WorkspaceShellContext.Provider>
       </div>
     </div>
   );

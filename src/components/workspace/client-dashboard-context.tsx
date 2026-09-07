@@ -23,8 +23,6 @@ interface ClientDashboardContextValue {
   error: string | null;
   loading: boolean;
   isFetching: boolean;
-  range: ClientDashboardRangeKey;
-  setRange: (range: ClientDashboardRangeKey) => void;
   refresh: () => void;
 }
 
@@ -60,23 +58,21 @@ async function fetchDashboard(range: ClientDashboardRangeKey, signal?: AbortSign
 }
 
 export function ClientDashboardProvider({ children, enabled = true }: { children: ReactNode; enabled?: boolean }) {
-  const [range, setRangeState] = useState<ClientDashboardRangeKey>("month");
+  const queryClient = useOptionalQueryClient();
+  if (!queryClient) {
+    return <ClientDashboardContext.Provider value={{ data: null, error: null, loading: false, isFetching: false, refresh: () => {} }}>{children}</ClientDashboardContext.Provider>;
+  }
+  return <ClientDashboardQueryProvider enabled={enabled}>{children}</ClientDashboardQueryProvider>;
+}
+
+function ClientDashboardQueryProvider({ children, enabled }: { children: ReactNode; enabled: boolean }) {
+  const range = "month";
   const { workspaceId } = useWorkspaceShell();
   const { data: session } = authClient.useSession();
   const userId = session?.user.id ?? null;
   const scope = useMemo(() => (userId && workspaceId ? { userId, workspaceId } : null), [userId, workspaceId]);
   const scopeEnabled = enabled && Boolean(scope);
-  const queryClient = useOptionalQueryClient();
-
-  const setRange = useCallback((next: ClientDashboardRangeKey) => {
-    setRangeState(next);
-  }, []);
-
-  if (!queryClient) {
-    const refreshFallback = () => {};
-    const fallbackValue = { data: null, error: null, loading: false, isFetching: false, range, setRange, refresh: refreshFallback };
-    return <ClientDashboardContext.Provider value={fallbackValue as unknown as ClientDashboardContextValue}>{children}</ClientDashboardContext.Provider>;
-  }
+  const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: scope ? clientOverviewKeys.dashboard(scope, range) : (["client-overview", "dashboard", range] as unknown[]),
@@ -101,27 +97,44 @@ export function ClientDashboardProvider({ children, enabled = true }: { children
 
   const data = (query.data as ClientDashboardData | undefined) ?? null;
   const error = query.error ? (query.error instanceof Error ? query.error.message : "Dashboard data could not be loaded.") : null;
-  // Preserve skeleton when scope not yet resolved or no cached data for that range
-  // During background refresh, keep cached data visible (loading false)
-  const loading = !scope ? !data : query.isPending && !data;
-  // Also consider initial enabled false with no data => show skeleton
+  // Keep cached dashboard content visible during background refreshes.
   const isFetching = query.isFetching;
-
-  // If scope not enabled yet, we still want loading true to show skeletons (initial visit)
-  // query.isPending will be false when disabled, so we override
-  const finalLoading = !scopeEnabled ? !data : loading;
-  // When disabled due to scope, data is null, so loading true -> skeleton
+  const finalLoading = !data && (!scopeEnabled || query.isPending);
 
   const value = useMemo(
-    () => ({ data, error, loading: finalLoading, isFetching, range, setRange, refresh }),
-    [data, error, finalLoading, isFetching, range, setRange, refresh],
+    () => ({ data, error, loading: finalLoading, isFetching, refresh }),
+    [data, error, finalLoading, isFetching, refresh],
   );
 
   // Provide even when disabled to avoid null context
-  return <ClientDashboardContext.Provider value={value as ClientDashboardContextValue}>{children}</ClientDashboardContext.Provider>;
+  return <ClientDashboardContext.Provider value={value}>{children}</ClientDashboardContext.Provider>;
 }
 
 export function useClientDashboard() {
   const ctx = useContext(ClientDashboardContext);
   return ctx;
+}
+
+// Duration changes belong to the spending card, not the dashboard-wide observer.
+export function useClientSpending() {
+  const [range, setRange] = useState<ClientDashboardRangeKey>("month");
+  const { workspaceId, userId } = useWorkspaceShell();
+  const scope = userId && workspaceId ? { userId, workspaceId } : null;
+  const query = useQuery({
+    queryKey: scope ? clientOverviewKeys.dashboard(scope, range) : ["client-overview", "spending", range],
+    queryFn: ({ signal }) => fetchDashboard(range, signal),
+    select: (data) => data.spending,
+    enabled: Boolean(scope),
+    staleTime: CLIENT_OVERVIEW_STALE_MS,
+    gcTime: CLIENT_OVERVIEW_GC_MS,
+    retry: 2,
+  });
+  return {
+    data: query.data,
+    loading: query.isPending,
+    error: query.error?.message ?? null,
+    range,
+    setRange,
+    refresh: () => { void query.refetch(); },
+  };
 }

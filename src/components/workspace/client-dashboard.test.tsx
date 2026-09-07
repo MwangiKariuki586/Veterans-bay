@@ -93,8 +93,11 @@ const mockData: ClientDashboardData = {
 };
 let dashboardData: ClientDashboardData | null = mockData;
 let dashboardLoading = false;
+let spendingLoading = false;
+let spendingError: string | null = null;
 
 vi.mock("@/components/workspace/client-dashboard-context", () => ({
+  useClientSpending: () => ({ data: spendingLoading || spendingError ? undefined : dashboardData?.spending, loading: spendingLoading, error: spendingError, range: "month" as const, setRange, refresh }),
   useClientDashboard: () => ({ data: dashboardData, loading: dashboardLoading, error: null, range: "month" as const, setRange, refresh }),
 }));
 
@@ -104,6 +107,28 @@ describe("client dashboard", () => {
   beforeEach(() => {
     dashboardData = mockData;
     dashboardLoading = false;
+    spendingLoading = false;
+    spendingError = null;
+  });
+
+  it("keeps unrelated cards and the period control mounted during spending loading and failure", () => {
+    const { rerender } = render(<ClientDashboard />);
+    const action = screen.getByText("Review 3 quotations");
+    const period = screen.getByRole("combobox", { name: "Spending period" });
+    period.focus();
+    spendingLoading = true;
+    rerender(<ClientDashboard />);
+    expect(screen.getByRole("status", { name: "Loading spending activity" })).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Loading open requests" })).not.toBeInTheDocument();
+    expect(screen.getByText("Review 3 quotations")).toBe(action);
+    expect(period).toHaveFocus();
+    spendingLoading = false;
+    spendingError = "Spending could not be loaded.";
+    rerender(<ClientDashboard />);
+    expect(screen.getByRole("alert")).toHaveTextContent(spendingError);
+    expect(screen.getByText("Review 3 quotations")).toBe(action);
+    expect(screen.getByRole("combobox", { name: "Spending period" })).toBe(period);
+    expect(screen.queryByText("Dashboard unavailable")).not.toBeInTheDocument();
   });
 
   it("shows real card labels and actions while live data is loading", () => {

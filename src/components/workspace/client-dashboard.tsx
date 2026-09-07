@@ -40,7 +40,7 @@ import { StatePanel } from "@/components/ui/state-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Surface } from "@/components/ui/surface";
 import { useWorkspaceShell } from "@/components/workspace/authenticated-shell";
-import { useClientDashboard } from "@/components/workspace/client-dashboard-context";
+import { useClientDashboard, useClientSpending } from "@/components/workspace/client-dashboard-context";
 import { WorkspaceMetricCard } from "@/components/workspace/workspace-metric-card";
 import { cn } from "@/lib/utils";
 import type { ClientDashboardData } from "@/modules/dashboards/types";
@@ -227,11 +227,7 @@ export function ClientDashboard() {
       {/* Second row: Action centre + Spending + Professionals */}
       <div className="grid items-stretch gap-3 xl:grid-cols-[360px_minmax(0,1fr)_340px]">
         {data ? <ActionCentreCard items={data.actionCentre} /> : <DashboardSectionSkeleton title="Action centre" href="/client/bookings?stage=active" />}
-        {data && dashboard ? <SpendingCard
-          data={data}
-          range={dashboard.range}
-          onRangeChange={dashboard.setRange}
-        /> : <DashboardSectionSkeleton title="Spending & service activity" variant="chart" />}
+        {data ? <SpendingCard /> : <DashboardSectionSkeleton title="Spending & service activity" variant="chart" />}
         {data ? <ProfessionalsCard professionals={data.professionals} /> : <DashboardSectionSkeleton title="Your professionals" href="/client/saved" />}
       </div>
 
@@ -425,16 +421,58 @@ function ActionCentreCard({
   );
 }
 
-function SpendingCard({
-  data,
-  range,
-  onRangeChange,
-}: {
-  data: ClientDashboardData;
-  range: "month" | "30-days" | "quarter";
-  onRangeChange: (r: "month" | "30-days" | "quarter") => void;
-}) {
-  const s = data.spending;
+function SpendingCard() {
+  const { data: s, range, setRange: onRangeChange, loading, error, refresh } = useClientSpending();
+  return (
+    <Surface className="flex h-full min-h-[236px] min-w-0 flex-col rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="type-section-title">Spending & service activity</h2>
+        <select value={range} onChange={(e) => onRangeChange(e.target.value as typeof range)} aria-label="Spending period" className="h-8 rounded-full border border-black/8 bg-white px-3 type-caption font-medium">
+          <option value="month">This month</option>
+          <option value="30-days">Last 30 days</option>
+          <option value="quarter">This quarter</option>
+        </select>
+      </div>
+      {error ? <div role="alert" className="mt-3 text-sm">{error} <button type="button" onClick={refresh} className="font-semibold text-trust">Try again</button></div> : null}
+      {loading ? <div role="status" aria-label="Loading spending activity" aria-busy="true"><SpendingContentSkeleton /></div> : s ? <SpendingContent s={s} /> : null}
+    </Surface>
+  );
+}
+
+function SpendingContentSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className="mt-2.5 grid grid-cols-2 gap-3 border-b border-black/5 pb-2.5 sm:grid-cols-4">
+        {["Spend this month", "Outstanding", "Upcoming booking", "Avg. service cost"].map((label) => (
+          <div key={label} className="min-w-0">
+            <p className="type-caption font-medium text-muted-foreground">{label}</p>
+            <Skeleton className="mt-1 h-5 w-3/4 max-w-24 rounded-md" />
+            <Skeleton className="mt-1 h-2.5 w-4/5 max-w-28 rounded-full" />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1.5 grid h-[118px] grid-cols-[36px_minmax(0,1fr)] grid-rows-[1fr_20px] gap-x-1 pt-2">
+        <div className="flex flex-col justify-between pb-1">
+          {[0, 1, 2].map((tick) => <Skeleton key={tick} className="h-2 w-6 rounded-full" />)}
+        </div>
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 flex flex-col justify-between pb-1">
+            {[0, 1, 2].map((line) => <div key={line} className="border-t border-dashed border-black/5" />)}
+          </div>
+          <svg viewBox="0 0 400 90" preserveAspectRatio="none" className="relative h-full w-full animate-pulse motion-reduce:animate-none text-muted">
+            <path d="M0 70 C35 70 40 40 75 45 S125 75 155 50 S210 60 245 32 S300 50 330 25 S375 35 400 12 L400 90 L0 90 Z" fill="currentColor" opacity="0.5" />
+            <path d="M0 70 C35 70 40 40 75 45 S125 75 155 50 S210 60 245 32 S300 50 330 25 S375 35 400 12" fill="none" stroke="currentColor" strokeWidth="2" />
+          </svg>
+        </div>
+        <div className="col-start-2 flex items-end justify-between pb-1">
+          {[0, 1, 2, 3].map((tick) => <Skeleton key={tick} className="h-2 w-9 rounded-full" />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SpendingContent({ s }: { s: ClientDashboardData["spending"] }) {
   const currentVsPrev =
     s.previousMonthMinor === 0
       ? s.currentMonthMinor > 0
@@ -456,20 +494,7 @@ function SpendingCard({
             100,
         );
   return (
-    <Surface className="flex h-full min-h-[236px] min-w-0 flex-col rounded-[16px] p-3 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="type-section-title">Spending & service activity</h2>
-        <select
-          value={range}
-          onChange={(e) => onRangeChange(e.target.value as typeof range)}
-          aria-label="Spending period"
-          className="h-8 rounded-full border border-black/8 bg-white px-3 type-caption font-medium"
-        >
-          <option value="month">This month</option>
-          <option value="30-days">Last 30 days</option>
-          <option value="quarter">This quarter</option>
-        </select>
-      </div>
+    <>
       <div className="mt-2.5 grid grid-cols-2 gap-3 border-b border-black/5 pb-2.5 sm:grid-cols-4">
         <SpendingMetric
           label="Spend this month"
@@ -578,7 +603,7 @@ function SpendingCard({
           </div>
         )}
       </div>
-    </Surface>
+    </>
   );
 }
 
@@ -1140,21 +1165,7 @@ function DashboardSectionSkeleton({
             </div>
           </div>
         ) : variant === "chart" ? (
-          <>
-            <div className="grid grid-cols-4 gap-3">
-              {Array.from({ length: 4 }, (_, index) => (
-                <div key={index}>
-                  <Skeleton className="h-3 w-full rounded-full" />
-                  <Skeleton className="mt-2 h-5 w-2/3 rounded-md" />
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 flex h-28 items-end gap-3 border-b border-black/8">
-              {[45, 65, 50, 80, 60, 90, 70].map((height, index) => (
-                <Skeleton key={index} className="flex-1 rounded-t-md" style={{ height: `${height}%` }} />
-              ))}
-            </div>
-          </>
+          <SpendingContentSkeleton />
         ) : (
           <div className={variant === "services" ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-4" : "grid gap-4"}>
             {Array.from({ length: variant === "services" ? 4 : 3 }, (_, index) => (

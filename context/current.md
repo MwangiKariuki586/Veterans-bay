@@ -24,6 +24,12 @@ Feature 05.07 — Production Readiness and Deployment
 
 ## Local Work
 
+`VERIFICATION PENDING` - Spending loading now mirrors the four labeled metrics, value/comparison placeholders, divider, and 118px area chart with axis placeholders and gridlines. The shared skeleton covers initial loading and duration changes with two mobile columns and four desktop columns. Six dashboard tests, changed-file lint, and whitespace checks pass; rendered browser verification remains pending.
+
+`VERIFICATION PENDING` - Spending & service activity now owns its duration state and query observer; unrelated dashboard consumers retain their data and do not rerender on duration changes. Loading and errors stay within the spending card, the period control stays mounted, and fresh cached ranges are reused. All 31 focused shell/dashboard/progressive-loading/cache tests and changed-file lint pass. The existing dashboard API is reused; backend aggregation is unchanged. Typecheck remains blocked by generated .next/dev/types/validator.ts line 336; signed-in browser verification remains pending.
+
+`VERIFICATION PENDING` - Corrected client dashboard provider ordering so the dashboard query receives the resolved workspace scope. Three integrated shell/provider regressions reproduced permanent loading before the fix and pass afterward on Dashboard, Requests, and Bookings; all 29 focused shell/dashboard/progressive-loading/cache tests and changed-file lint pass. Typecheck is blocked by a syntax error in generated .next/dev/types/validator.ts at line 336. Signed-in browser verification remains pending.
+
 `COMPLETE` - Corrected the warranties empty-state Browse services link from the nonexistent /services index to the existing /marketplace catalogue route, confirmed against src/app/marketplace/page.tsx.
 
 `VERIFICATION PENDING` - Removed the warranties attention banner and duplicate Coverage to date input from the list toolbar in warranty-list.tsx; the Coverage from date filter remains and opens the native calendar when clicked anywhere in the input. Rendered visual verification remains pending.

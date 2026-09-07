@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthenticatedShell } from "./authenticated-shell";
+import { useClientDashboard, useClientSpending } from "./client-dashboard-context";
 
 function renderWithClient(ui: React.ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -78,6 +79,88 @@ describe("authenticated shell", () => {
     mocks.selectWorkspace.mockReset();
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
+  });
+
+  it.each(["/client", "/client/requests", "/client/bookings"])(
+    "loads dashboard data after workspace resolution on %s",
+    async (pathname) => {
+      mocks.pathname = pathname;
+      mocks.session = { user: { id: "user-1" } };
+      mocks.sessionPending = false;
+      let resolveWorkspace!: (value: { id: string; kind: string; label: string }) => void;
+      mocks.currentWorkspace.mockReturnValue(new Promise((resolve) => {
+        resolveWorkspace = resolve;
+      }));
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        data: { summary: { openRequests: 7 } },
+      }), { status: 200 }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      function DashboardProbe() {
+        const dashboard = useClientDashboard();
+        return <section>{dashboard?.loading ? "Loading dashboard" : `Open requests: ${dashboard?.data?.summary.openRequests}`}</section>;
+      }
+
+      try {
+        renderWithClient(<AuthenticatedShell kind="client" hideIntro><DashboardProbe /></AuthenticatedShell>);
+        expect(screen.getByText("Loading dashboard")).toBeInTheDocument();
+        expect(fetchMock).not.toHaveBeenCalled();
+        resolveWorkspace({ id: "client:profile-1", kind: "client", label: "Personal account" });
+        expect(await screen.findByText("Open requests: 7")).toBeInTheDocument();
+        expect(fetchMock).toHaveBeenCalledOnce();
+        expect(fetchMock).toHaveBeenCalledWith(
+          expect.stringContaining("/api/v1/client/dashboard?"),
+          expect.objectContaining({ credentials: "include", signal: expect.any(AbortSignal) }),
+        );
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+
+  it("isolates delayed spending range changes from dashboard consumers and reuses cached ranges", async () => {
+    mocks.session = { user: { id: "user-1" } };
+    mocks.sessionPending = false;
+    mocks.currentWorkspace.mockResolvedValue({ id: "client:profile-1", kind: "client", label: "Personal account" });
+    let resolveRange!: (response: Response) => void;
+    const response = (count: number, spend: number) => new Response(JSON.stringify({
+      data: { summary: { openRequests: count }, spending: { currentMonthMinor: spend } },
+    }), { status: 200 });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response(7, 100))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveRange = resolve; }));
+    vi.stubGlobal("fetch", fetchMock);
+    const dashboardRender = vi.fn();
+    function SpendingProbe() {
+      const spending = useClientSpending();
+      return <><select aria-label="Period" value={spending.range} onChange={(event) => spending.setRange(event.target.value as "month" | "30-days")}><option value="month">Month</option><option value="30-days">30 days</option></select><p>{spending.loading ? "Loading spending" : `Spend: ${spending.data?.currentMonthMinor}`}</p></>;
+    }
+    function DashboardProbe() {
+      const dashboard = useClientDashboard();
+      dashboardRender();
+      return <><p>Requests: {dashboard?.data?.summary.openRequests}</p>{dashboard?.data ? <SpendingProbe /> : null}</>;
+    }
+    try {
+      renderWithClient(<AuthenticatedShell kind="client" hideIntro><DashboardProbe /></AuthenticatedShell>);
+      expect(await screen.findByText("Spend: 100")).toBeInTheDocument();
+      const renders = dashboardRender.mock.calls.length;
+      const period = screen.getByRole("combobox", { name: "Period" });
+      period.focus();
+      fireEvent.change(period, { target: { value: "30-days" } });
+      expect(await screen.findByText("Loading spending")).toBeInTheDocument();
+      expect(screen.getByText("Requests: 7")).toBeInTheDocument();
+      expect(period).toHaveFocus();
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      resolveRange(response(99, 300));
+      expect(await screen.findByText("Spend: 300")).toBeInTheDocument();
+      expect(screen.getByText("Requests: 7")).toBeInTheDocument();
+      expect(dashboardRender).toHaveBeenCalledTimes(renders);
+      fireEvent.change(period, { target: { value: "month" } });
+      expect(await screen.findByText("Spend: 100")).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("pins the shared footer after short workspace content", () => {
