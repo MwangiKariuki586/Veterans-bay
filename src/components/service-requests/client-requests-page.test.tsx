@@ -135,7 +135,7 @@ describe("client requests page", () => {
     const drawer = await screen.findByRole("dialog");
     expect(drawer).toHaveClass("w-[min(31rem,94vw)]", "overflow-hidden");
     expect(within(drawer).getByText("Kitchen sink repair")).toBeInTheDocument();
-    expect(within(drawer).getByText("Repair a leaking kitchen sink and inspect the pipework.")).toBeInTheDocument();
+    expect(await within(drawer).findByText("Repair a leaking kitchen sink and inspect the pipework.")).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(
       `/api/v1/client/requests/${request.id}`,
       expect.objectContaining({ signal: expect.any(AbortSignal) }),

@@ -933,6 +933,7 @@ function WarrantyDrawer({
   };
   const detail = detailQuery.data as WarrantyDetail | undefined;
   const summary = (detail as unknown as WarrantySummary | undefined) ?? selected.placeholder;
+  const isRefreshing = detailQuery.isFetching;
   const isActive = summary?.status === "ACTIVE";
   const isExpired = summary?.status === "EXPIRED";
   const openClaim = detail?.claims.find((c) => ["SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "RETURN_VISIT_SCHEDULED", "ESCALATED"].includes(c.status));
@@ -1127,21 +1128,26 @@ function WarrantyDrawer({
               </div>
             </div>
           </div>
-          {detailQuery.isFetching ? (
-            <span className="mt-3 inline-flex items-center gap-2 text-[0.68rem] text-muted-foreground" role="status">
-              <Spinner className="size-3.5 text-[#6b9f16]" /> Refreshing warranty…
-            </span>
-          ) : null}
         </div>
 
         <div className="flex-1 overflow-y-auto bg-[#fbfcfd] px-4 py-4 sm:px-5">
           {error ? <InlineAlert className="mb-4" variant="error" title="Action failed" description={error} /> : null}
-          {detailQuery.isError ? (
+          {isRefreshing ? (
+            <WarrantyDrawerRefreshingSkeleton />
+          ) : detailQuery.isError && !detail ? (
             <InlineAlert
               variant="error"
               title="Warranty unavailable"
               description={detailQuery.error instanceof Error ? detailQuery.error.message : "The warranty could not be loaded."}
-            />
+            >
+              <button
+                type="button"
+                onClick={() => void detailQuery.refetch()}
+                className="mt-2 text-xs font-semibold text-trust underline"
+              >
+                Try again
+              </button>
+            </InlineAlert>
           ) : detail && summary ? (
             <div className="space-y-4">
               <DrawerSection number="1" title="Protection status">
@@ -1415,7 +1421,22 @@ function WarrantyDrawer({
                     <p className="text-[0.72rem] text-muted-foreground">No claims recorded.</p>
                   )}
                 </div>
-              </DrawerSection>
+                </DrawerSection>
+              {detailQuery.isError ? (
+                <InlineAlert
+                  variant="error"
+                  title="Warranty update failed"
+                  description={detailQuery.error instanceof Error ? detailQuery.error.message : "The warranty could not be refreshed."}
+                >
+                  <button
+                    type="button"
+                    onClick={() => void detailQuery.refetch()}
+                    className="mt-2 text-xs font-semibold text-trust underline"
+                  >
+                    Try again
+                  </button>
+                </InlineAlert>
+              ) : null}
             </div>
           ) : (
             <WarrantyDrawerSkeleton />
@@ -1475,10 +1496,32 @@ function DrawerSection({ number, title, children }: { number: string; title: str
 
 function WarrantyDrawerSkeleton() {
   return (
-    <div className="space-y-4" aria-busy="true">
+    <div className="space-y-4" aria-busy="true" role="status" aria-label="Loading warranty details">
       {Array.from({ length: 5 }).map((_, index) => (
         <Skeleton key={index} className={cn("rounded-[12px]", index === 2 ? "h-40" : "h-24")} />
       ))}
+    </div>
+  );
+}
+
+function WarrantyDrawerRefreshingSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" role="status" aria-label="Loading warranty details">
+      <DrawerSection number="1" title="Protection status">
+        <Skeleton className="h-20 rounded-[12px]" />
+      </DrawerSection>
+      <DrawerSection number="2" title="Professional">
+        <Skeleton className="h-16 rounded-[12px]" />
+      </DrawerSection>
+      <DrawerSection number="3" title="Related service">
+        <Skeleton className="h-14 rounded-[12px]" />
+      </DrawerSection>
+      <DrawerSection number="4" title="Coverage">
+        <Skeleton className="h-28 rounded-[12px]" />
+      </DrawerSection>
+      <DrawerSection number="5" title="Warranty claims">
+        <Skeleton className="h-32 rounded-[12px]" />
+      </DrawerSection>
     </div>
   );
 }

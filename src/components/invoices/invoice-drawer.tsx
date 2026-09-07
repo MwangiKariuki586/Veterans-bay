@@ -60,6 +60,7 @@ export function InvoiceDrawer({
   });
   const invoice = detailQuery.data;
   const summary = invoice ?? selected.placeholder;
+  const isRefreshing = detailQuery.isFetching;
   const serviceHref = summary
     ? audience === "client" && summary.bookingId
       ? `/client/bookings/${summary.bookingId}#service-progress`
@@ -94,12 +95,22 @@ export function InvoiceDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto bg-[#fbfcfd] px-4 py-4 sm:px-5">
-          {detailQuery.isError ? (
+          {isRefreshing ? (
+            <InvoiceDrawerRefreshingSkeleton />
+          ) : detailQuery.isError && !invoice ? (
             <InlineAlert
               variant="error"
               title="Invoice unavailable"
               description={detailQuery.error instanceof Error ? detailQuery.error.message : "The invoice could not be loaded."}
-            />
+            >
+              <button
+                type="button"
+                onClick={() => void detailQuery.refetch()}
+                className="mt-2 text-xs font-semibold text-trust underline"
+              >
+                Try again
+              </button>
+            </InlineAlert>
           ) : invoice ? (
             <div className="space-y-4">
               <DrawerSection number="1" title="Financial summary">
@@ -170,6 +181,21 @@ export function InvoiceDrawer({
                   <p className="rounded-[9px] bg-[#eef4ff] px-3 py-2 text-[#40536a]">Payments shown here are manual records entered by the professional. Veterans Bay does not confirm or process the underlying transfer of funds.</p>
                 </div>
               </DrawerSection>
+              {detailQuery.isError ? (
+                <InlineAlert
+                  variant="error"
+                  title="Invoice update failed"
+                  description={detailQuery.error instanceof Error ? detailQuery.error.message : "The invoice could not be refreshed."}
+                >
+                  <button
+                    type="button"
+                    onClick={() => void detailQuery.refetch()}
+                    className="mt-2 text-xs font-semibold text-trust underline"
+                  >
+                    Try again
+                  </button>
+                </InlineAlert>
+              ) : null}
             </div>
           ) : (
             <InvoiceDrawerSkeleton />
@@ -222,7 +248,46 @@ function timeline(invoice: InvoiceDetail) {
 }
 
 function InvoiceDrawerSkeleton() {
-  return <div className="space-y-4" aria-busy="true">{Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className={cn("rounded-[12px]", index === 2 ? "h-40" : "h-24")} />)}</div>;
+  return (
+    <div className="space-y-4" aria-busy="true" role="status" aria-label="Loading invoice details">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <Skeleton key={index} className={cn("rounded-[12px]", index === 2 ? "h-40" : "h-24")} />
+      ))}
+    </div>
+  );
+}
+
+function InvoiceDrawerRefreshingSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" role="status" aria-label="Loading invoice details">
+      <DrawerSection number="1" title="Financial summary">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 rounded-[10px]" />
+          ))}
+        </div>
+      </DrawerSection>
+      <DrawerSection number="2" title="Related service">
+        <div className="grid grid-cols-2 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 rounded-[10px]" />
+          ))}
+        </div>
+      </DrawerSection>
+      <DrawerSection number="3" title="Line items">
+        <Skeleton className="h-32 rounded-[12px]" />
+      </DrawerSection>
+      <DrawerSection number="4" title="Payment history">
+        <Skeleton className="h-24 rounded-[12px]" />
+      </DrawerSection>
+      <DrawerSection number="5" title="Timeline / status">
+        <Skeleton className="h-28 rounded-[12px]" />
+      </DrawerSection>
+      <DrawerSection number="6" title="Notes & payment terms">
+        <Skeleton className="h-20 rounded-[12px]" />
+      </DrawerSection>
+    </div>
+  );
 }
 
 function bookingReference(id: string) { return `BK-${id.slice(-6).toUpperCase()}`; }

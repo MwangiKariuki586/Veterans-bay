@@ -697,11 +697,20 @@ function RequestDetailsDrawer({
     queryFn: ({ signal }) => requestApi<ClientServiceRequest>(`/api/v1/client/requests/${requestId}`, { signal }),
     placeholderData: placeholder,
   });
-  const detail = detailQuery.data ?? placeholder;
-  const action = detail ? requestWorkflowAction(detail) : null;
+  const detail = detailQuery.data;
+  const displayTitle = detail ? requestTitle(detail) : placeholder ? requestTitle(placeholder) : "Request details";
+  const displayDescription = detail
+    ? `REQ-${detail.id.slice(-6).toUpperCase()} · Updated ${new Date(detail.updatedAt).toLocaleDateString("en-KE")}`
+    : placeholder
+      ? `REQ-${placeholder.id.slice(-6).toUpperCase()} · Updated ${new Date(placeholder.updatedAt).toLocaleDateString("en-KE")}`
+      : "Retrieving the latest request details.";
+  const action = detail ? requestWorkflowAction(detail) : placeholder ? requestWorkflowAction(placeholder) : null;
   const secondaryAction = detail
     ? requestSecondaryAction(detail)
-    : { label: "New request", href: "/client/requests?editor=new" };
+    : placeholder
+      ? requestSecondaryAction(placeholder)
+      : { label: "New request", href: "/client/requests?editor=new" };
+  const isRefreshing = detailQuery.isFetching;
 
   return (
     <Sheet open onOpenChange={onOpenChange}>
@@ -713,24 +722,40 @@ function RequestDetailsDrawer({
           <div className="flex items-center gap-3 pr-10">
             <span className="grid size-10 shrink-0 place-items-center rounded-[11px] bg-[#f2eaff] text-[#7b42e8]"><ClipboardList className="size-4.5" aria-hidden="true" /></span>
             <div className="min-w-0">
-              <SheetTitle className="truncate text-lg font-semibold">{detail ? requestTitle(detail) : "Request details"}</SheetTitle>
+              <SheetTitle className="truncate text-lg font-semibold">{displayTitle}</SheetTitle>
               <SheetDescription id="request-drawer-description" className="mt-0.5 text-xs text-muted-foreground">
-                {detail ? `REQ-${detail.id.slice(-6).toUpperCase()} Â· Updated ${new Date(detail.updatedAt).toLocaleDateString("en-KE")}` : "Retrieving the latest request details."}
+                {displayDescription}
               </SheetDescription>
             </div>
           </div>
-          {detailQuery.isFetching ? <span className="mt-4 inline-flex items-center gap-2 text-[0.68rem] text-muted-foreground" role="status"><Spinner className="size-3.5 text-[#6b9f16]" />Refreshing details\u2026</span> : null}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          {detail ? (
+          {isRefreshing ? (
+            <RequestDrawerRefreshingSkeleton />
+          ) : detail ? (
             <div className="space-y-6">
               <div className="flex items-center justify-between gap-4"><span className="text-xs font-medium text-muted-foreground">Status</span><RequestStatus status={detail.status} /></div>
               <dl className="grid grid-cols-2 gap-x-5 gap-y-5 text-xs"><DrawerDetail label="Category" value={detail.category ?? "Not set"} /><DrawerDetail label="Professional" value={detail.preferredProfessionalName ?? "Not assigned"} /><DrawerDetail label="Preferred schedule" value={detail.preferredTime ?? "Not set"} /><DrawerDetail label="Urgency" value={detail.urgency ? detail.urgency.toLowerCase().replace(/^./, (value) => value.toUpperCase()) : "Not set"} /><DrawerDetail label="Location" value={detail.location ?? "Not set"} /><div><dt className="text-muted-foreground">Budget</dt><dd className="mt-1"><BudgetCell request={detail} /></dd></div></dl>
               <div><h3 className="text-xs font-medium text-muted-foreground">Request details</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{detail.description ?? "No description provided."}</p></div>
+              {detailQuery.isError ? (
+                <InlineAlert
+                  variant="error"
+                  title="Request update failed"
+                  description={detailQuery.error instanceof Error ? detailQuery.error.message : "The request details could not be refreshed."}
+                >
+                  <button type="button" onClick={() => void detailQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">
+                    Try again
+                  </button>
+                </InlineAlert>
+              ) : null}
             </div>
           ) : detailQuery.isError ? (
-            <InlineAlert variant="error" title="Request unavailable" description={detailQuery.error instanceof Error ? detailQuery.error.message : "The request details could not be loaded."} />
+            <InlineAlert variant="error" title="Request unavailable" description={detailQuery.error instanceof Error ? detailQuery.error.message : "The request details could not be loaded."}>
+              <button type="button" onClick={() => void detailQuery.refetch()} className="mt-2 text-xs font-semibold text-trust underline">
+                Try again
+              </button>
+            </InlineAlert>
           ) : (
             <div className="space-y-4" aria-busy="true"><Skeleton className="h-10 rounded-xl" /><Skeleton className="h-32 rounded-xl" /><Skeleton className="h-24 rounded-xl" /></div>
           )}
@@ -772,6 +797,59 @@ function requestSecondaryAction(request: ClientServiceRequest) {
 
 function DrawerDetail({ label, value }: { label: string; value: string }) {
   return <div><dt className="text-muted-foreground">{label}</dt><dd className="mt-1 font-medium text-foreground">{value}</dd></div>;
+}
+
+function RequestDrawerRefreshingSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" role="status" aria-label="Loading request details">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-xs font-medium text-muted-foreground">Status</span>
+        <Skeleton className="h-6 w-24 rounded-full" />
+      </div>
+      <dl className="grid grid-cols-2 gap-x-5 gap-y-5 text-xs">
+        <div>
+          <dt className="text-muted-foreground">Category</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Professional</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Preferred schedule</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Urgency</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Location</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Budget</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+      </dl>
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground">Request details</h3>
+        <Skeleton className="mt-2 h-20 w-full rounded-xl" />
+      </div>
+    </div>
+  );
 }
 
 function RequestMobileCard({ request, onOpen }: { request: ClientServiceRequest; onOpen: (request: ClientServiceRequest) => void }) {

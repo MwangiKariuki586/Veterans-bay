@@ -43,7 +43,7 @@ describe("client overview 5-minute cache", () => {
     function Page() {
       const { data } = useQuery({
         queryKey: clientOverviewKeys.requests(scope, queryState),
-        queryFn: ({ signal }: { signal: AbortSignal }) => fetch("/api/v1/client/requests?page=1", { signal }).then((r) => r.json()).then((b: { data: unknown }) => b.data),
+        queryFn: ({ signal }: { signal: AbortSignal }) => fetch("/api/v1/client/requests?page=1", { signal }).then((r) => r.json()).then((b) => (b as { data: unknown }).data),
         staleTime: CLIENT_OVERVIEW_STALE_MS,
         gcTime: CLIENT_OVERVIEW_GC_MS,
       });
@@ -80,7 +80,7 @@ describe("client overview 5-minute cache", () => {
     function Page() {
       const q = useQuery({
         queryKey: clientOverviewKeys.requests(scope, queryState),
-        queryFn: ({ signal }: { signal: AbortSignal }) => fetch("/api/v1/client/requests?page=1", { signal }).then((r) => r.json()).then((b: { data: unknown }) => b.data),
+        queryFn: ({ signal }: { signal: AbortSignal }) => fetch("/api/v1/client/requests?page=1", { signal }).then((r) => r.json()).then((b) => (b as { data: unknown }).data),
         staleTime: CLIENT_OVERVIEW_STALE_MS,
         gcTime: CLIENT_OVERVIEW_GC_MS,
       });
@@ -135,7 +135,7 @@ describe("client overview 5-minute cache", () => {
     function Page({ q }: { q: unknown }) {
       const { data } = useQuery({
         queryKey: clientOverviewKeys.requests(scope, q),
-        queryFn: ({ signal }: { signal: AbortSignal }) => fetch(`/api/v1/client/requests?${new URLSearchParams(q as Record<string, string>)}`, { signal }).then((r) => r.json()).then((b: { data: unknown }) => b.data),
+        queryFn: ({ signal }: { signal: AbortSignal }) => fetch(`/api/v1/client/requests?${new URLSearchParams(q as Record<string, string>)}`, { signal }).then((r) => r.json()).then((b) => (b as { data: unknown }).data),
         staleTime: CLIENT_OVERVIEW_STALE_MS,
       });
       return <div>{(data as { items: { id: string }[] } | undefined)?.items[0]?.id ?? "loading"}</div>;
@@ -193,7 +193,7 @@ describe("client overview 5-minute cache", () => {
     function Dashboard({ range }: { range: string }) {
       const { data } = useQuery({
         queryKey: clientOverviewKeys.dashboard(scope, range),
-        queryFn: ({ signal }: { signal: AbortSignal }) => fetch(`/api/v1/client/dashboard?range=${range}`, { signal }).then((r) => r.json()).then((b: { data: unknown }) => b.data),
+        queryFn: ({ signal }: { signal: AbortSignal }) => fetch(`/api/v1/client/dashboard?range=${range}`, { signal }).then((r) => r.json()).then((b) => (b as { data: unknown }).data),
         staleTime: CLIENT_OVERVIEW_STALE_MS,
       });
       return <div>{(data as { value: string } | undefined)?.value ?? "loading"}</div>;
@@ -237,7 +237,7 @@ describe("client overview 5-minute cache", () => {
     function Page({ scope }: { scope: typeof scopeA }) {
       const { data } = useQuery({
         queryKey: clientOverviewKeys.requests(scope, { page: 1 }),
-        queryFn: ({ signal }: { signal: AbortSignal }) => fetch("/api", { signal }).then((r) => r.json()).then((b: { data: unknown }) => b.data),
+        queryFn: ({ signal }: { signal: AbortSignal }) => fetch("/api", { signal }).then((r) => r.json()).then((b) => (b as { data: unknown }).data),
         staleTime: CLIENT_OVERVIEW_STALE_MS,
       });
       return <div>{data ? "loaded" : "loading"}</div>;
@@ -277,7 +277,7 @@ describe("client overview 5-minute cache", () => {
     function Page() {
       const q = useQuery({
         queryKey: clientOverviewKeys.requests(scope, { page: 1 }),
-        queryFn: ({ signal }: { signal: AbortSignal }) => fetch("/api", { signal }).then((r) => r.json()).then((b: { data: unknown }) => b.data),
+        queryFn: ({ signal }: { signal: AbortSignal }) => fetch("/api", { signal }).then((r) => r.json()).then((b) => (b as { data: unknown }).data),
         staleTime: CLIENT_OVERVIEW_STALE_MS,
       });
       return <div>{q.data ? "loaded" : "loading"}</div>;
@@ -320,7 +320,7 @@ describe("client overview 5-minute cache", () => {
     function Page() {
       const q = useQuery({
         queryKey: clientOverviewKeys.requests(scope, { page: 1 }),
-        queryFn: ({ signal }: { signal: AbortSignal }) => fetch("/api", { signal }).then((r) => r.json()).then((b: { data: unknown }) => b.data),
+        queryFn: ({ signal }: { signal: AbortSignal }) => fetch("/api", { signal }).then((r) => r.json()).then((b) => (b as { data: unknown }).data),
         staleTime: CLIENT_OVERVIEW_STALE_MS,
         retry: 0,
       });
@@ -358,4 +358,5 @@ describe("client overview 5-minute cache", () => {
     await waitFor(() => expect(screen.getAllByText("loaded-ok").length).toBeGreaterThan(0));
   });
 });
+
 

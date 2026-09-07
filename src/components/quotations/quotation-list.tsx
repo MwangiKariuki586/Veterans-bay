@@ -654,6 +654,7 @@ function QuotationSummaryDrawer({
   });
   const detail = detailQuery.data;
   const summary = detail ?? selected.placeholder;
+  const isRefreshing = detailQuery.isFetching;
   const currentVersion = detail?.versions.find(
     (version) => version.versionNumber === detail.currentVersionNumber,
   );
@@ -682,28 +683,11 @@ function QuotationSummaryDrawer({
               </SheetDescription>
             </div>
           </div>
-          {detailQuery.isFetching ? (
-            <span
-              className="mt-4 inline-flex items-center gap-2 text-[0.68rem] text-muted-foreground"
-              role="status"
-            >
-              <Spinner className="size-3.5 text-[#6b9f16]" />
-              Refreshing quotation…
-            </span>
-          ) : null}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          {detailQuery.isError ? (
-            <InlineAlert
-              variant="error"
-              title="Quotation unavailable"
-              description={
-                detailQuery.error instanceof Error
-                  ? detailQuery.error.message
-                  : "The quotation could not be loaded."
-              }
-            />
-          ) : summary ? (
+          {isRefreshing ? (
+            <QuotationDrawerRefreshingSkeleton />
+          ) : detail && summary ? (
             <div className="space-y-6">
               <div className="flex items-center justify-between gap-4">
                 <span className="text-xs font-medium text-muted-foreground">
@@ -791,7 +775,44 @@ function QuotationSummaryDrawer({
                   />
                 </>
               ) : null}
+              {detailQuery.isError ? (
+                <InlineAlert
+                  variant="error"
+                  title="Quotation update failed"
+                  description={
+                    detailQuery.error instanceof Error
+                      ? detailQuery.error.message
+                      : "The quotation could not be refreshed."
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={() => void detailQuery.refetch()}
+                    className="mt-2 text-xs font-semibold text-trust underline"
+                  >
+                    Try again
+                  </button>
+                </InlineAlert>
+              ) : null}
             </div>
+          ) : detailQuery.isError ? (
+            <InlineAlert
+              variant="error"
+              title="Quotation unavailable"
+              description={
+                detailQuery.error instanceof Error
+                  ? detailQuery.error.message
+                  : "The quotation could not be loaded."
+              }
+            >
+              <button
+                type="button"
+                onClick={() => void detailQuery.refetch()}
+                className="mt-2 text-xs font-semibold text-trust underline"
+              >
+                Try again
+              </button>
+            </InlineAlert>
           ) : (
             <QuotationDrawerSkeleton />
           )}
@@ -1203,6 +1224,77 @@ function QuotationDrawerSkeleton() {
       </div>
       <Skeleton className="h-32 rounded-[12px]" />
       <Skeleton className="h-24 rounded-[12px]" />
+    </div>
+  );
+}
+
+function QuotationDrawerRefreshingSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" role="status" aria-label="Loading quotation details">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-xs font-medium text-muted-foreground">Status</span>
+        <Skeleton className="h-6 w-24 rounded-full" />
+      </div>
+      <dl className="grid grid-cols-2 gap-x-5 gap-y-5 text-xs">
+        <div>
+          <dt className="text-muted-foreground">Professional</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Current total</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Valid until</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Updated</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Deposit</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Expected duration</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Proposed start</dt>
+          <dd className="mt-1">
+            <Skeleton className="h-4 w-24" />
+          </dd>
+        </div>
+      </dl>
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground">Price breakdown</h3>
+        <Skeleton className="mt-2 h-20 w-full rounded-xl" />
+      </div>
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground">Scope</h3>
+        <Skeleton className="mt-2 h-20 w-full rounded-xl" />
+      </div>
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground">Warranty</h3>
+        <Skeleton className="mt-2 h-16 w-full rounded-xl" />
+      </div>
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground">Payment terms</h3>
+        <Skeleton className="mt-2 h-16 w-full rounded-xl" />
+      </div>
     </div>
   );
 }

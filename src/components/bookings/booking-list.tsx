@@ -785,6 +785,7 @@ function BookingDetailDrawer({
   });
   const detail = detailQuery.data as BookingDetail | undefined;
   const summary = (detail as unknown as BookingSummary | undefined) ?? selected.placeholder;
+  const isRefreshing = detailQuery.isFetching;
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -841,21 +842,25 @@ function BookingDetailDrawer({
                 </SheetDescription>
               </div>
             </div>
-            {detailQuery.isFetching ? (
-              <span className="mt-4 inline-flex items-center gap-2 text-[0.68rem] text-muted-foreground" role="status">
-                <Spinner className="size-3.5 text-[#6b9f16]" />
-                Refreshing booking…
-              </span>
-            ) : null}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-            {detailQuery.isError ? (
+            {isRefreshing ? (
+              <BookingDrawerRefreshingSkeleton />
+            ) : detailQuery.isError && !detail ? (
               <InlineAlert
                 variant="error"
                 title="Booking unavailable"
                 description={detailQuery.error instanceof Error ? detailQuery.error.message : "The booking could not be loaded."}
-              />
-            ) : summary ? (
+              >
+                <button
+                  type="button"
+                  onClick={() => void detailQuery.refetch()}
+                  className="mt-2 text-xs font-semibold text-trust underline"
+                >
+                  Try again
+                </button>
+              </InlineAlert>
+            ) : detail && summary ? (
               <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-xs font-medium text-muted-foreground">Status</span>
@@ -884,6 +889,21 @@ function BookingDetailDrawer({
                     <DrawerSection label="Scope" value={detail.scope} />
                     <DrawerSection label="Payment terms" value={detail.paymentTerms} />
                   </>
+                ) : null}
+                {detailQuery.isError ? (
+                  <InlineAlert
+                    variant="error"
+                    title="Booking update failed"
+                    description={detailQuery.error instanceof Error ? detailQuery.error.message : "The booking could not be refreshed."}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => void detailQuery.refetch()}
+                      className="mt-2 text-xs font-semibold text-trust underline"
+                    >
+                      Try again
+                    </button>
+                  </InlineAlert>
                 ) : null}
               </div>
             ) : (
@@ -1023,7 +1043,7 @@ function BookingsSkeleton() {
 
 function BookingDrawerSkeleton() {
   return (
-    <div className="space-y-5" aria-busy="true">
+    <div className="space-y-5" aria-busy="true" role="status" aria-label="Loading booking details">
       <Skeleton className="h-8 w-28 rounded-full" />
       <div className="grid grid-cols-2 gap-4">
         {Array.from({ length: 6 }).map((_, index) => (
@@ -1031,6 +1051,36 @@ function BookingDrawerSkeleton() {
         ))}
       </div>
       <Skeleton className="h-32 rounded-[12px]" />
+    </div>
+  );
+}
+
+function BookingDrawerRefreshingSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" role="status" aria-label="Loading booking details">
+      <section>
+        <h3 className="text-xs font-medium text-muted-foreground">Status</h3>
+        <Skeleton className="mt-2 h-6 w-32 rounded-full" />
+      </section>
+      <section>
+        <h3 className="text-xs font-medium text-muted-foreground">Booking details</h3>
+        <div className="mt-3 grid grid-cols-2 gap-4">
+          {["Professional", "Current total", "Schedule", "Assignment", "Origin", "Updated"].map((label) => (
+            <div key={label}>
+              <p className="text-[0.6rem] text-muted-foreground">{label}</p>
+              <Skeleton className="mt-1 h-4 w-full rounded" />
+            </div>
+          ))}
+        </div>
+      </section>
+      <section>
+        <h3 className="text-xs font-medium text-muted-foreground">Scope</h3>
+        <Skeleton className="mt-2 h-20 rounded-[12px]" />
+      </section>
+      <section>
+        <h3 className="text-xs font-medium text-muted-foreground">Payment terms</h3>
+        <Skeleton className="mt-2 h-16 rounded-[12px]" />
+      </section>
     </div>
   );
 }
