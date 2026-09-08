@@ -26,7 +26,10 @@ function toSummary(
     status: record.status as ProfessionalServiceSummary["status"],
     fulfilmentModel:
       record.fulfilmentModel as ProfessionalServiceSummary["fulfilmentModel"],
+    serviceType: (record.serviceType ?? null) as ProfessionalServiceSummary["serviceType"],
     pricingModel: record.pricingModel as ProfessionalServiceSummary["pricingModel"],
+    includedItems: (record.includedItems ?? []) as string[],
+    excludedItems: (record.excludedItems ?? []) as string[],
     publishedAt: record.publishedAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
@@ -312,6 +315,32 @@ export class ProfessionalServicesService {
     const unpublished = await this.store.unpublish(input);
     if (!unpublished) throw new StaleConflictError();
     return toSummary(unpublished);
+  }
+
+  async delete(input: {
+    organisationId: string;
+    serviceId: string;
+    actorAccountId: string;
+    expectedVersion: number;
+    correlationId?: string;
+  }): Promise<void> {
+    const current = await this.requireService(input.organisationId, input.serviceId);
+    if (current.status === "published") {
+      throw new AppError({
+        code: "SERVICE_PUBLISHED",
+        message: "Unpublish this service before deleting it.",
+        status: 409,
+      });
+    }
+    await this.requireActiveOrganisation(input.organisationId);
+    const removed = await this.store.delete({
+      organisationId: input.organisationId,
+      serviceId: input.serviceId,
+      actorAccountId: input.actorAccountId,
+      expectedVersion: input.expectedVersion,
+      correlationId: input.correlationId,
+    });
+    if (!removed) throw new StaleConflictError();
   }
 
   private async requireService(

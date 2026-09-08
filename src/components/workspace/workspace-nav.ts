@@ -44,6 +44,7 @@ const professionalNav: ReadonlyArray<WorkspaceNavGroup> = [
       { href: "/professional/bookings", label: "Bookings", icon: CalendarDays },
       { href: "/professional/jobs", label: "Jobs", icon: Wrench },
       { href: "/professional/customers", label: "Customers", icon: Users },
+      { href: "/professional/services", label: "Services", icon: Store },
       { href: "/professional/invoices", label: "Finance", icon: CreditCard },
       { href: "/professional/reviews", label: "Reviews", icon: Star },
       { href: "/professional/team", label: "My Team", icon: Users },
@@ -55,7 +56,6 @@ const professionalNav: ReadonlyArray<WorkspaceNavGroup> = [
   {
     id: "resources",
     items: [
-      { href: "/professional/services", label: "Tools & Resources", icon: Store },
       { href: "/account/profile", label: "Settings", icon: Settings },
     ],
   },

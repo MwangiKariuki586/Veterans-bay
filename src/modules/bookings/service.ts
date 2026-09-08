@@ -36,6 +36,7 @@ export class BookingsService {
     status?: BookingStatus;
     bucket?: import("./types").BookingBucket;
     origin?: import("./types").BookingOrigin;
+    serviceId?: string;
     search?: string;
     sort?: import("./types").BookingSort;
     from?: string;
@@ -56,6 +57,7 @@ export class BookingsService {
     bucket?: import("./types").BookingBucket;
     stage?: import("./types").ClientBookingStage;
     origin?: import("./types").BookingOrigin;
+    serviceId?: string;
     search?: string;
     sort?: import("./types").BookingSort;
     from?: string;
@@ -70,6 +72,7 @@ export class BookingsService {
       bucket: input.bucket,
       stage: input.stage,
       origin: input.origin,
+      serviceId: input.serviceId,
       search: input.search,
       sort: input.sort,
       from: input.from ? new Date(input.from) : undefined,

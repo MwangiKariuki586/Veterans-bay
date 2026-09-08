@@ -1,6 +1,6 @@
 {
-  "id": "1cc3b5cf-cc01-4c66-886f-2cb4c0980c6e",
-  "prevId": "1d74cd1e-6f65-4f99-b8ca-79dd03816555",
+  "id": "82f16ad3-5c29-46cd-9b76-9a36df6f31e6",
+  "prevId": "1cc3b5cf-cc01-4c66-886f-2cb4c0980c6e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -10285,6 +10285,26 @@
           "notNull": true,
           "default": "'[]'::jsonb"
         },
+        "service_type": {
+          "name": "service_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "included_items": {
+          "name": "included_items",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "excluded_items": {
+          "name": "excluded_items",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "requirements": {
           "name": "requirements",
           "type": "jsonb",
@@ -10552,6 +10572,10 @@
         "professional_services_fulfilment_model_check": {
           "name": "professional_services_fulfilment_model_check",
           "value": "\"professional_services\".\"fulfilment_model\" is null or \"professional_services\".\"fulfilment_model\" in ('on_site', 'remote', 'hybrid')"
+        },
+        "professional_services_service_type_check": {
+          "name": "professional_services_service_type_check",
+          "value": "\"professional_services\".\"service_type\" is null or \"professional_services\".\"service_type\" in ('repairs_maintenance', 'installation', 'inspection', 'emergency', 'maintenance')"
         },
         "professional_services_pricing_model_check": {
           "name": "professional_services_pricing_model_check",

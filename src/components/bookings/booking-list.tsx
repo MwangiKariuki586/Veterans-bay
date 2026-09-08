@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DataTable, type DataTableColumnDef } from "@/components/ui/data-table";
+import type { ProfessionalServiceSummary } from "@/modules/professional-services/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,6 +62,7 @@ const defaultQuery: BookingListQuery = {
   stage: "all",
   status: "",
   origin: "",
+  serviceId: "",
   search: "",
   sort: "updated_desc",
 };
@@ -168,6 +170,27 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
     return () => window.clearTimeout(timeout);
   }, [queryState.search, search, updateParams]);
 
+  const [serviceOptions, setServiceOptions] = useState<ProfessionalServiceSummary[]>([]);
+  useEffect(() => {
+    if (audience !== "professional") return;
+    let cancelled = false;
+    void fetch("/api/v1/professional/services", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: unknown) => {
+        const data = (body as { data?: ProfessionalServiceSummary[] } | null)?.data;
+        if (!cancelled && data) setServiceOptions(data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [audience]);
+
+  const activeServiceName = useMemo(
+    () => serviceOptions.find((s) => s.id === queryState.serviceId)?.name ?? null,
+    [serviceOptions, queryState.serviceId],
+  );
+
   const bookingQuery = useQuery({
     queryKey: audience === "client" && scope ? clientOverviewKeys.bookings(scope, audience, queryState) : (["bookings", audience, queryState] as unknown[]),
     queryFn: ({ signal }) => listBookingsPage(audience, queryState, signal),
@@ -232,7 +255,7 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
     () => [
       {
         id: "booking",
-        header: "Booking",
+        header: "Service",
         cell: ({ row }) => <BookingIdentity booking={row.original} />,
       },
       {
@@ -390,6 +413,19 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
             })}
           </nav>
 
+          {audience === "professional" && queryState.serviceId ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-success/20 bg-success-soft px-3 py-2 text-xs">
+              <CalendarDays className="size-4 text-success" />
+              <span className="font-medium">
+                Filtering by service: <span className="font-semibold">{activeServiceName ?? queryState.serviceId.slice(0, 8)}</span>
+              </span>
+              <span className="text-muted-foreground">— only bookings for this service are shown</span>
+              <Button variant="ghost" size="sm" className="ml-auto h-7 px-2 text-xs" onClick={() => updateParams({ serviceId: "" })}>
+                Clear service filter
+              </Button>
+            </div>
+          ) : null}
+
           <section
             className="mt-2 overflow-hidden rounded-[15px] border border-black/8 bg-white shadow-[0_5px_18px_rgba(15,31,43,0.035)]"
             aria-label={audience === "client" ? "Client bookings" : "Professional bookings"}
@@ -428,6 +464,16 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
                     ))
                   : null}
               </FilterSelect>
+              {audience === "professional" ? (
+                <FilterSelect label="Service" value={queryState.serviceId} onChange={(serviceId) => updateParams({ serviceId })}>
+                  <option value="">All services</option>
+                  {serviceOptions.map((svc) => (
+                    <option key={svc.id} value={svc.id}>
+                      {svc.name}
+                    </option>
+                  ))}
+                </FilterSelect>
+              ) : null}
               {showProgress ? (
                 <span className="inline-flex min-h-10 items-center gap-2 px-2 text-[0.68rem] font-medium text-[#64717d]" role="status" aria-live="polite">
                   <Spinner className="size-3.5 text-[#6b9f16]" />
@@ -456,14 +502,31 @@ function BookingWorkspace({ audience }: { audience: "client" | "professional" })
                 empty={result ? (
                   <StatePanel
                     className="m-4 border-dashed shadow-none"
-                    title={result.summary.total === 0 ? "No bookings yet" : "No bookings match these filters"}
+                    title={
+                      queryState.serviceId
+                        ? `No bookings for ${activeServiceName ?? "this service"} yet`
+                        : result.summary.total === 0
+                          ? "No bookings yet"
+                          : "No bookings match these filters"
+                    }
                     description={
-                      result.summary.total === 0
-                        ? "Eligible service arrangements will appear here when they become bookings."
-                        : "Clear a filter or try a different search."
+                      queryState.serviceId
+                        ? "This service hasn't been booked yet. When clients book this service, their bookings will appear here."
+                        : result.summary.total === 0
+                          ? "Eligible service arrangements will appear here when they become bookings."
+                          : "Clear a filter or try a different search."
                     }
                   >
-                    {result.summary.total > 0 ? (
+                    {queryState.serviceId ? (
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => updateParams({ serviceId: "" })}>
+                          Clear service filter
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={clearFilters}>
+                          Clear all filters
+                        </Button>
+                      </div>
+                    ) : result.summary.total > 0 ? (
                       <Button size="sm" variant="outline" onClick={clearFilters}>
                         Clear filters
                       </Button>
@@ -534,15 +597,32 @@ function SortHeader({
 }
 
 function BookingIdentity({ booking }: { booking: BookingSummary }) {
+  const serviceLabel = booking.professionalServiceId ? (
+    <Link
+      href={`/professional/services/${booking.professionalServiceId}`}
+      onClick={(e) => e.stopPropagation()}
+      className="max-w-56 truncate font-semibold text-foreground underline decoration-transparent hover:decoration-foreground"
+      title={`${booking.serviceName} — view service`}
+    >
+      {booking.serviceName}
+    </Link>
+  ) : (
+    <span title={booking.serviceName} className="block max-w-56 truncate font-semibold text-foreground">
+      {booking.serviceName}
+    </span>
+  );
   return (
-    <span className="flex min-w-[190px] items-center gap-3">
+    <span className="flex min-w-[210px] items-center gap-3">
       <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-[#edf7dd] text-[#6d9f16]">
         <CalendarDays className="size-4" aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block max-w-48 truncate font-semibold text-foreground">{booking.serviceName}</span>
-        <span className="mt-0.5 block text-[0.64rem] text-[#6f7d8b]">
-          BK-{booking.id.slice(-6).toUpperCase()} Â· {booking.origin.replaceAll("_", " ").toLowerCase()}
+        <span className="block max-w-56 truncate">{serviceLabel}</span>
+        <span className="mt-0.5 block flex items-center gap-1 text-[0.64rem] text-[#6f7d8b]">
+          <span>BK-{booking.id.slice(-6).toUpperCase()}</span>
+          <span aria-hidden>·</span>
+          <span className="truncate">{booking.origin.replaceAll("_", " ").toLowerCase()}</span>
+          {booking.serviceSlug ? <span className="hidden sm:inline">· {booking.serviceSlug}</span> : null}
         </span>
       </span>
     </span>
@@ -1102,6 +1182,7 @@ function queryFromParams(searchParams: URLSearchParams): BookingListQuery {
     stage: (searchParams.get("stage") ?? "all") as ClientBookingStage,
     status: searchParams.get("status") ?? "",
     origin: searchParams.get("origin") ?? "",
+    serviceId: searchParams.get("serviceId") ?? "",
     search: searchParams.get("search") ?? "",
     sort: (searchParams.get("sort") ?? "updated_desc") as BookingSort,
   };
@@ -1115,6 +1196,7 @@ function queryString(state: BookingListQuery, bookingId?: string) {
   if (state.stage !== "all") params.set("stage", state.stage);
   if (state.status) params.set("status", state.status);
   if (state.origin) params.set("origin", state.origin);
+  if (state.serviceId) params.set("serviceId", state.serviceId);
   if (state.search) params.set("search", state.search);
   if (state.sort !== "updated_desc") params.set("sort", state.sort);
   if (bookingId) params.set("bookingId", bookingId);
@@ -1132,6 +1214,7 @@ function filterCachedBookings(items: BookingSummary[], query: BookingListQuery) 
     if (query.stage !== "all" && !bookingMatchesStage(booking, query.stage)) return false;
     if (query.status && booking.status !== query.status) return false;
     if (query.origin && booking.origin !== query.origin) return false;
+    if (query.serviceId && booking.professionalServiceId !== query.serviceId) return false;
     if (!search) return true;
     return (
       booking.serviceName.toLocaleLowerCase().includes(search) ||

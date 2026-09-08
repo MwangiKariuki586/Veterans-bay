@@ -1,4 +1,4 @@
-import { ServiceEditor } from "@/components/professional-services/service-catalogue";
+import { ProfessionalServiceDetailsPage } from "@/components/professional-services/professional-service-details-page";
 
 export default async function ProfessionalServicePage({
   params,
@@ -7,7 +7,5 @@ export default async function ProfessionalServicePage({
 }) {
   const { serviceId } = await params;
 
-  return (
-    <ServiceEditor serviceId={serviceId} />
-  );
+  return <ProfessionalServiceDetailsPage serviceId={serviceId} />;
 }

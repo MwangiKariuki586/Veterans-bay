@@ -34,6 +34,9 @@ export const professionalServices = pgTable(
     currency: text("currency").notNull().default("KES"),
     estimatedDurationMinutes: integer("estimated_duration_minutes"),
     serviceAreas: jsonb("service_areas").$type<string[]>().notNull().default([]),
+    serviceType: text("service_type"),
+    includedItems: jsonb("included_items").$type<string[]>().notNull().default([]),
+    excludedItems: jsonb("excluded_items").$type<string[]>().notNull().default([]),
     requirements: jsonb("requirements").$type<string[]>().notNull().default([]),
     warrantyDurationDays: integer("warranty_duration_days"),
     warrantyTerms: text("warranty_terms"),
@@ -64,6 +67,10 @@ export const professionalServices = pgTable(
     check(
       "professional_services_fulfilment_model_check",
       sql`${table.fulfilmentModel} is null or ${table.fulfilmentModel} in ('on_site', 'remote', 'hybrid')`,
+    ),
+    check(
+      "professional_services_service_type_check",
+      sql`${table.serviceType} is null or ${table.serviceType} in ('repairs_maintenance', 'installation', 'inspection', 'emergency', 'maintenance')`,
     ),
     check(
       "professional_services_pricing_model_check",

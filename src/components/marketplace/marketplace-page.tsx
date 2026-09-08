@@ -36,6 +36,8 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { ServiceCard } from "./service-card";
+
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
@@ -1291,14 +1293,9 @@ function MarketplaceCard({
     service.provider.rating >= 4.7 &&
     service.provider.reviewCount > 0;
   return (
-    <article
-      className={cn(
-        "group relative overflow-hidden rounded-2xl border border-black/8 bg-white transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(20,38,52,0.1)]",
-        listView && "sm:grid sm:grid-cols-[220px_minmax(0,1fr)]",
-        "max-sm:grid max-sm:grid-cols-[42%_58%]",
-      )}
-    >
-      <button
+    <ServiceCard
+      listView={listView}
+      action={<button
         type="button"
         onClick={onToggleSaved}
         disabled={saving}
@@ -1314,8 +1311,8 @@ function MarketplaceCard({
         )}
       >
         <Heart className={cn("size-4", saved && "fill-current")} />
-      </button>
-      <Link
+      </button>}
+      image={<Link
         href={`/services/${service.slug}`}
         className={cn(
           "relative block min-h-[150px] bg-[#edf5d5] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
@@ -1347,13 +1344,29 @@ function MarketplaceCard({
             Top Rated
           </span>
         ) : null}
-      </Link>
-      <div className="flex min-w-0 flex-col p-3 sm:p-4">
-        <h2 className="pr-8 text-sm leading-5 font-semibold sm:text-[0.88rem]">
-          <Link href={`/services/${service.slug}`} className="hover:underline">
+      </Link>}
+      title={<Link href={`/services/${service.slug}`} className="hover:underline">
             {service.name}
+          </Link>}
+      footer={<>          <div>
+            <p className="text-[0.58rem] text-[#68717b]">
+              {service.pricingModel === "custom_quote"
+                ? "Pricing"
+                : service.pricingModel === "starting_from"
+                  ? "Starting from"
+                  : "Fixed price"}
+            </p>
+            <p className="text-sm font-semibold">{formatPrice(service)}</p>
+          </div>
+          <Link
+            href={`/services/${service.slug}`}
+            aria-label={`View ${service.name}`}
+            className="grid size-8 place-items-center rounded-full bg-primary"
+          >
+            <ArrowRight className="size-4" />
           </Link>
-        </h2>
+</>}
+    >
         <p className="mt-1 flex min-w-0 items-center gap-1.5 text-[0.72rem] text-[#40536c]">
           <span className="truncate">{service.provider.businessName}</span>
           {service.provider.verified ? (
@@ -1395,26 +1408,7 @@ function MarketplaceCard({
             {formatNextSlot(service)}
           </span>
         </p>
-        <div className="mt-auto flex items-end justify-between gap-2 border-t border-black/8 pt-2 max-sm:mt-2">
-          <div>
-            <p className="text-[0.58rem] text-[#68717b]">
-              {service.pricingModel === "custom_quote"
-                ? "Pricing"
-                : service.pricingModel === "starting_from"
-                  ? "Starting from"
-                  : "Fixed price"}
-            </p>
-            <p className="text-sm font-semibold">{formatPrice(service)}</p>
-          </div>
-          <Link
-            href={`/services/${service.slug}`}
-            aria-label={`View ${service.name}`}
-            className="grid size-8 place-items-center rounded-full bg-primary"
-          >
-            <ArrowRight className="size-4" />
-          </Link>
-        </div>
-      </div>
-    </article>
+
+    </ServiceCard>
   );
 }

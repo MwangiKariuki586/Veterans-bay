@@ -24,10 +24,10 @@ describe("workspace sidebar", () => {
       "/professional/enquiries",
     );
     expect(
-      screen.getByRole("link", { name: "Invoices & Payments" }),
-    ).toHaveAttribute("href", "/professional/payments");
+      screen.getByRole("link", { name: "Finance" }),
+    ).toHaveAttribute("href", "/professional/invoices");
     expect(
-      screen.getByRole("link", { name: "Tools & Resources" }),
+      screen.getByRole("link", { name: "Services" }),
     ).toHaveAttribute("href", "/professional/services");
     expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
       "href",

@@ -1,7 +1,7 @@
 export class CatalogueApiError extends Error {
   constructor(
     message: string,
-    readonly issues: Array<{ path: string }>,
+    readonly issues: Array<{ path: string; message?: string }>,
   ) {
     super(message);
   }

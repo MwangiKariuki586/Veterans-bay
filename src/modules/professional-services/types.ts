@@ -1,6 +1,7 @@
 export type ServiceStatus = "draft" | "published" | "unpublished";
 export type FulfilmentModel = "on_site" | "remote" | "hybrid";
 export type PricingModel = "fixed" | "starting_from" | "custom_quote";
+export type ServiceType = "repairs_maintenance" | "installation" | "inspection" | "emergency" | "maintenance";
 
 export interface ProfessionalServiceSummary {
   id: string;
@@ -15,6 +16,9 @@ export interface ProfessionalServiceSummary {
   currency: string;
   estimatedDurationMinutes: number | null;
   serviceAreas: string[];
+  serviceType: ServiceType | null;
+  includedItems: string[];
+  excludedItems: string[];
   requirements: string[];
   warrantyDurationDays: number | null;
   warrantyTerms: string | null;
@@ -24,6 +28,8 @@ export interface ProfessionalServiceSummary {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  updatedByName?: string | null;
+  updatedByAvatarUrl?: string | null;
 }
 
 export interface ManagedImageAsset {
@@ -70,6 +76,9 @@ export interface ProfessionalServiceSnapshot extends Record<string, unknown> {
   currency: string;
   estimatedDurationMinutes: number | null;
   serviceAreas: string[];
+  serviceType: ServiceType | null;
+  includedItems: string[];
+  excludedItems: string[];
   requirements: string[];
   warrantyDurationDays: number | null;
   warrantyTerms: string | null;

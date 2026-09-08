@@ -57,6 +57,7 @@ export type BookingListQuery = {
   stage: ClientBookingStage;
   status: string;
   origin: string;
+  serviceId: string;
   search: string;
   sort: BookingSort;
 };
@@ -82,6 +83,7 @@ export function listBookingsPage(
   }
   if (query.status) params.set("status", query.status);
   if (query.origin) params.set("origin", query.origin);
+  if (query.serviceId) params.set("serviceId", query.serviceId);
   if (query.search) params.set("search", query.search);
   return bookingApi<BookingPage>(`/api/v1/${audience}/bookings?${params.toString()}`, { signal });
 }

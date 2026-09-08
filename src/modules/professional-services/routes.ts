@@ -477,5 +477,26 @@ export function createProfessionalServicesRoutes() {
     );
   }
 
+  routes.delete("/v1/professional/services/:serviceId", ...workspaceManage, async (context) => {
+    const selection = context.get("workspaceSelection");
+    if (!selection?.workspace.organisationId) {
+      throw new Error("Organisation workspace is required.");
+    }
+    const { version } = await parseJsonBody(transitionProfessionalServiceBodySchema, context.req.raw);
+    const { client, service } = createService(context.get("environment").DATABASE_URL);
+    try {
+      await service.delete({
+        organisationId: selection.workspace.organisationId,
+        serviceId: context.req.param("serviceId"),
+        actorAccountId: selection.accountProfileId,
+        expectedVersion: version,
+        correlationId: context.get("requestId"),
+      });
+      return context.json<ApiSuccessBody<{ deleted: true }>>({ data: { deleted: true }, requestId: context.get("requestId") });
+    } finally {
+      await client.close();
+    }
+  });
+
   return routes;
 }

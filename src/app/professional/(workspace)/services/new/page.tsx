@@ -1,5 +1,5 @@
-import { CreateServiceForm } from "@/components/professional-services/service-catalogue";
+import { redirect } from "next/navigation";
 
 export default function NewProfessionalServicePage() {
-  return (<CreateServiceForm />);
+  redirect("/professional/services?editor=new");
 }

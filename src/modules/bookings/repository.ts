@@ -112,6 +112,7 @@ export class BookingsRepository {
     status?: BookingStatus;
     bucket?: import("./types").BookingBucket;
     origin?: import("./types").BookingOrigin;
+    serviceId?: string;
     search?: string;
     sort?: import("./types").BookingSort;
     from?: Date;
@@ -131,6 +132,7 @@ export class BookingsRepository {
     bucket?: import("./types").BookingBucket;
     stage?: import("./types").ClientBookingStage;
     origin?: import("./types").BookingOrigin;
+    serviceId?: string;
     search?: string;
     sort?: import("./types").BookingSort;
     from?: Date;
@@ -1386,6 +1388,7 @@ export class BookingsRepository {
     bucket?: import("./types").BookingBucket;
     stage?: import("./types").ClientBookingStage;
     origin?: import("./types").BookingOrigin;
+    serviceId?: string;
     search?: string;
     sort?: import("./types").BookingSort;
     from?: Date;
@@ -1432,6 +1435,7 @@ export class BookingsRepository {
       }
     })();
     const originFilter = input.origin ? eq(bookings.origin, input.origin as BookingStatus) : undefined;
+    const serviceFilter = input.serviceId ? eq(bookings.professionalServiceId, input.serviceId) : undefined;
     const searchFilter = searchPattern
       ? or(
           ilike(sql`coalesce(${professionalServices.name}, ${serviceRequests.category}, 'Service booking')`, searchPattern),
@@ -1464,6 +1468,7 @@ export class BookingsRepository {
       ...(bucketFilter ? [bucketFilter] : []),
       ...(stageFilter ? [stageFilter] : []),
       ...(originFilter ? [originFilter] : []),
+      ...(serviceFilter ? [serviceFilter] : []),
       ...(searchFilter ? [searchFilter] : []),
       ...(input.from ? [gte(bookings.endsAt, input.from)] : []),
       ...(input.to ? [lte(bookings.startsAt, input.to)] : []),

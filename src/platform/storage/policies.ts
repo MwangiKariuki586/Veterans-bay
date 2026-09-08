@@ -81,7 +81,7 @@ export const storagePurposePolicies: Record<StoragePurpose, StoragePurposePolicy
       folder: "veterans-bay/services",
       resourceType: "image",
       visibility: "public",
-      maxBytes: 5 * 1024 * 1024,
+      maxBytes: 10 * 1024 * 1024,
       allowedMimeTypes: imageTypes,
       allowsReplacement: true,
       historicalEvidence: false,

@@ -3,8 +3,9 @@ import { z } from "zod";
 const serviceFieldsSchema = z.object({
     name: z.string().trim().min(2).max(120),
     category: z.string().trim().min(2).max(120).nullable().optional(),
-    description: z.string().trim().min(20).max(2_000).nullable().optional(),
+    description: z.string().trim().min(20, "Enter at least 20 characters for the description.").max(2_000).nullable().optional(),
     fulfilmentModel: z.enum(["on_site", "remote", "hybrid"]).nullable().optional(),
+    serviceType: z.enum(["repairs_maintenance", "installation", "inspection", "emergency", "maintenance"]).nullable().optional(),
     pricingModel: z
       .enum(["fixed", "starting_from", "custom_quote"])
       .nullable()
@@ -12,9 +13,11 @@ const serviceFieldsSchema = z.object({
     priceMinor: z.number().int().nonnegative().nullable().optional(),
     estimatedDurationMinutes: z.number().int().positive().max(43_200).nullable().optional(),
     serviceAreas: z.array(z.string().trim().min(2).max(120)).max(30).optional(),
+    includedItems: z.array(z.string().trim().min(2).max(300)).max(30).optional(),
+    excludedItems: z.array(z.string().trim().min(2).max(300)).max(30).optional(),
     requirements: z.array(z.string().trim().min(2).max(300)).max(30).optional(),
     warrantyDurationDays: z.number().int().nonnegative().max(3_650).nullable().optional(),
-    warrantyTerms: z.string().trim().min(5).max(1_000).nullable().optional(),
+    warrantyTerms: z.string().trim().min(5, "Enter at least 5 characters for the warranty terms.").max(1_000).nullable().optional(),
     directBookingEnabled: z.boolean().optional(),
   });
 

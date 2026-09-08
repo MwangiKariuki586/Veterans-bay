@@ -67,6 +67,13 @@ export interface ProfessionalServicesStore {
   update(input: ServiceMutationInput): Promise<ProfessionalServiceRecord | null>;
   publish(input: ServiceTransitionInput): Promise<ProfessionalServiceRecord | null>;
   unpublish(input: ServiceTransitionInput): Promise<ProfessionalServiceRecord | null>;
+  delete(input: {
+    organisationId: string;
+    serviceId: string;
+    actorAccountId: string;
+    expectedVersion: number;
+    correlationId?: string;
+  }): Promise<ProfessionalServiceRecord | null>;
   getManagedProfile(organisationId: string): Promise<ManagedProfileRecord | null>;
   updateManagedProfile(input: {
     organisationId: string;
@@ -284,6 +291,9 @@ export class ProfessionalServicesRepository implements ProfessionalServicesStore
         currency: service.currency,
         estimatedDurationMinutes: service.estimatedDurationMinutes,
         serviceAreas: service.serviceAreas,
+        serviceType: (service.serviceType ?? null) as ProfessionalServiceSnapshot["serviceType"],
+        includedItems: (service.includedItems ?? []) as string[],
+        excludedItems: (service.excludedItems ?? []) as string[],
         requirements: service.requirements,
         warrantyDurationDays: service.warrantyDurationDays,
         warrantyTerms: service.warrantyTerms,
@@ -338,6 +348,39 @@ export class ProfessionalServicesRepository implements ProfessionalServicesStore
         actorAccountId: input.actorAccountId,
         correlationId: input.correlationId,
         payload: { serviceId: service.id, version: service.version },
+      });
+      return service;
+    });
+  }
+
+  async delete(input: {
+    organisationId: string;
+    serviceId: string;
+    actorAccountId: string;
+    expectedVersion: number;
+    correlationId?: string;
+  }): Promise<ProfessionalServiceRecord | null> {
+    return this.db.transaction(async (tx) => {
+      const [service] = await tx
+        .delete(professionalServices)
+        .where(
+          and(
+            eq(professionalServices.organisationId, input.organisationId),
+            eq(professionalServices.id, input.serviceId),
+            eq(professionalServices.version, input.expectedVersion),
+          ),
+        )
+        .returning();
+      if (!service) return null;
+      await tx.insert(outboxEvents).values({
+        eventType: "service.deleted",
+        eventVersion: 1,
+        aggregateType: "professional_service",
+        aggregateId: service.id,
+        organisationId: input.organisationId,
+        actorAccountId: input.actorAccountId,
+        correlationId: input.correlationId,
+        payload: { serviceId: service.id },
       });
       return service;
     });

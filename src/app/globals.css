@@ -26,6 +26,9 @@
   --warning-soft: #fff3d8;
   --danger: #bd3434;
   --danger-soft: #fdeaea;
+  --accent: #0b1c33;
+  --accent-foreground: #ffffff;
+  --accent-soft: #e8edf3;
   --radius-sm: 0.625rem;
   --radius-md: 0.875rem;
   --radius-lg: 1.25rem;
@@ -62,6 +65,9 @@
   --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);

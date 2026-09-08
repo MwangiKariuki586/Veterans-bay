@@ -25,6 +25,7 @@ export const bookingListQuerySchema = z.object({
     .optional(),
   stage: z.enum(clientBookingStages).optional(),
   origin: z.enum(bookingOrigins).optional(),
+  serviceId: uuidSchema.optional(),
   search: z.string().trim().max(120).optional(),
   sort: z
     .enum([

@@ -1,3 +1,54 @@
+# Professional My Services — 7 September 2026
+
+- Latest interaction update: service-card non-control surfaces open inspection; Add/Edit/Continue setup use embedded existing forms in WorkspaceDrawer. Legacy creation/editor routes redirect to the catalogue's editor query. Eleven service tests, typecheck and lint pass; browser verification remains pending.
+
+- Source visual truth: user-supplied 1536 × 1024 Services mockup in this conversation; shared homepage reference inspected at `context/design-reference/homepage.png`.
+- Implementation: `/professional/services`, populated catalogue with a service selected. After the user's component-reuse correction, KPI cards use WorkspaceMetricCard, service cards use the extracted existing Marketplace ServiceCard layout, skeletons share that card layout, and desktop/mobile inspection uses the shared invoice WorkspaceDrawer frame with fixed header/footer and a scrolling body. The custom desktop docked panel has been removed.
+- Implementation screenshot: unavailable. Browser runtime initialized, but the in-app browser was unavailable and browser discovery returned `[]`.
+- Viewport comparison: intended 1536 × 1024 desktop and narrow mobile; rendered dimensions, CSS pixel density, and overflow remain unverified.
+- Full-view and focused-region comparisons: blocked without a rendered capture. Typography, spacing, grid proportions, colors, image crops, and text wrapping cannot be certified from code checks.
+- Data: saved service records and managed images supply content. Empty/missing image states are explicit; no mock service records or generated business imagery were inserted.
+- Interaction evidence: all nine service component tests pass for progressive loading, preserved search, filtering, service links, shared modal inspection, confirmed unpublication, dismissal, failed image reads, and list retry. Marketplace and invoice regressions pass except for two unrelated stale expectations (Marketplace search textbox and professional Invoices heading, now Finance). These are not browser visual evidence.
+- Findings: [P1] Rendered comparison against the supplied mockup remains unavailable. Existing shared header/sidebar are preserved; their differences from the mockup require review alongside the page.
+- Comparison history: no rendered comparison performed; no visual pass claimed.
+- Next verification: open the authenticated route, select View service, compare at the source viewport, then inspect narrow mobile, focus restoration, scrolling, overflow, image loading, and console errors.
+
+final result: blocked
+
+---
+
+# Professional Service Detail — 8 September 2026
+
+## Evidence
+
+- Source visual truth: the user-supplied Professional Service Detail mockup in the current conversation. The source attachment has no local file path, so an image-level side-by-side composite could not be saved.
+- Implementation route: `/professional/services/[serviceId]`.
+- Implementation captures: `.playwright-mcp/service-detail-desktop.png` at 1440 × 1100 CSS pixels and `.playwright-mcp/service-detail-mobile.png` at 520 × 900 CSS pixels, both density 1.
+- State: published Plumbing Repair service loaded through fixture-backed professional API responses; the source’s service image was unavailable in the fixture, so the explicit no-image state is shown rather than a simulated image.
+
+## Comparison evidence
+
+- Full view: the rendered route matches the source hierarchy with the service heading/actions, wide media region, compact facts strip, detail sections and desktop publication rail. At compact width, the actions, facts, horizontally scrollable tabs and publication information stack without horizontal control overflow.
+- Focused tab region: all section controls have `border-0 border-b-2`; only the shared tab baseline and the selected bottom indicator render. This removes the source issue’s top, left and right outlines.
+- Interaction: card content and the card's View service action open the overview drawer. The drawer and kebab menu each expose View details links to the full route; the route’s Service areas tab was selected successfully in the compact capture.
+
+## Findings
+
+- [P2] The primary media comparison remains incomplete because the fixture provides no real managed image and the source attachment is not locally available for a side-by-side image comparison.
+  - Fix: repeat the capture with an authenticated service that has images and compare it with the original attachment at its exact source viewport.
+
+## Required fidelity surfaces
+
+- Fonts and typography: established workspace font and hierarchy are used; the route maintains the title, metadata and compact operational-label scale in the reference.
+- Spacing and layout rhythm: the desktop composition uses a broad primary column plus a 285px readiness rail; compact screens stack regions and retain tab scrolling.
+- Colors and visual tokens: existing neutral workspace surfaces, lime status/readiness, navy text and soft borders are reused.
+- Image quality and asset fidelity: no new image assets were introduced. The current fixture explicitly displays the no-image state; the source’s real service image still requires a live comparison.
+- Copy and content: title, pricing, duration, areas, warranty, requirements and publication status come from the professional service record.
+
+final result: blocked
+
+---
+
 # Invoice Inspection Drawer — 2 September 2026
 
 ## Evidence

@@ -17,8 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import {
-  Sheet,
-  SheetContent,
+  WorkspaceDrawer,
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -68,9 +67,7 @@ export function InvoiceDrawer({
     : `/${audience}`;
 
   return (
-    <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent
-        className="flex h-full w-[min(36rem,94vw)] flex-col overflow-hidden p-0"
+    <WorkspaceDrawer onClose={onClose}
         aria-describedby="invoice-drawer-description"
       >
         <div className="shrink-0 border-b border-black/7 px-5 pb-4 pt-5 pr-16 sm:px-6 sm:pr-16 sm:pt-6">
@@ -215,8 +212,7 @@ export function InvoiceDrawer({
             </div>
           </div>
         ) : null}
-      </SheetContent>
-    </Sheet>
+    </WorkspaceDrawer>
   );
 }
 
