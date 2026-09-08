@@ -44,6 +44,15 @@ import type { ManagedImageAsset, ProfessionalServiceSummary } from "@/modules/pr
 import { catalogueApi as api, uploadCatalogueImage } from "./catalogue-api";
 import { SERVICE_IMAGE_ACCEPT, validateServiceImageFile } from "./service-catalogue";
 import { ServiceEditor } from "./service-catalogue";
+import dynamic from "next/dynamic";
+
+const ServiceAreasMap = dynamic(
+  () => import("@/components/service-areas/ServiceAreasMap").then((m) => m.ServiceAreasMap),
+  {
+    ssr: false,
+    loading: () => <div className="h-[220px] w-full animate-pulse rounded-lg bg-muted" aria-busy="true" />,
+  },
+);
 
 function priceLabel(service: ProfessionalServiceSummary) {
   if (service.pricingModel === "custom_quote") return "Custom quote";
@@ -621,38 +630,26 @@ export function ProfessionalServiceDetailsPage({ serviceId }: { serviceId: strin
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">No service areas configured.</p>
             )}
-            <div className="relative mt-3 overflow-hidden rounded-lg border border-black/8 bg-[#eaf5d8]">
-              <div className="aspect-[16/9] w-full p-2">
-                <div className="relative h-full w-full overflow-hidden rounded-md bg-[#f4f9e8]">
-                  <svg viewBox="0 0 320 180" className="h-full w-full" aria-hidden>
-                    <rect width="320" height="180" fill="#f4f9e8" />
-                    <path d="M0 120 H320 M0 60 H320 M80 0 V180 M160 0 V180 M240 0 V180" stroke="#e6ecd8" strokeWidth="1" />
-                    <path d="M70 30 L110 25 L135 45 L125 75 L95 90 L55 70 Z" fill="#cfe8a8" stroke="#b7d68a" strokeWidth="1.2" />
-                    <path d="M120 85 L165 70 L195 95 L185 135 L130 140 L105 110 Z" fill="#d9ecb6" stroke="#b7d68a" strokeWidth="1.2" />
-                    <path d="M175 25 L225 20 L250 40 L240 65 L190 70 L165 45 Z" fill="#e2f0c2" stroke="#b7d68a" strokeWidth="1.2" />
-                    <text x="80" y="60" fontSize="9" fill="#5f8d11" fontWeight="600">Kilimani</text>
-                    <text x="135" y="115" fontSize="9" fill="#5f8d11" fontWeight="600">Lavington</text>
-                    <text x="190" y="45" fontSize="8" fill="#6b8a3a">Lavingtos</text>
-                  </svg>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent" />
-                </div>
+            {service.serviceAreas.length ? (
+              <div className="relative mt-3 overflow-hidden rounded-lg border border-black/8 bg-muted">
+                <ServiceAreasMap serviceAreas={service.serviceAreas} />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="absolute bottom-2 right-2 gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium shadow"
+                  onClick={() => {
+                    if (!service.serviceAreas.length) {
+                      toast.info("No service areas to view on map");
+                      return;
+                    }
+                    const q = encodeURIComponent(service.serviceAreas.join(", "));
+                    window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, "_blank", "noreferrer");
+                  }}
+                >
+                  View on map <ExternalLink className="size-3.5" />
+                </Button>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="absolute bottom-2 right-2 gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium shadow"
-                onClick={() => {
-                  if (!service.serviceAreas.length) {
-                    toast.info("No service areas to view on map");
-                    return;
-                  }
-                  const q = encodeURIComponent(service.serviceAreas.join(", "));
-                  window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, "_blank", "noreferrer");
-                }}
-              >
-                View on map <ExternalLink className="size-3.5" />
-              </Button>
-            </div>
+            ) : null}
             <p className="mt-3 text-xs leading-5 text-muted-foreground">Coverage areas shown here are visible to clients when this service is published.</p>
           </Surface>
 

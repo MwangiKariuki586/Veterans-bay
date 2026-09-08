@@ -16,6 +16,7 @@ import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { StatePanel } from "@/components/ui/state-panel";
 import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
+import { ServiceAreaMultiPicker } from "@/components/ui/service-area-multi-picker";
 import { useWorkspaceShell } from "@/components/workspace/workspace-shell-context";
 import { cn } from "@/lib/utils";
 import { parseWorkspaceId } from "@/modules/workspace/types";
@@ -68,7 +69,7 @@ type EditableServiceFields = {
   pricingModel: string;
   price: string;
   duration: string;
-  serviceAreas: string;
+  serviceAreas: string[];
   includedItems: string;
   excludedItems: string;
   requirements: string;
@@ -87,7 +88,7 @@ function editableFields(service: ProfessionalServiceSummary): EditableServiceFie
     pricingModel: service.pricingModel ?? "",
     price: service.priceMinor == null ? "" : String(service.priceMinor / 100),
     duration: service.estimatedDurationMinutes == null ? "" : String(service.estimatedDurationMinutes),
-    serviceAreas: service.serviceAreas.join(", "),
+    serviceAreas: [...service.serviceAreas],
     includedItems: (service.includedItems ?? []).join("\n"),
     excludedItems: (service.excludedItems ?? []).join("\n"),
     requirements: service.requirements.join("\n"),
@@ -153,7 +154,7 @@ export function ServiceEditor({ serviceId, embedded = false, onSaved }: { servic
       pricingModel: form.pricingModel || null,
       priceMinor: form.pricingModel === "custom_quote" || !form.price ? null : Math.round(Number(form.price) * 100),
       estimatedDurationMinutes: form.duration ? Number(form.duration) : null,
-      serviceAreas: form.serviceAreas.split(",").map((item) => item.trim()).filter(Boolean),
+      serviceAreas: form.serviceAreas,
       includedItems: form.includedItems.split("\n").map((item) => item.trim()).filter(Boolean),
       excludedItems: form.excludedItems.split("\n").map((item) => item.trim()).filter(Boolean),
       requirements: form.requirements.split("\n").map((item) => item.trim()).filter(Boolean),
@@ -325,7 +326,9 @@ export function ServiceEditor({ serviceId, embedded = false, onSaved }: { servic
       <EditorField label="Pricing model" error={fieldErrors.pricingModel}><select className={fieldClass} value={form.pricingModel} onChange={(e) => { update("pricingModel", e.target.value); if (e.target.value === "custom_quote") update("price", ""); }} disabled={published}><option value="">Select a model</option><option value="fixed">Fixed price</option><option value="starting_from">Starting from</option><option value="custom_quote">Custom quotation</option></select></EditorField>
       <EditorField label="Price (KES)" error={fieldErrors.priceMinor}><Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => update("price", e.target.value)} disabled={published || form.pricingModel === "custom_quote"} /></EditorField>
       <EditorField label="Estimated duration (minutes)" error={fieldErrors.estimatedDurationMinutes}><Input type="number" min="1" max="43200" value={form.duration} onChange={(e) => update("duration", e.target.value)} disabled={published} /></EditorField>
-      <EditorField label="Service areas" error={fieldErrors.serviceAreas}><Input value={form.serviceAreas} onChange={(e) => update("serviceAreas", e.target.value)} disabled={published} /></EditorField>
+      <EditorField label="Service areas" error={fieldErrors.serviceAreas}>
+        <ServiceAreaMultiPicker value={form.serviceAreas} onChange={(value) => update("serviceAreas", value)} disabled={published} />
+      </EditorField>
       <EditorField label="What's included" error={fieldErrors.includedItems}><textarea className={cn(fieldClass, "min-h-28 resize-y disabled:opacity-60")} value={form.includedItems} onChange={(e) => update("includedItems", e.target.value)} disabled={published} placeholder="One included item per line" /></EditorField>
       <EditorField label="What's excluded" error={fieldErrors.excludedItems}><textarea className={cn(fieldClass, "min-h-28 resize-y disabled:opacity-60")} value={form.excludedItems} onChange={(e) => update("excludedItems", e.target.value)} disabled={published} placeholder="One excluded item per line" /></EditorField>
       <EditorField label="Client requirements" error={fieldErrors.requirements}><textarea className={cn(fieldClass, "min-h-28 resize-y disabled:opacity-60")} value={form.requirements} onChange={(e) => update("requirements", e.target.value)} disabled={published} /></EditorField>
@@ -459,7 +462,7 @@ export function CreateServiceForm({ embedded = false, onCreated, onCancel }: { e
   const [pricingModel, setPricingModel] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("");
-  const [serviceAreas, setServiceAreas] = useState("");
+  const [serviceAreas, setServiceAreas] = useState<string[]>([]);
   const [includedItems, setIncludedItems] = useState("");
   const [excludedItems, setExcludedItems] = useState("");
   const [requirements, setRequirements] = useState("");
@@ -561,7 +564,7 @@ export function CreateServiceForm({ embedded = false, onCreated, onCancel }: { e
     setPricingModel("");
     setPrice("");
     setDuration("");
-    setServiceAreas("");
+    setServiceAreas([]);
     setIncludedItems("");
     setExcludedItems("");
     setRequirements("");
@@ -598,7 +601,7 @@ export function CreateServiceForm({ embedded = false, onCreated, onCancel }: { e
           pricingModel: pricingModel || null,
           priceMinor: pricingModel === "custom_quote" || !price ? null : Math.round(Number(price) * 100),
           estimatedDurationMinutes: duration ? Number(duration) : null,
-          serviceAreas: serviceAreas.split(",").map((item) => item.trim()).filter(Boolean),
+          serviceAreas,
           includedItems: includedItems.split("\n").map((item) => item.trim()).filter(Boolean),
           excludedItems: excludedItems.split("\n").map((item) => item.trim()).filter(Boolean),
           requirements: requirements.split("\n").map((item) => item.trim()).filter(Boolean),
@@ -666,7 +669,9 @@ export function CreateServiceForm({ embedded = false, onCreated, onCancel }: { e
         <Field error={fieldErrors.pricingModel} label="Pricing model"><select className={fieldClass} value={pricingModel} onChange={(event) => { setPricingModel(event.target.value); if (event.target.value === "custom_quote") setPrice(""); }}><option value="">Select a model</option><option value="fixed">Fixed price</option><option value="starting_from">Starting from</option><option value="custom_quote">Custom quotation</option></select></Field>
         <Field error={fieldErrors.priceMinor} label="Price (KES)"><Input type="number" min="0" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} disabled={pricingModel === "custom_quote"} placeholder={pricingModel === "custom_quote" ? "Not shown for custom quotations" : "0.00"} /></Field>
         <Field error={fieldErrors.estimatedDurationMinutes} label="Estimated duration (minutes)"><Input type="number" min="1" max="43200" value={duration} onChange={(event) => setDuration(event.target.value)} placeholder="120" /></Field>
-        <Field error={fieldErrors.serviceAreas} label="Service areas"><Input value={serviceAreas} onChange={(event) => setServiceAreas(event.target.value)} placeholder="Westlands, Kilimani" /><p className="mt-1 text-xs text-[#68717b]">Separate areas with commas.</p></Field>
+        <Field error={fieldErrors.serviceAreas} label="Service areas">
+          <ServiceAreaMultiPicker value={serviceAreas} onChange={setServiceAreas} />
+        </Field>
         <Field error={fieldErrors.includedItems} label="What's included"><textarea className={cn(fieldClass, "min-h-28 resize-y")} value={includedItems} onChange={(event) => setIncludedItems(event.target.value)} placeholder="One included item per line" /></Field>
         <Field error={fieldErrors.excludedItems} label="What's excluded"><textarea className={cn(fieldClass, "min-h-28 resize-y")} value={excludedItems} onChange={(event) => setExcludedItems(event.target.value)} placeholder="One excluded item per line" /></Field>
         <Field error={fieldErrors.requirements} label="Client requirements"><textarea className={cn(fieldClass, "min-h-28 resize-y")} value={requirements} onChange={(event) => setRequirements(event.target.value)} placeholder="One requirement per line" /></Field>
