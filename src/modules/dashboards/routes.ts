@@ -63,6 +63,30 @@ export function createDashboardRoutes() {
   );
 
   routes.get(
+    "/v1/professional/reports",
+    requireProfessionalDashboardMiddleware,
+    requirePermissionMiddleware(permissionKeys.organisationView),
+    async (context) => {
+      const selection = context.get("workspaceSelection");
+      const organisationId = selection?.workspace.organisationId;
+      if (!selection || !organisationId) {
+        throw new Error("Organisation workspace required.");
+      }
+      const range = parseQuery(dashboardRangeQuerySchema, context.req.url);
+      return withRepository(context, (repository) =>
+        repository.professionalReports(
+          organisationId,
+          range,
+          selection.workspace.financialDataAccess &&
+            selection.workspace.permissions.includes(
+              permissionKeys.reportsFinancialView,
+            ),
+        ),
+      );
+    },
+  );
+
+  routes.get(
     "/v1/admin/dashboard",
     requireSessionMiddleware,
     async (context) => {

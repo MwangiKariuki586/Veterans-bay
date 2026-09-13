@@ -15,7 +15,6 @@ import {
   Shield,
   Scale,
   ShoppingBag,
-  Star,
   Store,
   Users,
   Wrench,
@@ -46,17 +45,9 @@ const professionalNav: ReadonlyArray<WorkspaceNavGroup> = [
       { href: "/professional/customers", label: "Customers", icon: Users },
       { href: "/professional/services", label: "Services", icon: Store },
       { href: "/professional/invoices", label: "Finance", icon: CreditCard },
-      { href: "/professional/reviews", label: "Reviews", icon: Star },
       { href: "/professional/team", label: "My Team", icon: Users },
-      { href: "/professional/availability", label: "Availability", icon: Clock3 },
       { href: "/professional/analytics", label: "Reports", icon: BarChart3 },
       { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
-    ],
-  },
-  {
-    id: "resources",
-    items: [
-      { href: "/account/profile", label: "Settings", icon: Settings },
     ],
   },
 ];
@@ -73,12 +64,6 @@ const clientNav: ReadonlyArray<WorkspaceNavGroup> = [
       { href: "/client/saved", label: "Saved", icon: Heart },
       { href: "/client/invoices", label: "Invoices", icon: FileText },
       { href: "/client/warranties", label: "Warranties", icon: ShieldCheck },
-    ],
-  },
-  {
-    id: "system",
-    items: [
-      { href: "/account/profile", label: "Settings", icon: Settings },
     ],
   },
 ];
@@ -105,7 +90,6 @@ const adminNav: ReadonlyArray<WorkspaceNavGroup> = [
       { href: "/admin/audit", label: "Audit", icon: ShieldCheck },
       { href: "/admin/rules", label: "Platform Rules", icon: Settings },
       { href: "/admin/operations/async", label: "Async Operations", icon: Clock3 },
-      { href: "/account/profile", label: "Settings", icon: Settings },
       { href: "/help", label: "Help Center", icon: BriefcaseBusiness },
     ],
   },

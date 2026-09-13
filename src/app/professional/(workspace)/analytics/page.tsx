@@ -1,11 +1,12 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+"use client";
+
+import { ProfessionalReports } from "@/components/workspace/professional-reports";
+import { ProfessionalReportsProvider } from "@/components/workspace/professional-reports-context";
 
 export default function ProfessionalAnalyticsPage() {
   return (
-    <WorkspaceUnavailablePage
-      kind="professional"
-      title="Analytics"
-      description="Workspace analytics will arrive in a later operations phase."
-    />
+    <ProfessionalReportsProvider>
+      <ProfessionalReports />
+    </ProfessionalReportsProvider>
   );
 }

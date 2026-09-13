@@ -225,3 +225,113 @@ export interface ProfessionalDashboardData {
   source: "transactional";
   serverTiming?: { databaseMs: number; aggregationMs: number };
 }
+
+export interface ProfessionalReportsData {
+  range: DashboardRange;
+  generatedAt: string;
+  source: "transactional";
+  restrictedMetrics: string[];
+  serverTiming?: { databaseMs: number; aggregationMs: number };
+  kpis: {
+    revenueMinor: number | null;
+    previousRevenueMinor: number | null;
+    revenueChangePercent: number | null;
+    jobsCompleted: number;
+    previousJobsCompleted: number;
+    jobsCompletedChangePercent: number | null;
+    quoteConversionPercent: number;
+    previousQuoteConversionPercent: number;
+    quoteConversionChangePercent: number | null;
+    avgJobValueMinor: number | null;
+    previousAvgJobValueMinor: number | null;
+    avgJobValueChangePercent: number | null;
+  };
+  revenuePerformance: {
+    range: DashboardRange;
+    totalRevenueMinor: number | null;
+    previousTotalRevenueMinor: number | null;
+    totalChangePercent: number | null;
+    paidMinor: number | null;
+    outstandingMinor: number | null;
+    paidPercent: number;
+    outstandingPercent: number;
+    series: Array<{
+      day: string;
+      revenue: number | null;
+      paid: number | null;
+      outstanding: number | null;
+    }>;
+  };
+  pipeline: {
+    enquiries: number;
+    qualified: number;
+    quotesSent: number;
+    accepted: number;
+    jobsCompleted: number;
+    trends: {
+      enquiries: number | null;
+      qualified: number | null;
+      quotesSent: number | null;
+      accepted: number | null;
+      jobsCompleted: number | null;
+    };
+  };
+  servicePerformance: Array<{
+    id: string;
+    name: string;
+    slug: string | null;
+    category: string | null;
+    jobs: number;
+    revenueMinor: number | null;
+    conversionPercent: number;
+    sharePercent: number;
+    imageUrl: string | null;
+  }>;
+  customerTrends: {
+    series: Array<{ day: string; newClients: number; repeatClients: number }>;
+    newClients: number;
+    previousNewClients: number;
+    repeatClients: number;
+    previousRepeatClients: number;
+    repeatRatePercent: number;
+    previousRepeatRatePercent: number;
+  };
+  topReturningCustomers: Array<{
+    id: string;
+    name: string;
+    jobs: number;
+    revenueMinor: number;
+    avatarUrl: string | null;
+    initials: string;
+  }>;
+  demandPatterns: {
+    byWeekday: Array<{ day: string; shortLabel: string; percent: number }>;
+    byDaypart: { morning: number; afternoon: number; evening: number };
+  };
+  teamPerformance: Array<{
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    initials: string;
+    jobsCompleted: number;
+    completionRate: number;
+    avgRating: number;
+    cancellationsPercent: number;
+  }>;
+  reputation: {
+    averageRating: number;
+    reviewCount: number;
+    previousAverageRating: number | null;
+    distribution: Array<{ stars: number; count: number }>;
+    responseRate: number;
+    completionRate: number;
+    repeatClientRate: number;
+    latestReviews?: Array<{ id: string; rating: number; feedback: string }>;
+  };
+  businessInsights: Array<{
+    id: string;
+    title: string;
+    description: string;
+    tone: "success" | "warning" | "danger" | "info";
+  }>;
+}
