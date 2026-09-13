@@ -23,6 +23,7 @@ import {
   bookingCancelBodySchema,
   bookingIdSchema,
   bookingListQuerySchema,
+  bookingProfessionalRescheduleBodySchema,
   bookingRescheduleRequestBodySchema,
   bookingScheduleBodySchema,
   calendarQuerySchema,
@@ -197,10 +198,11 @@ export function createBookingRoutes() {
       `/v1/professional/bookings/:bookingId/${action}`,
       ...professionalManage,
       async (context) => {
-        const values = await parseJsonBody(
-          bookingScheduleBodySchema,
-          context.req.raw,
-        );
+        const schema =
+          action === "reschedule"
+            ? bookingProfessionalRescheduleBodySchema
+            : bookingScheduleBodySchema;
+        const values = await parseJsonBody(schema, context.req.raw);
         const selection = organisationSelection(context);
         const { client, service } = createService(
           context.get("environment").DATABASE_URL,
@@ -213,6 +215,7 @@ export function createBookingRoutes() {
             membershipId: values.membershipId,
             startsAt: values.startsAt,
             reschedule: action === "reschedule",
+            note: values.note,
             correlationId: context.get("requestId"),
           });
           return context.json<ApiSuccessBody<BookingDetail>>({
@@ -414,6 +417,64 @@ export function createBookingRoutes() {
           id(context.req.param("blockId")),
         );
         return context.json<ApiSuccessBody<AvailabilityConfiguration>>({
+          data,
+          requestId: context.get("requestId"),
+        });
+      } finally {
+        await client.close();
+      }
+    },
+  );
+
+  routes.put(
+    "/v1/professional/availability/blocks/:blockId",
+    ...professionalManage,
+    async (context) => {
+      const values = await parseJsonBody(
+        (await import("./schemas")).updateAvailabilityBlockBodySchema,
+        context.req.raw,
+      );
+      const selection = organisationSelection(context);
+      const { client, service } = createService(
+        context.get("environment").DATABASE_URL,
+      );
+      try {
+        const data = await service.updateAvailabilityBlock({
+          organisationId: selection.organisationId,
+          actorAccountId: selection.actorAccountId,
+          blockId: id(context.req.param("blockId")),
+          ...values,
+        });
+        return context.json<ApiSuccessBody<AvailabilityConfiguration>>({
+          data,
+          requestId: context.get("requestId"),
+        });
+      } finally {
+        await client.close();
+      }
+    },
+  );
+
+  routes.patch(
+    "/v1/professional/bookings/:bookingId/details",
+    ...professionalManage,
+    async (context) => {
+      const values = await parseJsonBody(
+        (await import("./schemas")).updateBookingTaskBodySchema,
+        context.req.raw,
+      );
+      const selection = organisationSelection(context);
+      const { client, service } = createService(
+        context.get("environment").DATABASE_URL,
+      );
+      try {
+        const data = await service.updateBookingTask({
+          organisationId: selection.organisationId,
+          actorAccountId: selection.actorAccountId,
+          bookingId: id(context.req.param("bookingId")),
+          ...values,
+        });
+        return context.json<ApiSuccessBody<BookingDetail>>({
           data,
           requestId: context.get("requestId"),
         });

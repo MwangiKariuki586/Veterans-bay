@@ -18,6 +18,7 @@ import type { ApiAppEnvironment } from "../../workers/api/types";
 import { IdentityRepository } from "../identity/repository";
 import { JobsRepository, type ProfessionalJobScope } from "./repository";
 import {
+  createProfessionalTaskBodySchema,
   jobActionBodySchema,
   jobAssignmentBodySchema,
   jobChecklistBodySchema,
@@ -104,6 +105,67 @@ export function createJobRoutes() {
     requireWorkspaceMiddleware,
     requirePermissionMiddleware(permissionKeys.assignmentsManage),
   ] as const;
+
+  routes.post(
+    "/v1/professional/tasks",
+    ...professionalManage,
+    async (context) => {
+      const selection = professionalSelection(context);
+      const values = await parseJsonBody(
+        createProfessionalTaskBodySchema,
+        context.req.raw,
+      );
+      const { client, service } = createService(
+        context.get("environment").DATABASE_URL,
+      );
+      try {
+        const data = await service.createProfessionalTask({
+          scope: selection.scope,
+          actorAccountId: selection.actorAccountId,
+          clientAccountId: values.clientAccountId,
+          serviceId: values.serviceId,
+          membershipId: values.membershipId,
+          additionalMembershipIds: values.additionalMembershipIds,
+          startsAt: values.startsAt,
+          expectedDurationMinutes: values.expectedDurationMinutes,
+          location: values.location,
+          scopeDescription: values.scope,
+          priority: values.priority,
+          internalNote: values.internalNote,
+          checklist: values.checklist,
+          correlationId: context.get("requestId"),
+        });
+        return context.json<ApiSuccessBody<JobDetail>>(
+          { data, requestId: context.get("requestId") },
+          201,
+        );
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.message === "Primary assignee is not available at that time." ||
+            error.message === "Primary assignee already has a task at that time." ||
+            error.message === "Primary assignee is blocked at that time." ||
+            error.name === "BookingConflictError")
+        ) {
+          throw new (await import("../../platform/errors/app-error")).AppError({
+            code: "JOB_ASSIGNMENT_CONFLICT",
+            message: error.message,
+            status: 409,
+          });
+        }
+        if (error instanceof Error && (error.message === "Service unavailable" || error.message === "Client not found" || error.message === "Member not found or inactive")) {
+          throw new (await import("../../platform/errors/app-error")).AppError({
+            code: "VALIDATION_ERROR",
+            message: error.message,
+            status: 422,
+          });
+        }
+        throw error;
+      } finally {
+        await client.close();
+      }
+    },
+  );
 
   routes.get("/v1/professional/jobs", ...professionalRead, async (context) => {
     const selection = professionalSelection(context);

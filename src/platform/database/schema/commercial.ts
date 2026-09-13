@@ -329,6 +329,7 @@ export const bookings = pgTable(
       withTimezone: true,
     }),
     cancellationReason: text("cancellation_reason"),
+    location: text("location"),
     scope: text("scope").notNull(),
     exclusions: text("exclusions").notNull(),
     warrantyTerms: text("warranty_terms").notNull(),

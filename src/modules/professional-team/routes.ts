@@ -2,7 +2,7 @@ import { Hono } from "hono";
 
 import { createDatabaseClient } from "../../platform/database/client";
 import type { ApiSuccessBody } from "../../platform/http/contracts";
-import { parseJsonBody } from "../../platform/http/validation";
+import { parseJsonBody, parseQuery } from "../../platform/http/validation";
 import { permissionKeys } from "../../platform/permissions/keys";
 import {
   requirePermissionMiddleware,
@@ -15,11 +15,13 @@ import { ProfessionalTeamRepository } from "./repository";
 import {
   acceptTeamInvitationBodySchema,
   inviteTeamMemberBodySchema,
+  teamInvitationListQuerySchema,
+  teamMemberListQuerySchema,
   transferOwnershipBodySchema,
   updateTeamMemberBodySchema,
 } from "./schemas";
 import { ProfessionalTeamService } from "./service";
-import type { TeamInvitationSummary, TeamMemberDetail, TeamOverview } from "./types";
+import type { TeamInvitationPage, TeamInvitationSummary, TeamMemberDetail, TeamMemberPage, TeamOverview, TeamRolesOverview } from "./types";
 
 function createService(databaseUrl: string) {
   const client = createDatabaseClient(databaseUrl);
@@ -52,6 +54,38 @@ export function createProfessionalTeamRoutes() {
         selection.workspace.permissions.includes(permissionKeys.organisationMembersManage),
       );
       return context.json<ApiSuccessBody<TeamOverview>>({ data, requestId: context.get("requestId") });
+    } finally { await client.close(); }
+  });
+
+  routes.get("/v1/professional/team/members", ...workspaceRead, async (context) => {
+    const selection = context.get("workspaceSelection");
+    if (!selection || selection.workspace.kind !== "organisation" || !selection.workspace.organisationId) throw new Error("Organisation workspace is required.");
+    const query = parseQuery(teamMemberListQuerySchema, context.req.url);
+    const { client, service } = createService(context.get("environment").DATABASE_URL);
+    try {
+      const data = await service.listMembers(selection.workspace.organisationId, query);
+      return context.json<ApiSuccessBody<TeamMemberPage>>({ data, requestId: context.get("requestId") });
+    } finally { await client.close(); }
+  });
+
+  routes.get("/v1/professional/team/invitations", ...workspaceRead, async (context) => {
+    const selection = context.get("workspaceSelection");
+    if (!selection || selection.workspace.kind !== "organisation" || !selection.workspace.organisationId) throw new Error("Organisation workspace is required.");
+    const query = parseQuery(teamInvitationListQuerySchema, context.req.url);
+    const { client, service } = createService(context.get("environment").DATABASE_URL);
+    try {
+      const data = await service.listInvitations(selection.workspace.organisationId, query);
+      return context.json<ApiSuccessBody<TeamInvitationPage>>({ data, requestId: context.get("requestId") });
+    } finally { await client.close(); }
+  });
+
+  routes.get("/v1/professional/team/roles", ...workspaceRead, async (context) => {
+    const selection = context.get("workspaceSelection");
+    if (!selection || selection.workspace.kind !== "organisation" || !selection.workspace.organisationId) throw new Error("Organisation workspace is required.");
+    const { client, service } = createService(context.get("environment").DATABASE_URL);
+    try {
+      const data = await service.roles(selection.workspace.organisationId);
+      return context.json<ApiSuccessBody<TeamRolesOverview>>({ data, requestId: context.get("requestId") });
     } finally { await client.close(); }
   });
 

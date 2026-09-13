@@ -90,3 +90,25 @@ export const jobMessageBodySchema = z.object({
   idempotencyKey: z.uuid(),
   body: z.string().trim().min(1).max(4000),
 });
+
+export const createProfessionalTaskBodySchema = z
+  .object({
+    clientAccountId: z.uuid(),
+    serviceId: z.uuid(),
+    membershipId: z.uuid(),
+    additionalMembershipIds: z.array(z.uuid()).max(8).default([]),
+    startsAt: z.string().datetime({ offset: true }),
+    expectedDurationMinutes: z.number().int().min(15).max(480).default(90),
+    location: z.string().trim().min(3).max(300),
+    scope: z.string().trim().min(20).max(2000),
+    priority: z.enum(["low", "normal", "high"]).default("normal"),
+    internalNote: z.string().trim().max(500).optional(),
+    checklist: z
+      .array(z.string().trim().min(3).max(120))
+      .max(10)
+      .optional(),
+  })
+  .refine(
+    (value) => !value.additionalMembershipIds.includes(value.membershipId),
+    { message: "Primary assignee must not duplicate crew.", path: ["additionalMembershipIds"] },
+  );

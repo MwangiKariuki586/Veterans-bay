@@ -164,15 +164,22 @@ export class BookingsService {
     startsAt: string;
     endsAt: string;
     reason: string;
+    description?: string;
+    status?: string;
   }): Promise<AvailabilityConfiguration> {
-    if (
-      !(await this.store.createAvailabilityBlock({
-        ...input,
-        startsAt: new Date(input.startsAt),
-        endsAt: new Date(input.endsAt),
-      }))
-    ) {
-      throw memberUnavailable();
+    try {
+      if (
+        !(await this.store.createAvailabilityBlock({
+          ...input,
+          startsAt: new Date(input.startsAt),
+          endsAt: new Date(input.endsAt),
+        }))
+      ) {
+        throw memberUnavailable();
+      }
+    } catch (error) {
+      if (isBookingConflict(error)) throw bookingConflict();
+      throw error;
     }
     return this.store.listAvailability(input.organisationId);
   }
@@ -189,6 +196,69 @@ export class BookingsService {
       });
     }
     return this.store.listAvailability(organisationId);
+  }
+
+  async updateAvailabilityBlock(input: {
+    organisationId: string;
+    actorAccountId: string;
+    blockId: string;
+    membershipId: string;
+    startsAt: string;
+    endsAt: string;
+    reason: string;
+    description?: string;
+    status?: string;
+  }): Promise<AvailabilityConfiguration> {
+    try {
+      if (
+        !(await this.store.updateAvailabilityBlock({
+          organisationId: input.organisationId,
+          blockId: input.blockId,
+          actorAccountId: input.actorAccountId,
+          membershipId: input.membershipId,
+          startsAt: new Date(input.startsAt),
+          endsAt: new Date(input.endsAt),
+          reason: input.reason,
+          description: input.description,
+          status: input.status,
+        }))
+      ) {
+        throw new AppError({
+          code: "AVAILABILITY_BLOCK_NOT_FOUND",
+          message: "The unavailable period was not found or member is inactive.",
+          status: 404,
+        });
+      }
+    } catch (error) {
+      if (isBookingConflict(error)) throw bookingConflict();
+      throw error;
+    }
+    return this.store.listAvailability(input.organisationId);
+  }
+
+  async updateBookingTask(input: {
+    organisationId: string;
+    actorAccountId: string;
+    bookingId: string;
+    location?: string;
+    scope?: string;
+  }): Promise<BookingDetail> {
+    if (
+      !(await this.store.updateBookingTaskDetails({
+        bookingId: input.bookingId,
+        organisationId: input.organisationId,
+        actorAccountId: input.actorAccountId,
+        location: input.location,
+        scope: input.scope,
+      }))
+    ) {
+      throw new AppError({
+        code: "BOOKING_NOT_FOUND",
+        message: "Booking not found or not editable.",
+        status: 404,
+      });
+    }
+    return this.getProfessional(input.organisationId, input.bookingId);
   }
 
   async listSlotsForProfessional(input: {
@@ -350,6 +420,7 @@ export class BookingsService {
     membershipId: string;
     startsAt: string;
     reschedule: boolean;
+    note?: string;
     correlationId?: string;
   }): Promise<BookingDetail> {
     const current = await this.getProfessional(

@@ -6,8 +6,12 @@ import type {
   TeamMemberRecord,
 } from "./repository";
 import type {
+  TeamInvitationListQuery,
+  TeamInvitationPage,
   TeamInvitationSummary,
   TeamMemberDetail,
+  TeamMemberListQuery,
+  TeamMemberPage,
   TeamMemberSummary,
   TeamOverview,
   TeamRoleKey,
@@ -22,7 +26,12 @@ async function hashToken(token: string) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function mapMember(record: TeamMemberRecord): TeamMemberSummary {
+function mapMember(record: TeamMemberRecord, workloadMap?: Map<string, { availabilityStatus: TeamMemberSummary["availabilityStatus"]; availabilityDetail: string | null; activeJobs: number; bookingsToday: number }>): TeamMemberSummary {
+  const workload = workloadMap?.get(record.id);
+  const availabilityStatus = workload?.availabilityStatus ?? "available";
+  const availabilityDetail = workload?.availabilityDetail ?? "9:00 AM – 5:00 PM";
+  const availabilityLabel =
+    availabilityStatus === "available" ? "Available today" : availabilityStatus === "on_job" ? "On job" : "Unavailable today";
   return {
     id: record.id,
     accountProfileId: record.accountProfileId,
@@ -35,6 +44,11 @@ function mapMember(record: TeamMemberRecord): TeamMemberSummary {
     financialDataAccess: record.financialDataAccess,
     joinedAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
+    availabilityStatus,
+    availabilityLabel,
+    availabilityDetail,
+    activeJobs: workload?.activeJobs ?? 0,
+    bookingsToday: workload?.bookingsToday ?? 0,
   };
 }
 
@@ -62,23 +76,84 @@ export class ProfessionalTeamService {
   ) {}
 
   async overview(organisationId: string, canManage = false): Promise<TeamOverview> {
-    const [members, invitations] = await Promise.all([
+    const [members, invitations, workload] = await Promise.all([
       this.store.listMembers(organisationId),
       this.store.listInvitations(organisationId),
+      this.store.listMemberWorkload ? this.store.listMemberWorkload(organisationId) : Promise.resolve([] as Array<{ membershipId: string; availabilityStatus: TeamMemberSummary["availabilityStatus"]; availabilityDetail: string | null; activeJobs: number; bookingsToday: number }>),
     ]);
-    return { members: members.map(mapMember), invitations: invitations.map(mapInvitation), canManage };
+    const workloadMap = new Map(workload.map((w) => [w.membershipId, w]));
+    return { members: members.map((m) => mapMember(m, workloadMap)), invitations: invitations.map(mapInvitation), canManage };
+  }
+
+  async listMembers(organisationId: string, query: TeamMemberListQuery): Promise<TeamMemberPage> {
+    if (!this.store.listMembersPaginated) {
+      const overview = await this.overview(organisationId, true);
+      return {
+        items: overview.members,
+        page: 1,
+        pageSize: overview.members.length || 10,
+        totalItems: overview.members.length,
+        totalPages: 1,
+      };
+    }
+    const page = await this.store.listMembersPaginated(organisationId, query);
+    const workload = await (this.store.listMemberWorkload
+      ? this.store.listMemberWorkload(organisationId)
+      : Promise.resolve([] as Array<{ membershipId: string; availabilityStatus: TeamMemberSummary["availabilityStatus"]; availabilityDetail: string | null; activeJobs: number; bookingsToday: number }>));
+    const workloadMap = new Map(workload.map((w) => [w.membershipId, w]));
+    return {
+      ...page,
+      items: page.items.map((record) => mapMember(record as unknown as TeamMemberRecord, workloadMap)),
+    };
+  }
+
+  async listInvitations(organisationId: string, query: TeamInvitationListQuery): Promise<TeamInvitationPage> {
+    if (!this.store.listInvitationsPaginated) {
+      const overview = await this.overview(organisationId, true);
+      return {
+        items: overview.invitations,
+        page: 1,
+        pageSize: overview.invitations.length || 10,
+        totalItems: overview.invitations.length,
+        totalPages: 1,
+      };
+    }
+    const page = await this.store.listInvitationsPaginated(organisationId, query);
+    return {
+      ...page,
+      items: page.items.map(mapInvitation),
+    };
   }
 
   async member(organisationId: string, membershipId: string): Promise<TeamMemberDetail> {
-    const [member, history] = await Promise.all([
+    const [member, history, workload, recentAssignments, perms] = await Promise.all([
       this.store.findMember(organisationId, membershipId),
       this.store.listHistory(organisationId, membershipId),
+      this.store.listMemberWorkload ? this.store.listMemberWorkload(organisationId) : Promise.resolve([] as Array<{ membershipId: string; availabilityStatus: TeamMemberSummary["availabilityStatus"]; availabilityDetail: string | null; activeJobs: number; bookingsToday: number }>),
+      this.store.listRecentAssignments ? this.store.listRecentAssignments(organisationId, membershipId) : Promise.resolve([] as Array<{ id: string; bookingId: string | null; serviceName: string; status: string; scheduledAt: Date | null; jobId: string }>),
+      this.store.listMemberPermissions ? this.store.listMemberPermissions(membershipId) : Promise.resolve([] as string[]),
     ]);
     if (!member) throw new AppError({ code: "TEAM_MEMBER_NOT_FOUND", message: "The team member was not found.", status: 404 });
+    const workloadMap = new Map(workload.map((w) => [w.membershipId, w]));
     return {
-      ...mapMember(member),
+      ...mapMember(member, workloadMap),
       history: history.map((item) => ({ ...item, createdAt: item.createdAt.toISOString() })),
+      recentAssignments: recentAssignments.map((a) => ({
+        id: a.jobId,
+        bookingId: a.bookingId,
+        serviceName: a.serviceName,
+        status: a.status,
+        scheduledAt: a.scheduledAt ? a.scheduledAt.toISOString() : null,
+        displayLabel: a.serviceName,
+      })),
+      permissions: perms,
     };
+  }
+
+  async roles(organisationId: string) {
+    if (!this.store.listRoles) return { roles: [] };
+    const roles = await this.store.listRoles(organisationId);
+    return { roles: roles.map((r) => ({ key: r.key as TeamRoleKey, label: r.name, description: r.description, memberCount: r.memberCount, permissions: r.permissions })) };
   }
 
   async invite(input: {

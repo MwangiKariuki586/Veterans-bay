@@ -42,6 +42,7 @@ import { deriveWarrantyCoverage } from "../../platform/warranties/coverage";
 import { professionalServices } from "../../platform/database/schema/professional-services";
 import { organisationMemberships } from "../../platform/database/schema/roles";
 import {
+  availabilityBlocks,
   bookingHistory,
   bookingReservations,
 } from "../../platform/database/schema/scheduling";
@@ -87,6 +88,199 @@ export class JobsRepository {
     correlationId?: string;
   }): Promise<string | null> {
     return this.db.transaction((tx) => ensureJobForBooking(tx, input));
+  }
+
+  async createProfessionalTask(input: {
+    organisationId: string;
+    actorAccountId: string;
+    clientAccountId: string;
+    serviceId: string;
+    membershipId: string;
+    additionalMembershipIds: string[];
+    startsAt: Date;
+    expectedDurationMinutes: number;
+    location: string;
+    scope: string;
+    priority: string;
+    internalNote?: string;
+    checklist?: string[];
+    correlationId?: string;
+  }): Promise<{ bookingId: string; jobId: string }> {
+    return this.db.transaction(async (tx) => {
+      const [service] = await tx
+        .select()
+        .from(professionalServices)
+        .where(
+          and(
+            eq(professionalServices.id, input.serviceId),
+            eq(professionalServices.organisationId, input.organisationId),
+            eq(professionalServices.status, "published"),
+            eq(professionalServices.moderationStatus, "clear"),
+          ),
+        )
+        .limit(1);
+      if (!service) throw new Error("Service unavailable");
+      const allMembershipIds = [input.membershipId, ...input.additionalMembershipIds];
+      const uniqueIds = [...new Set(allMembershipIds)];
+      if (uniqueIds.length !== allMembershipIds.length) throw new Error("Duplicate memberships");
+      const members = await tx
+        .select({ id: organisationMemberships.id })
+        .from(organisationMemberships)
+        .where(
+          and(
+            inArray(organisationMemberships.id, uniqueIds),
+            eq(organisationMemberships.organisationId, input.organisationId),
+            eq(organisationMemberships.status, "active"),
+          ),
+        );
+      if (members.length !== uniqueIds.length) throw new Error("Member not found or inactive");
+      const [client] = await tx
+        .select({ id: accountProfiles.id })
+        .from(accountProfiles)
+        .where(and(eq(accountProfiles.id, input.clientAccountId), eq(accountProfiles.status, "active")))
+        .limit(1);
+      if (!client) throw new Error("Client not found");
+      const endsAt = new Date(input.startsAt.getTime() + input.expectedDurationMinutes * 60_000);
+      if (endsAt <= input.startsAt) throw new Error("Invalid window");
+      const hasConflict = await tx
+        .select({ id: bookingReservations.id })
+        .from(bookingReservations)
+        .where(
+          and(
+            eq(bookingReservations.organisationId, input.organisationId),
+            eq(bookingReservations.membershipId, input.membershipId),
+            eq(bookingReservations.status, "ACTIVE"),
+            sql`${bookingReservations.startsAt} < ${endsAt} AND ${bookingReservations.endsAt} > ${input.startsAt}`,
+          ),
+        )
+        .limit(1);
+      if (hasConflict.length) throw new Error("Primary assignee is not available at that time.");
+      // also block duplicates from pending bookings and availability blocks
+      const hasPending = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.organisationId, input.organisationId),
+            eq(bookings.assignedMembershipId, input.membershipId),
+            inArray(bookings.status, ["PENDING_CONFIRMATION", "PENDING_DEPOSIT", "CONFIRMED", "RESCHEDULED", "RESCHEDULE_REQUESTED"]),
+            sql`${bookings.startsAt} < ${endsAt} AND ${bookings.endsAt} > ${input.startsAt}`,
+          ),
+        )
+        .limit(1);
+      if (hasPending.length) throw new Error("Primary assignee already has a task at that time.");
+      const blockOverlap = await tx
+        .select({ id: availabilityBlocks.id })
+        .from(availabilityBlocks)
+        .where(
+          and(
+            eq(availabilityBlocks.organisationId, input.organisationId),
+            eq(availabilityBlocks.membershipId, input.membershipId),
+            sql`${availabilityBlocks.startsAt} < ${endsAt} AND ${availabilityBlocks.endsAt} > ${input.startsAt}`,
+          ),
+        )
+        .limit(1);
+      if (blockOverlap.length) throw new Error("Primary assignee is blocked at that time.");
+      const [booking] = await tx
+        .insert(bookings)
+        .values({
+          organisationId: input.organisationId,
+          clientAccountId: client.id,
+          createdByAccountId: input.actorAccountId,
+          professionalServiceId: service.id,
+          assignedMembershipId: input.membershipId,
+          requestedMembershipId: input.membershipId,
+          requestedStartAt: input.startsAt,
+          requestedEndAt: endsAt,
+          startsAt: input.startsAt,
+          endsAt,
+          timezone: "Africa/Nairobi",
+          cancellationAcknowledgedAt: new Date(),
+          origin: "PROFESSIONAL_CUSTOMER",
+          status: "PENDING_CONFIRMATION",
+          currency: service.currency ?? "KES",
+          totalMinor: service.priceMinor ?? 0,
+          depositMinor: 0,
+          expectedDurationMinutes: input.expectedDurationMinutes,
+          location: input.location,
+          scope: input.scope,
+          exclusions: "Work outside the agreed service scope is excluded.",
+          warrantyTerms: service.warrantyTerms ?? "Workmanship warranty applies to the agreed service scope.",
+          paymentTerms: "Payment is recorded manually.",
+        })
+        .returning({ id: bookings.id });
+      const { recordBookingChange } = await import("../bookings/repository");
+      await recordBookingChange(tx, {
+        bookingId: booking.id,
+        organisationId: input.organisationId,
+        actorAccountId: input.actorAccountId,
+        action: "CREATED",
+        fromStatus: null,
+        toStatus: "PENDING_CONFIRMATION",
+        startsAt: input.startsAt,
+        endsAt,
+        membershipId: input.membershipId,
+        correlationId: input.correlationId,
+      });
+      const [job] = await tx
+        .insert(jobs)
+        .values({
+          bookingId: booking.id,
+          organisationId: input.organisationId,
+          clientAccountId: client.id,
+          createdByAccountId: input.actorAccountId,
+          status: "SCHEDULED",
+          serviceName: service.name,
+          scopeSnapshot: input.scope,
+          locationSnapshot: input.location,
+          exclusionsSnapshot: "Work outside the agreed service scope is excluded.",
+          warrantyTermsSnapshot: service.warrantyTerms ?? "Workmanship warranty applies to the agreed service scope.",
+          paymentTermsSnapshot: "Payment is recorded manually.",
+          currency: service.currency ?? "KES",
+          baseTotalMinor: service.priceMinor ?? 0,
+          totalMinor: service.priceMinor ?? 0,
+          scheduledStartsAt: input.startsAt,
+          scheduledEndsAt: endsAt,
+        })
+        .returning({ id: jobs.id });
+      await tx.insert(jobAssignments).values(
+        uniqueIds.map((mid) => ({
+          jobId: job.id,
+          organisationId: input.organisationId,
+          membershipId: mid,
+          assignedByAccountId: input.actorAccountId,
+          reason: `[${input.priority}] ${input.scope.slice(0, 100)}`,
+        })),
+      );
+      if (input.checklist?.length) {
+        await tx.insert(jobChecklistItems).values(
+          input.checklist.map((label, idx) => ({
+            jobId: job.id,
+            label,
+            required: true,
+            position: idx,
+            completed: false,
+          })),
+        );
+      }
+      if (input.internalNote) {
+        await tx.insert(jobUpdates).values({
+          jobId: job.id,
+          createdByAccountId: input.actorAccountId,
+          updateType: "NOTE",
+          visibility: "PROFESSIONAL",
+          content: input.internalNote,
+        });
+      }
+      const { ensureRegisteredCustomer } = await import("../customers/repository");
+      await ensureRegisteredCustomer(tx, {
+        organisationId: input.organisationId,
+        clientAccountId: client.id,
+        actorAccountId: input.actorAccountId,
+        origin: "PROFESSIONAL_CUSTOMER",
+      });
+      return { bookingId: booking.id, jobId: job.id };
+    });
   }
 
   async listProfessional(input: {

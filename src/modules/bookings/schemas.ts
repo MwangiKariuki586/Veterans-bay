@@ -124,7 +124,13 @@ export const bookingScheduleBodySchema = z.object({
   membershipId: uuidSchema,
   startsAt: dateTimeSchema,
   cancellationPolicyAcknowledged: z.literal(true),
+  note: z.string().trim().min(3).max(500).optional(),
 });
+
+export const bookingProfessionalRescheduleBodySchema =
+  bookingScheduleBodySchema.extend({
+    note: z.string().trim().min(3).max(500),
+  });
 
 export const bookingRescheduleRequestBodySchema =
   bookingScheduleBodySchema.extend({
@@ -159,14 +165,29 @@ export const replaceAvailabilityBodySchema = z.object({
     ),
 });
 
+export const availabilityBlockStatuses = ["PENDING", "ACCEPTED"] as const;
+
 export const createAvailabilityBlockBodySchema = z
   .object({
     membershipId: uuidSchema,
     startsAt: dateTimeSchema,
     endsAt: dateTimeSchema,
-    reason: z.string().trim().min(3).max(240),
+    reason: z.string().trim().min(3).max(120),
+    description: z.string().trim().min(3).max(1000).optional(),
+    status: z.enum(availabilityBlockStatuses).default("ACCEPTED").optional(),
   })
   .refine((value) => new Date(value.endsAt) > new Date(value.startsAt), {
     message: "Unavailable end must follow its start.",
     path: ["endsAt"],
+  });
+
+export const updateAvailabilityBlockBodySchema = createAvailabilityBlockBodySchema;
+
+export const updateBookingTaskBodySchema = z
+  .object({
+    location: z.string().trim().min(3).max(300).optional(),
+    scope: z.string().trim().min(20).max(2000).optional(),
+  })
+  .refine((v) => Boolean(v.location || v.scope), {
+    message: "Provide at least location or scope to update.",
   });

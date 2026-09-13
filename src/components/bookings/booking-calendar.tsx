@@ -10,6 +10,16 @@ import { Surface } from "@/components/ui/surface";
 import type { CalendarEntry } from "@/modules/bookings/types";
 import { getCalendar } from "./booking-api";
 
+function isTaskAccepted(entry: CalendarEntry): boolean {
+  const jobStatus = entry.jobStatus;
+  if (jobStatus) {
+    if (["TEAM_ASSIGNED", "EN_ROUTE", "IN_PROGRESS", "COMPLETED"].includes(jobStatus)) return true;
+    if (["ON_HOLD", "AWAITING_CLIENT_CONFIRMATION", "RETURN_VISIT_REQUIRED", "CREATED", "SCHEDULED", "DISPUTED", "CANCELLED"].includes(jobStatus)) return false;
+  }
+  if (["CONFIRMED", "RESCHEDULED", "COMPLETED"].includes(entry.status)) return true;
+  return false;
+}
+
 export function BookingCalendar() {
   const [anchor, setAnchor] = useState(() => startOfWeek(new Date()));
   const [entries, setEntries] = useState<CalendarEntry[] | null>(null);
@@ -57,8 +67,12 @@ export function BookingCalendar() {
             Booking calendar
           </h1>
           <p className="mt-2 text-sm text-[#68717b]">
-            Confirmed and rescheduled work, grouped by local calendar day.
+            Tasks and accepted work, grouped by local calendar day — color shows acceptance.
           </p>
+          <div className="mt-2 flex flex-wrap gap-3 text-[0.7rem]">
+            <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#1a9a3a]" /> Accepted</span>
+            <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#f59e0b]" /> Pending</span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -130,12 +144,14 @@ export function BookingCalendar() {
                 <p className="mt-5 text-xs text-[#8a939b]">No bookings</p>
               ) : (
                 <div className="mt-4 space-y-2">
-                  {day.entries.map((entry) => (
-                    <a
-                      key={entry.id}
-                      href={`/professional/bookings/${entry.id}`}
-                      className="block rounded-xl border border-[#dbe8b1] bg-[#f7fbdc] p-3"
-                    >
+                  {day.entries.map((entry) => {
+                    const accepted = isTaskAccepted(entry);
+                    return (
+                      <a
+                        key={entry.id}
+                        href={`/professional/bookings/${entry.id}`}
+                        className={`block rounded-xl border p-3 ${accepted ? "border-[#cde4a0] bg-[#f0f7e0]" : "border-[#fcd34d] bg-[#fef3c7]"}`}
+                      >
                       <p className="text-xs font-semibold">{entry.serviceName}</p>
                       <p className="mt-1 flex items-center gap-1 text-[0.7rem] text-[#59646e]">
                         <Clock3 className="size-3" />
@@ -147,8 +163,12 @@ export function BookingCalendar() {
                       <p className="mt-1 truncate text-[0.7rem] text-[#59646e]">
                         {entry.assignmentName}
                       </p>
+                      <p className={`mt-1 text-[0.62rem] font-semibold ${isTaskAccepted(entry) ? "text-[#3d5a0a]" : "text-[#92400e]"}`}>
+                        {isTaskAccepted(entry) ? "Accepted" : "Pending"}
+                      </p>
                     </a>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </Surface>

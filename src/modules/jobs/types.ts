@@ -125,6 +125,7 @@ export interface JobDetail extends JobSummary {
   organisationId: string;
   clientAccountId: string;
   lockVersion: number;
+  locationSnapshot?: string | null;
   scopeSnapshot: string;
   exclusionsSnapshot: string;
   warrantyTermsSnapshot: string;

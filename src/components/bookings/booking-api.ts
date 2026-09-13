@@ -175,6 +175,20 @@ export function removeAvailabilityBlock(blockId: string) {
   );
 }
 
+export function updateAvailabilityBlock(blockId: string, body: Record<string, unknown>) {
+  return bookingApi<AvailabilityConfiguration>(
+    `/api/v1/professional/availability/blocks/${blockId}`,
+    { method: "PUT", body: JSON.stringify(body) },
+  );
+}
+
+export function updateBookingTask(bookingId: string, body: Record<string, unknown>) {
+  return bookingApi<BookingDetail>(
+    `/api/v1/professional/bookings/${bookingId}/details`,
+    { method: "PATCH", body: JSON.stringify(body) },
+  );
+}
+
 export function getCalendar(from: Date, to: Date, membershipId?: string) {
   const query = new URLSearchParams({
     from: from.toISOString(),

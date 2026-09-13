@@ -90,6 +90,8 @@ export const availabilityBlocks = pgTable(
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     reason: text("reason").notNull(),
+    description: text("description"),
+    status: text("status").notNull().default("ACCEPTED"),
     createdByAccountId: uuid("created_by_account_id")
       .notNull()
       .references(() => accountProfiles.id, { onDelete: "restrict" }),
@@ -105,6 +107,10 @@ export const availabilityBlocks = pgTable(
     check(
       "availability_blocks_reason_check",
       sql`char_length(trim(${table.reason})) between 3 and 240`,
+    ),
+    check(
+      "availability_blocks_status_check",
+      sql`${table.status} in ('PENDING','ACCEPTED')`,
     ),
     index("availability_blocks_org_window_idx").on(
       table.organisationId,

@@ -49,6 +49,7 @@ export type TeamInvitation = {
   invitedBy: string;
   sentAt: string;
   expiresAt: string;
+  expiresAtRaw?: string;
   assignedJobsOnly?: boolean;
   financialAccess?: boolean;
 };

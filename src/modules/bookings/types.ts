@@ -76,6 +76,7 @@ export interface BookingSummary {
   professionalServiceId: string | null;
   jobId: string | null;
   jobStatus: import("../jobs/types").JobStatus | null;
+  location?: string | null;
 }
 
 export interface BookingHistoryItem {
@@ -139,6 +140,9 @@ export interface AvailabilityRule {
   active: boolean;
 }
 
+export const availabilityBlockStatuses = ["PENDING", "ACCEPTED"] as const;
+export type AvailabilityBlockStatus = (typeof availabilityBlockStatuses)[number];
+
 export interface AvailabilityBlock {
   id: string;
   membershipId: string;
@@ -146,6 +150,8 @@ export interface AvailabilityBlock {
   startsAt: string;
   endsAt: string;
   reason: string;
+  description?: string | null;
+  status: AvailabilityBlockStatus;
 }
 
 export interface SchedulingMember {
@@ -174,11 +180,16 @@ export interface CalendarEntry {
   serviceName: string;
   clientName: string;
   status: BookingStatus;
+  origin: BookingOrigin;
+  jobStatus: import("../jobs/types").JobStatus | null;
   membershipId: string;
   assignmentName: string;
   startsAt: string;
   endsAt: string;
   timezone: string;
+  lockVersion: number;
+  location?: string | null;
+  scope?: string | null;
 }
 
 export interface DirectBookingInput {

@@ -80,6 +80,45 @@ export class JobsService {
     return this.getProfessional(jobId, input.scope);
   }
 
+  async createProfessionalTask(input: {
+    scope: ProfessionalJobScope;
+    actorAccountId: string;
+    clientAccountId: string;
+    serviceId: string;
+    membershipId: string;
+    additionalMembershipIds: string[];
+    startsAt: string;
+    expectedDurationMinutes: number;
+    location: string;
+    scopeDescription: string;
+    priority: "low" | "normal" | "high";
+    internalNote?: string;
+    checklist?: string[];
+    correlationId?: string;
+  }) {
+    const startsAt = new Date(input.startsAt);
+    if (Number.isNaN(startsAt.getTime()) || startsAt.getTime() <= Date.now()) {
+      throw new AppError({ code: "VALIDATION_ERROR", message: "Choose a future start time.", status: 422 });
+    }
+    const result = await this.store.createProfessionalTask({
+      organisationId: input.scope.organisationId,
+      actorAccountId: input.actorAccountId,
+      clientAccountId: input.clientAccountId,
+      serviceId: input.serviceId,
+      membershipId: input.membershipId,
+      additionalMembershipIds: input.additionalMembershipIds,
+      startsAt,
+      expectedDurationMinutes: input.expectedDurationMinutes,
+      location: input.location,
+      scope: input.scopeDescription,
+      priority: input.priority,
+      internalNote: input.internalNote,
+      checklist: input.checklist,
+      correlationId: input.correlationId,
+    });
+    return this.getProfessional(result.jobId, input.scope);
+  }
+
   async assign(input: {
     jobId: string;
     scope: ProfessionalJobScope;

@@ -216,6 +216,8 @@ export class BookingsRepository {
           startsAt: availabilityBlocks.startsAt,
           endsAt: availabilityBlocks.endsAt,
           reason: availabilityBlocks.reason,
+          description: availabilityBlocks.description,
+          status: availabilityBlocks.status,
         })
         .from(availabilityBlocks)
         .innerJoin(
@@ -239,6 +241,7 @@ export class BookingsRepository {
       rules,
       blocks: blocks.map((block) => ({
         ...block,
+        status: block.status as "PENDING" | "ACCEPTED",
         startsAt: block.startsAt.toISOString(),
         endsAt: block.endsAt.toISOString(),
       })),
@@ -292,6 +295,8 @@ export class BookingsRepository {
     startsAt: Date;
     endsAt: Date;
     reason: string;
+    description?: string;
+    status?: string;
   }): Promise<boolean> {
     if (
       !(await activeMembership(
@@ -302,12 +307,41 @@ export class BookingsRepository {
     ) {
       return false;
     }
+    // dedupe: block overlaps existing block for same member
+    const [existingBlock] = await this.db
+      .select({ id: availabilityBlocks.id })
+      .from(availabilityBlocks)
+      .where(
+        and(
+          eq(availabilityBlocks.organisationId, input.organisationId),
+          eq(availabilityBlocks.membershipId, input.membershipId),
+          sql`${availabilityBlocks.startsAt} < ${input.endsAt} AND ${availabilityBlocks.endsAt} > ${input.startsAt}`,
+        ),
+      )
+      .limit(1);
+    if (existingBlock) throw conflictError();
+    // dedupe: block overlaps existing task/booking (pending or confirmed)
+    const [existingBooking] = await this.db
+      .select({ id: bookings.id })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.organisationId, input.organisationId),
+          eq(bookings.assignedMembershipId, input.membershipId),
+          inArray(bookings.status, ["PENDING_CONFIRMATION", "PENDING_DEPOSIT", "CONFIRMED", "RESCHEDULED", "RESCHEDULE_REQUESTED"]),
+          sql`${bookings.startsAt} < ${input.endsAt} AND ${bookings.endsAt} > ${input.startsAt}`,
+        ),
+      )
+      .limit(1);
+    if (existingBooking) throw conflictError();
     await this.db.insert(availabilityBlocks).values({
       organisationId: input.organisationId,
       membershipId: input.membershipId,
       startsAt: input.startsAt,
       endsAt: input.endsAt,
       reason: input.reason,
+      description: input.description,
+      status: (input.status as "PENDING" | "ACCEPTED") ?? "ACCEPTED",
       createdByAccountId: input.actorAccountId,
     });
     return true;
@@ -327,6 +361,117 @@ export class BookingsRepository {
       )
       .returning({ id: availabilityBlocks.id });
     return deleted.length === 1;
+  }
+
+  async updateAvailabilityBlock(input: {
+    organisationId: string;
+    blockId: string;
+    actorAccountId: string;
+    membershipId: string;
+    startsAt: Date;
+    endsAt: Date;
+    reason: string;
+    description?: string | null;
+    status?: string;
+  }): Promise<boolean> {
+    if (
+      !(await activeMembership(
+        this.db,
+        input.organisationId,
+        input.membershipId,
+      ))
+    ) {
+      return false;
+    }
+    // dedupe on update: exclude current block
+    const [dupBlock] = await this.db
+      .select({ id: availabilityBlocks.id })
+      .from(availabilityBlocks)
+      .where(
+        and(
+          eq(availabilityBlocks.organisationId, input.organisationId),
+          eq(availabilityBlocks.membershipId, input.membershipId),
+          ne(availabilityBlocks.id, input.blockId),
+          sql`${availabilityBlocks.startsAt} < ${input.endsAt} AND ${availabilityBlocks.endsAt} > ${input.startsAt}`,
+        ),
+      )
+      .limit(1);
+    if (dupBlock) throw conflictError();
+    const [dupBooking] = await this.db
+      .select({ id: bookings.id })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.organisationId, input.organisationId),
+          eq(bookings.assignedMembershipId, input.membershipId),
+          inArray(bookings.status, ["PENDING_CONFIRMATION", "PENDING_DEPOSIT", "CONFIRMED", "RESCHEDULED", "RESCHEDULE_REQUESTED"]),
+          sql`${bookings.startsAt} < ${input.endsAt} AND ${bookings.endsAt} > ${input.startsAt}`,
+        ),
+      )
+      .limit(1);
+    if (dupBooking) throw conflictError();
+    const [updated] = await this.db
+      .update(availabilityBlocks)
+      .set({
+        membershipId: input.membershipId,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        reason: input.reason,
+        description: input.description ?? null,
+        ...(input.status ? { status: input.status } : {}),
+      })
+      .where(
+        and(
+          eq(availabilityBlocks.id, input.blockId),
+          eq(availabilityBlocks.organisationId, input.organisationId),
+        ),
+      )
+      .returning({ id: availabilityBlocks.id });
+    return Boolean(updated);
+  }
+
+  async updateBookingTaskDetails(input: {
+    bookingId: string;
+    organisationId: string;
+    actorAccountId: string;
+    location?: string;
+    scope?: string;
+  }): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      const [booking] = await tx
+        .select({ id: bookings.id, status: bookings.status, organisationId: bookings.organisationId })
+        .from(bookings)
+        .where(and(eq(bookings.id, input.bookingId), eq(bookings.organisationId, input.organisationId)))
+        .limit(1);
+      if (!booking) return false;
+      if (!["CONFIRMED", "RESCHEDULED", "RESCHEDULE_REQUESTED", "PENDING_CONFIRMATION", "PENDING_DEPOSIT"].includes(booking.status)) return false;
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      if (input.location !== undefined) updates.location = input.location;
+      if (input.scope !== undefined) {
+        updates.scope = input.scope;
+      }
+      if (Object.keys(updates).length === 1) return true; // only updatedAt
+      const [updated] = await tx
+        .update(bookings)
+        .set(updates)
+        .where(eq(bookings.id, input.bookingId))
+        .returning({ id: bookings.id });
+      if (!updated) return false;
+      const jobUpdates: Record<string, unknown> = { updatedAt: new Date() };
+      if (input.location !== undefined) jobUpdates.locationSnapshot = input.location;
+      if (input.scope !== undefined) jobUpdates.scopeSnapshot = input.scope;
+      await tx.update(jobs).set(jobUpdates).where(eq(jobs.bookingId, input.bookingId));
+      await recordBookingChange(tx, {
+        bookingId: input.bookingId,
+        organisationId: input.organisationId,
+        actorAccountId: input.actorAccountId,
+        action: "DETAILS_UPDATED",
+        fromStatus: booking.status,
+        toStatus: booking.status,
+        note: [input.location ? `Location: ${input.location}` : null, input.scope ? `Scope: ${input.scope.slice(0, 100)}` : null].filter(Boolean).join(" | "),
+      });
+      return true;
+    });
   }
 
   async slotInputs(input: {
@@ -562,11 +707,16 @@ export class BookingsRepository {
           serviceName: sql<string>`coalesce(${professionalServices.name}, ${serviceRequests.category}, 'Service booking')`,
           clientName: clientProfile.displayName,
           status: bookings.status,
+          origin: bookings.origin,
+          jobStatus: jobs.status,
           membershipId: organisationMemberships.id,
           assignmentName: assignedProfile.displayName,
           startsAt: bookings.startsAt,
           endsAt: bookings.endsAt,
           timezone: bookings.timezone,
+          lockVersion: bookings.lockVersion,
+          location: bookings.location,
+          scope: bookings.scope,
         })
         .from(bookings)
         .innerJoin(
@@ -586,9 +736,11 @@ export class BookingsRepository {
           eq(professionalServices.id, bookings.professionalServiceId),
         )
         .leftJoin(serviceRequests, eq(serviceRequests.id, bookings.requestId))
+        .leftJoin(jobs, eq(jobs.bookingId, bookings.id))
         .where(
           and(
             eq(bookings.organisationId, input.organisationId),
+            eq(bookings.origin, "PROFESSIONAL_CUSTOMER"),
             isNotNull(bookings.startsAt),
             isNotNull(bookings.endsAt),
             lt(bookings.startsAt, input.to),
@@ -602,6 +754,8 @@ export class BookingsRepository {
     ).map((row) => ({
       ...row,
       status: row.status as BookingStatus,
+      origin: row.origin as CalendarEntry["origin"],
+      jobStatus: (row.jobStatus as CalendarEntry["jobStatus"]) ?? null,
       startsAt: row.startsAt!.toISOString(),
       endsAt: row.endsAt!.toISOString(),
     }));
@@ -993,6 +1147,7 @@ export class BookingsRepository {
     startsAt: Date;
     endsAt: Date;
     reschedule: boolean;
+    note?: string;
     correlationId?: string;
   }): Promise<ScheduleResult> {
     return this.db.transaction(async (tx) => {
@@ -1009,7 +1164,11 @@ export class BookingsRepository {
             eq(bookings.organisationId, input.organisationId),
             eq(bookings.lockVersion, input.expectedLockVersion),
             input.reschedule
-              ? eq(bookings.status, "RESCHEDULE_REQUESTED")
+              ? inArray(bookings.status, [
+                  "CONFIRMED",
+                  "RESCHEDULED",
+                  "RESCHEDULE_REQUESTED",
+                ])
               : inArray(bookings.status, [
                   "PENDING_CONFIRMATION",
                   "PENDING_DEPOSIT",
@@ -1098,6 +1257,7 @@ export class BookingsRepository {
         startsAt: input.startsAt,
         endsAt: input.endsAt,
         membershipId: input.membershipId,
+        note: input.note,
         correlationId: input.correlationId,
       });
       await ensureJobForBooking(tx, {
@@ -1796,7 +1956,23 @@ async function windowAvailable(
       ),
     )
     .limit(1);
-  return !reservation;
+  if (reservation) return false;
+  // also treat pending/confirmed bookings without reservation as blocking (tentative)
+  const [pending] = await tx
+    .select({ id: bookings.id })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.organisationId, input.organisationId),
+        eq(bookings.assignedMembershipId, input.membershipId),
+        inArray(bookings.status, ["PENDING_CONFIRMATION", "PENDING_DEPOSIT", "CONFIRMED", "RESCHEDULED", "RESCHEDULE_REQUESTED"]),
+        lt(bookings.startsAt, input.endsAt),
+        sql`${bookings.endsAt} > ${input.startsAt}`,
+        ...(input.excludeBookingId ? [ne(bookings.id, input.excludeBookingId)] : []),
+      ),
+    )
+    .limit(1);
+  return !pending;
 }
 
 function withinDatabaseRule(

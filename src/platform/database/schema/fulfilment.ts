@@ -54,6 +54,7 @@ export const jobs = pgTable(
       withTimezone: true,
     }),
     scheduledEndsAt: timestamp("scheduled_ends_at", { withTimezone: true }),
+    locationSnapshot: text("location_snapshot"),
     timezone: text("timezone").notNull().default("Africa/Nairobi"),
     checkedInAt: timestamp("checked_in_at", { withTimezone: true }),
     startedAt: timestamp("started_at", { withTimezone: true }),

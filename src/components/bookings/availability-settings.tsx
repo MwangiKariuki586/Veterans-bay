@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarOff, Clock3, Plus, Trash2, UsersRound } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ const weekdays = [
 ] as const;
 
 export function AvailabilitySettings() {
+  const searchParams = useSearchParams();
   const [configuration, setConfiguration] =
     useState<AvailabilityConfiguration | null>(null);
   const [membershipId, setMembershipId] = useState("");
@@ -40,11 +42,13 @@ export function AvailabilitySettings() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const requestedMemberId = searchParams.get("memberId");
   useEffect(() => {
     void getAvailability()
       .then((result) => {
         setConfiguration(result);
-        const initialMembershipId = result.members[0]?.membershipId ?? "";
+        const exists = requestedMemberId ? result.members.some((m) => m.membershipId === requestedMemberId) : false;
+        const initialMembershipId = (exists ? requestedMemberId! : result.members[0]?.membershipId) ?? "";
         setMembershipId(initialMembershipId);
         applyMemberRules(
           result.rules.filter(
@@ -57,7 +61,7 @@ export function AvailabilitySettings() {
           cause instanceof Error ? cause.message : "Availability unavailable.",
         ),
       );
-  }, []);
+  }, [requestedMemberId]);
 
   function applyMemberRules(
     rules: AvailabilityConfiguration["rules"],
