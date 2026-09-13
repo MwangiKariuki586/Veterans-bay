@@ -2,11 +2,11 @@ import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import type { NextConfig } from "next";
 import { z } from "zod";
 
-initOpenNextCloudflareForDev();
+if (process.env.NODE_ENV === "development" && !process.env.VERCEL) {
+  void initOpenNextCloudflareForDev();
+}
 
-const apiOrigin = z
-  .url()
-  .parse(process.env.API_ORIGIN ?? "http://127.0.0.1:8787");
+const apiOrigin = z.url().parse(process.env.API_ORIGIN || "http://127.0.0.1:8787");
 
 const nextConfig: NextConfig = {
   images: {
