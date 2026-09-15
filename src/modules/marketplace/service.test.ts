@@ -45,6 +45,7 @@ describe("marketplace service", () => {
           },
         ],
       }),
+      listPopular: vi.fn(),
     };
 
     const availabilityStore = {
@@ -88,7 +89,7 @@ describe("marketplace service", () => {
           slug: "plumbing-inspection",
           priceMinor: null,
           imageUrl:
-            "https://res.cloudinary.com/demo-cloud/image/upload/f_auto,q_auto,c_fill,w_1200,h_800/veterans-bay/services/inspection",
+            "https://res.cloudinary.com/demo-cloud/image/upload/f_auto,q_auto,c_fill,w_600,h_400/veterans-bay/services/inspection",
           provider: expect.objectContaining({
             businessName: "Trusted Plumbing",
             verified: true,
@@ -111,6 +112,7 @@ describe("marketplace service", () => {
     const store: MarketplaceStore = {
       recordAnalytics: vi.fn(),
       search: vi.fn().mockResolvedValue({ items: [], totalItems: 0 }),
+      listPopular: vi.fn(),
     };
 
     await expect(
@@ -127,6 +129,7 @@ describe("marketplace service", () => {
     const store: MarketplaceStore = {
       recordAnalytics: vi.fn(),
       search: vi.fn().mockResolvedValue({ items: [], totalItems: 29 }),
+      listPopular: vi.fn(),
     };
 
     await expect(
@@ -143,6 +146,7 @@ describe("marketplace service", () => {
     const store: MarketplaceStore = {
       recordAnalytics: vi.fn().mockResolvedValue(undefined),
       search: vi.fn(),
+      listPopular: vi.fn(),
     };
     const event = {
       eventType: "marketplace.search_performed" as const,

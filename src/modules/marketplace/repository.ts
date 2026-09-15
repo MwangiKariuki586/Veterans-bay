@@ -54,6 +54,7 @@ export interface MarketplaceStore {
     items: MarketplaceSearchRecord[];
     totalItems: number;
   }>;
+  listPopular(input: { location?: string; limit?: number }): Promise<MarketplaceSearchRecord[]>;
   recordAnalytics(event: MarketplaceAnalyticsEvent): Promise<void>;
 }
 
@@ -252,6 +253,102 @@ export class MarketplaceRepository implements MarketplaceStore {
       items: items as unknown as MarketplaceSearchRecord[],
       totalItems: total?.value ?? 0,
     };
+  }
+
+  async listPopular(input: { location?: string; limit?: number } = {}): Promise<MarketplaceSearchRecord[]> {
+    const limit = Math.max(1, Math.min(input.limit ?? 3, 9));
+    const conditions: SQL[] = [
+      eq(professionalServices.status, "published"),
+      eq(professionalServices.moderationStatus, "clear"),
+      eq(organisations.status, "active"),
+      isNotNull(professionalServices.category),
+      isNotNull(professionalServices.description),
+      isNotNull(professionalServices.fulfilmentModel),
+      isNotNull(professionalServices.pricingModel),
+      sql`(
+        ${professionalServices.pricingModel} = 'custom_quote'
+        or ${professionalServices.priceMinor} is not null
+      )`,
+    ];
+
+    if (input.location) {
+      conditions.push(
+        sql`(
+          ${professionalServices.serviceAreas} @> ${JSON.stringify([input.location])}::jsonb
+          or ${professionalProfiles.serviceAreas} @> ${JSON.stringify([input.location])}::jsonb
+          or lower(${professionalProfiles.operatingLocation}) = lower(${input.location})
+        )`,
+      );
+    }
+
+    const where = and(...conditions);
+
+    const itemsWithoutImages = await this.db
+      .select({
+        serviceId: professionalServices.id,
+        organisationId: organisations.id,
+        slug: professionalServices.slug,
+        name: professionalServices.name,
+        category: professionalServices.category,
+        description: professionalServices.description,
+        fulfilmentModel: professionalServices.fulfilmentModel,
+        pricingModel: professionalServices.pricingModel,
+        priceMinor: professionalServices.priceMinor,
+        currency: professionalServices.currency,
+        serviceAreas: professionalServices.serviceAreas,
+        estimatedDurationMinutes: professionalServices.estimatedDurationMinutes,
+        directBookingEnabled: professionalServices.directBookingEnabled,
+        providerSlug: organisations.slug,
+        providerName: organisations.name,
+        providerLocation: professionalProfiles.operatingLocation,
+        providerVerified: sql<boolean>`${professionalProfiles.verificationStatus} = 'verified'`,
+        providerExperienceStartedYear: professionalProfiles.experienceStartedYear,
+        providerAverageRatingHundredths: professionalReputation.averageRatingHundredths,
+        providerReviewCount: professionalReputation.reviewCount,
+        providerVerifiedJobs: professionalReputation.verifiedJobs,
+      })
+      .from(professionalServices)
+      .innerJoin(organisations, eq(organisations.id, professionalServices.organisationId))
+      .innerJoin(professionalProfiles, eq(professionalProfiles.organisationId, organisations.id))
+      .leftJoin(professionalReputation, eq(professionalReputation.organisationId, organisations.id))
+      .where(where)
+      .orderBy(
+        desc(sql`coalesce(${professionalReputation.averageRatingHundredths}, 0)`),
+        desc(sql`coalesce(${professionalReputation.reviewCount}, 0)`),
+        desc(professionalServices.publishedAt),
+        asc(professionalServices.id),
+      )
+      .limit(limit);
+
+    if (itemsWithoutImages.length === 0) return [];
+
+    const serviceIds = itemsWithoutImages.map((item) => item.serviceId);
+    const images = await this.db
+      .select({
+        serviceId: professionalServiceImages.serviceId,
+        publicId: fileAssets.cloudinaryPublicId,
+      })
+      .from(professionalServiceImages)
+      .innerJoin(fileAssets, eq(fileAssets.id, professionalServiceImages.assetId))
+      .where(
+        and(
+          inArray(professionalServiceImages.serviceId, serviceIds),
+          eq(fileAssets.visibility, "public"),
+          eq(fileAssets.status, "ready"),
+          eq(fileAssets.purpose, "SERVICE_IMAGE"),
+        ),
+      )
+      .orderBy(asc(professionalServiceImages.position), asc(professionalServiceImages.id));
+
+    const imageMap = new Map<string, string | null>();
+    for (const row of images) {
+      if (!imageMap.has(row.serviceId)) imageMap.set(row.serviceId, row.publicId);
+    }
+
+    return itemsWithoutImages.map(({ serviceId, ...rest }) => ({
+      ...rest,
+      imagePublicId: imageMap.get(serviceId) ?? null,
+    })) as unknown as MarketplaceSearchRecord[];
   }
 
   async recordAnalytics(event: MarketplaceAnalyticsEvent): Promise<void> {

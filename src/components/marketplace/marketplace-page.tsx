@@ -25,7 +25,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useOptionalQueryClient } from "@/lib/optional-query-client";
-import { FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
@@ -314,7 +321,14 @@ export function MarketplacePage({
         });
       }
     }
-  }, [initialSearchKey, initialResult, initialError, searchKey, retryAttempt, request.key]);
+  }, [
+    initialSearchKey,
+    initialResult,
+    initialError,
+    searchKey,
+    retryAttempt,
+    request.key,
+  ]);
 
   useEffect(() => {
     if (initialCategories && initialCategories.length > 0) return;
@@ -384,7 +398,14 @@ export function MarketplacePage({
         });
       });
     return () => controller.abort();
-  }, [currentSearchParams, filters, requestKey, request.key, initialSearchKey, initialResult]);
+  }, [
+    currentSearchParams,
+    filters,
+    requestKey,
+    request.key,
+    initialSearchKey,
+    initialResult,
+  ]);
 
   const { data: session } = authClient.useSession();
 
@@ -528,23 +549,12 @@ export function MarketplacePage({
 
   return (
     <div className="marketplace-page">
-      <nav
-        className="hidden text-[0.7rem] text-[#607087] sm:block"
-        aria-label="Breadcrumb"
-      >
-        <Link href="/" className="hover:text-foreground">
-          Home
-        </Link>
-        <span className="mx-2">›</span>
-        <span className="text-foreground">Find Services</span>
-      </nav>
-
-      <header className="mt-1 flex flex-wrap items-end justify-between gap-5 sm:mt-3">
+      <header className="flex flex-wrap items-end justify-between gap-5 border-b border-black/[0.06] pb-5">
         <div>
-          <h1 className="text-[2rem] leading-tight font-medium tracking-title sm:text-[2.15rem]">
+          <h1 className="text-[2rem] leading-none font-semibold tracking-tight sm:text-[2.15rem]">
             Find Services
           </h1>
-          <p className="mt-1 text-[0.82rem] text-[#334a68]">
+          <p className="mt-2 text-[0.82rem] leading-5 text-[#5a6b84]">
             Search trusted home service professionals in Nairobi.
           </p>
         </div>
@@ -793,13 +803,15 @@ export function MarketplacePage({
             <h2 className="font-semibold">Popular near you</h2>
             <div className="mt-3 border-t border-black/8 pt-2">
               {popularServices.map((service) => (
-                <div
+                <Link
                   key={service.name}
-                  className="flex gap-3 border-b border-black/8 py-3 last:border-0"
+                  href={`/marketplace?category=${encodeURIComponent(service.name.includes("Water Heater") ? "Appliance Repair" : "Plumbing")}`}
+                  prefetch={false}
+                  className="flex gap-3 border-b border-black/8 py-3 last:border-0 hover:bg-[#fbfdf4] rounded-lg px-1 -mx-1 transition-colors"
                 >
                   <Image
                     src={service.image}
-                    alt=""
+                    alt={service.name}
                     width={54}
                     height={54}
                     className="size-[54px] rounded-lg object-cover"
@@ -812,16 +824,9 @@ export function MarketplacePage({
                       Popular locally
                     </p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
-            <Link
-              href="/categories"
-              prefetch={false}
-              className="mt-3 flex min-h-9 items-center justify-between text-[0.7rem] font-semibold text-[#17304f]"
-            >
-              View all popular services <ArrowRight className="size-4" />
-            </Link>
           </div>
         </aside>
       </div>
@@ -1172,7 +1177,6 @@ function HelpCard({ className }: { className?: string }) {
       </p>
       <Link
         href="/contact"
-        prefetch={false}
         className={cn(
           buttonVariants(),
           "mt-4 h-10 w-full justify-between rounded-xl px-4 text-xs",
@@ -1210,65 +1214,80 @@ function MarketplaceCard({
   return (
     <ServiceCard
       listView={listView}
-      action={<button
-        type="button"
-        onClick={onToggleSaved}
-        disabled={saving}
-        aria-pressed={saved}
-        aria-label={
-          saved
-            ? `Remove ${service.provider.businessName} from saved`
-            : `Save ${service.provider.businessName}`
-        }
-        className={cn(
-          "absolute top-2.5 right-2.5 z-20 grid size-8 place-items-center rounded-full border border-black/10 bg-white text-[#17304f] shadow-[0_3px_10px_rgba(7,21,34,0.16)]",
-          saved && "bg-[#eff8cf] text-[#5f8d11]",
-        )}
-      >
-        <Heart className={cn("size-4", saved && "fill-current")} />
-      </button>}
-      image={<Link
-        href={`/services/${service.slug}`}
-        prefetch={false}
-        className={cn(
-          "relative block min-h-[150px] bg-[#edf5d5] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-          listView
-            ? "sm:h-full sm:min-h-full sm:self-stretch sm:aspect-auto"
-            : "sm:aspect-[16/9] sm:min-h-0",
-        )}
-        aria-label={`Open ${service.name}`}
-      >
-        <Image
-          src={service.imageUrl ?? fallbackImage(service.category)}
-          alt={service.name}
-          fill
-          unoptimized={Boolean(service.imageUrl?.includes("res.cloudinary.com"))}
-          priority={priority}
-          loading={priority ? undefined : "lazy"}
-          fetchPriority={priority ? "high" : "low"}
-          className="object-cover"
-          sizes="(max-width: 639px) 50vw, (max-width: 1199px) 33vw, 400px"
-        />
-        {service.provider.availableToday ? (
-          <span
-            aria-label="Service status: Available Today"
-            className="absolute top-2.5 left-2.5 rounded-full bg-primary px-2.5 py-1 text-[0.58rem] font-medium text-[#102300]"
-          >
-            Available Today
-          </span>
-        ) : topRated ? (
-          <span
-            aria-label="Service status: Top Rated"
-            className="absolute top-2.5 left-2.5 rounded-full bg-[#ffc21a] px-2.5 py-1 text-[0.58rem] font-medium text-[#2d2400]"
-          >
-            Top Rated
-          </span>
-        ) : null}
-      </Link>}
-      title={<Link href={`/services/${service.slug}`} prefetch={false} className="hover:underline">
-            {service.name}
-          </Link>}
-      footer={<>          <div>
+      action={
+        <button
+          type="button"
+          onClick={onToggleSaved}
+          disabled={saving}
+          aria-pressed={saved}
+          aria-label={
+            saved
+              ? `Remove ${service.provider.businessName} from saved`
+              : `Save ${service.provider.businessName}`
+          }
+          className={cn(
+            "absolute top-2.5 right-2.5 z-20 grid size-8 place-items-center rounded-full border border-black/10 bg-white text-[#17304f] shadow-[0_3px_10px_rgba(7,21,34,0.16)]",
+            saved && "bg-[#eff8cf] text-[#5f8d11]",
+          )}
+        >
+          <Heart className={cn("size-4", saved && "fill-current")} />
+        </button>
+      }
+      image={
+        <Link
+          href={`/services/${service.slug}`}
+          prefetch={false}
+          className={cn(
+            "relative block min-h-[150px] bg-[#edf5d5] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+            listView
+              ? "sm:h-full sm:min-h-full sm:self-stretch sm:aspect-auto"
+              : "sm:aspect-[16/9] sm:min-h-0",
+          )}
+          aria-label={`Open ${service.name}`}
+        >
+          <Image
+            src={service.imageUrl ?? fallbackImage(service.category)}
+            alt={service.name}
+            fill
+            unoptimized={Boolean(
+              service.imageUrl?.includes("res.cloudinary.com"),
+            )}
+            priority={priority}
+            loading={priority ? undefined : "lazy"}
+            fetchPriority={priority ? "high" : "low"}
+            className="object-cover"
+            sizes="(max-width: 639px) 50vw, (max-width: 1199px) 33vw, 400px"
+          />
+          {service.provider.availableToday ? (
+            <span
+              aria-label="Service status: Available Today"
+              className="absolute top-2.5 left-2.5 rounded-full bg-primary px-2.5 py-1 text-[0.58rem] font-medium text-[#102300]"
+            >
+              Available Today
+            </span>
+          ) : topRated ? (
+            <span
+              aria-label="Service status: Top Rated"
+              className="absolute top-2.5 left-2.5 rounded-full bg-[#ffc21a] px-2.5 py-1 text-[0.58rem] font-medium text-[#2d2400]"
+            >
+              Top Rated
+            </span>
+          ) : null}
+        </Link>
+      }
+      title={
+        <Link
+          href={`/services/${service.slug}`}
+          prefetch={false}
+          className="hover:underline"
+        >
+          {service.name}
+        </Link>
+      }
+      footer={
+        <>
+          {" "}
+          <div>
             <p className="text-[0.58rem] text-[#68717b]">
               {service.pricingModel === "custom_quote"
                 ? "Pricing"
@@ -1286,50 +1305,50 @@ function MarketplaceCard({
           >
             <ArrowRight className="size-4" />
           </Link>
-</>}
+        </>
+      }
     >
-        <p className="mt-1 flex min-w-0 items-center gap-1.5 text-[0.72rem] text-[#40536c]">
-          <span className="truncate">{service.provider.businessName}</span>
-          {service.provider.verified ? (
-            <span className="inline-flex shrink-0 items-center gap-1 font-medium text-[#65970d]">
-              <BadgeCheck className="size-3.5" />
-              Verified
+      <p className="mt-1 flex min-w-0 items-center gap-1.5 text-[0.72rem] text-[#40536c]">
+        <span className="truncate">{service.provider.businessName}</span>
+        {service.provider.verified ? (
+          <span className="inline-flex shrink-0 items-center gap-1 font-medium text-[#65970d]">
+            <BadgeCheck className="size-3.5" />
+            Verified
+          </span>
+        ) : null}
+      </p>
+      <p className="mt-1 flex items-center gap-1.5 text-[0.72rem] text-[#52647a]">
+        {service.provider.rating == null ? (
+          <span>New professional</span>
+        ) : (
+          <>
+            <Star className="size-3 fill-[#ffb000] text-[#ffb000]" />
+            <span>
+              {service.provider.rating.toFixed(1)} (
+              {service.provider.reviewCount})
             </span>
-          ) : null}
-        </p>
-        <p className="mt-1 flex items-center gap-1.5 text-[0.72rem] text-[#52647a]">
-          {service.provider.rating == null ? (
-            <span>New professional</span>
-          ) : (
-            <>
-              <Star className="size-3 fill-[#ffb000] text-[#ffb000]" />
-              <span>
-                {service.provider.rating.toFixed(1)} (
-                {service.provider.reviewCount})
-              </span>
-            </>
-          )}
-          <span aria-hidden="true">•</span>
-          <span>
-            {service.provider.experienceYears == null
-              ? "Experience not listed"
-              : service.provider.experienceYears === 0
-                ? "Under 1 year"
-                : `${service.provider.experienceYears}+ years`}
-          </span>
-        </p>
-        <p className="mt-1 line-clamp-1 text-[0.72rem] text-[#52647a]">
-          <MapPin className="mr-1 inline size-3" />
-          {location}
-        </p>
-        <p className="mt-1 mb-2 line-clamp-1 text-[0.72rem ] text-[#52647a]">
-          <Clock3 className="mr-1 inline size-3 text-[#789a1d]" />
-          Next slot:{" "}
-          <span className="font-medium text-[0.72rem]">
-            {formatNextSlot(service)}
-          </span>
-        </p>
-
+          </>
+        )}
+        <span aria-hidden="true">•</span>
+        <span>
+          {service.provider.experienceYears == null
+            ? "Experience not listed"
+            : service.provider.experienceYears === 0
+              ? "Under 1 year"
+              : `${service.provider.experienceYears}+ years`}
+        </span>
+      </p>
+      <p className="mt-1 line-clamp-1 text-[0.72rem] text-[#52647a]">
+        <MapPin className="mr-1 inline size-3" />
+        {location}
+      </p>
+      <p className="mt-1 mb-2 line-clamp-1 text-[0.72rem ] text-[#52647a]">
+        <Clock3 className="mr-1 inline size-3 text-[#789a1d]" />
+        Next slot:{" "}
+        <span className="font-medium text-[0.72rem]">
+          {formatNextSlot(service)}
+        </span>
+      </p>
     </ServiceCard>
   );
 }

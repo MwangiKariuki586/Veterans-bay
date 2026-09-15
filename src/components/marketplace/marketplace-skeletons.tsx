@@ -82,9 +82,8 @@ export function MarketplaceResultsSkeleton({ count = 9 }: { count?: number } = {
 export function MarketplaceHeaderSkeleton() {
   return (
     <div role="status" aria-label="Loading header" aria-busy="true" className="space-y-4">
-      <Skeleton className="hidden h-3 w-28 sm:block" />
-      <div className="flex flex-wrap items-end justify-between gap-5">
-        <div className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-5 border-b border-black/[0.06] pb-5">
+        <div className="space-y-2">
           <Skeleton className="h-8 w-48 sm:h-9 sm:w-56" />
           <Skeleton className="h-4 w-64 sm:w-80" />
         </div>

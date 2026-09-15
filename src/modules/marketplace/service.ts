@@ -120,6 +120,44 @@ export class MarketplaceService {
     };
   }
 
+  async listPopular(input: { location?: string; limit?: number } = {}): Promise<MarketplaceListing[]> {
+    const records = await this.store.listPopular(input);
+    const items: MarketplaceListing[] = records.map((item) => ({
+      slug: item.slug,
+      name: item.name,
+      category: item.category,
+      description: item.description,
+      fulfilmentModel: item.fulfilmentModel as MarketplaceListing["fulfilmentModel"],
+      pricingModel: item.pricingModel as MarketplaceListing["pricingModel"],
+      priceMinor: item.pricingModel === "custom_quote" ? null : item.priceMinor,
+      currency: item.currency,
+      serviceAreas: item.serviceAreas,
+      imageUrl: publicImageUrl(this.cloudName, item.imagePublicId),
+      provider: {
+        slug: item.providerSlug,
+        businessName: item.providerName,
+        operatingLocation: item.providerLocation,
+        verified: item.providerVerified,
+        availableToday: false,
+        experienceYears:
+          item.providerExperienceStartedYear == null
+            ? null
+            : Math.max(
+                0,
+                new Date().getFullYear() - item.providerExperienceStartedYear,
+              ),
+        nextAvailableSlot: null,
+        rating:
+          item.providerAverageRatingHundredths == null
+            ? null
+            : item.providerAverageRatingHundredths / 100,
+        reviewCount: item.providerReviewCount ?? 0,
+        verifiedJobs: item.providerVerifiedJobs ?? 0,
+      },
+    }));
+    return items;
+  }
+
   async recordAnalytics(event: MarketplaceAnalyticsEvent): Promise<void> {
     await this.store.recordAnalytics(event);
   }

@@ -96,3 +96,29 @@ export const getCachedCategoryNames = unstable_cache(
   ["marketplace-category-names-v2"],
   { revalidate: 300, tags: ["marketplace-categories"] },
 );
+
+async function fetchPopularDirect(location?: string): Promise<import("@/modules/marketplace/types").MarketplaceListing[]> {
+  const client = createDatabaseClient(getDatabaseUrl());
+  try {
+    const service = new MarketplaceService(
+      new MarketplaceRepository(client.db),
+      process.env.CLOUDINARY_CLOUD_NAME,
+    );
+    return await service.listPopular({ location, limit: 3 });
+  } finally {
+    await client.close();
+  }
+}
+
+function popularKey(location?: string, limit = 3): string {
+  return JSON.stringify([location ?? "", limit]);
+}
+
+export async function getPopularServices(location?: string): Promise<import("@/modules/marketplace/types").MarketplaceListing[]> {
+  const key = popularKey(location, 3);
+  const cached = unstable_cache(() => fetchPopularDirect(location), ["popular-v1", key], {
+    revalidate: 60,
+    tags: ["marketplace", "popular"],
+  });
+  return cached();
+}

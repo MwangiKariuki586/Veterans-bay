@@ -13,8 +13,8 @@ import {
   QuickFiltersSkeleton,
 } from "@/components/marketplace/marketplace-skeletons";
 import { marketplaceSearchQuerySchema } from "@/modules/marketplace/schemas";
-import Image from "next/image";
 import { Star, ArrowRight } from "lucide-react";
+import { PopularServicesServer } from "@/components/marketplace/popular-services-server";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -42,12 +42,6 @@ function parseMarketplaceInput(searchParams: SearchParams) {
 
 export const revalidate = 30;
 
-const popularServices = [
-  { name: "Water Heater Repair", price: "From KSh 3,500", image: "/images/category-appliance.png" },
-  { name: "Toilet Installation", price: "From KSh 3,000", image: "/images/category-plumbing.png" },
-  { name: "Leak Detection", price: "From KSh 2,000", image: "/images/category-plumbing.png" },
-] as const;
-
 function MarketplaceMobileControlsFallback() {
   return (
     <section className="mt-5 rounded-2xl border border-black/8 bg-white/85 p-3 sm:p-4 min-[960px]:hidden" aria-label="Marketplace controls" aria-busy="true">
@@ -60,31 +54,7 @@ function MarketplaceMobileControlsFallback() {
   );
 }
 
-function PopularServicesStatic() {
-  return (
-    <div className="rounded-2xl border border-black/8 bg-white p-4">
-      <h2 className="font-semibold">Popular near you</h2>
-      <div className="mt-3 border-t border-black/8 pt-2">
-        {popularServices.map((service) => (
-          <div key={service.name} className="flex gap-3 border-b border-black/8 py-3 last:border-0">
-            <Image src={service.image} alt="" width={54} height={54} className="size-[54px] rounded-lg object-cover" />
-            <div className="min-w-0 text-[0.68rem] leading-4">
-              <p className="font-semibold">{service.name}</p>
-              <p className="text-[#52647a]">{service.price}</p>
-              <p className="mt-1 text-[#52647a]">
-                <Star className="mr-1 inline size-3 fill-[#ffb000] text-[#ffb000]" />
-                Popular locally
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-      <Link href="/categories" prefetch={false} className="mt-3 flex min-h-9 items-center justify-between text-[0.7rem] font-semibold text-[#17304f]">
-        View all popular services <ArrowRight className="size-4" />
-      </Link>
-    </div>
-  );
-}
+
 
 function HelpCardStatic({ className }: { className?: string }) {
   return (
@@ -143,10 +113,14 @@ export default async function MarketplaceRoute({
             </Suspense>
           </div>
 
-          {/* Right: Help + Popular - static, no suspense, renders instantly */}
-          <aside className="hidden space-y-4 min-[960px]:block">
-            <HelpCardStatic />
-            <PopularServicesStatic />
+          {/* Right: Help + Popular - sticky like filters, CSS-only */}
+          <aside className="hidden min-[960px]:block">
+            <div className="sticky top-5 space-y-4">
+              <HelpCardStatic />
+              <Suspense fallback={<PopularServicesSkeleton />}>
+                <PopularServicesServer location={input.location} />
+              </Suspense>
+            </div>
           </aside>
         </div>
 
