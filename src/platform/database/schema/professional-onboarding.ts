@@ -83,6 +83,14 @@ export const professionalProfiles = pgTable(
     index("professional_profiles_operating_location_idx").on(
       table.operatingLocation,
     ),
+    index("professional_profiles_operating_location_lower_idx").using(
+      "btree",
+      sql`lower(${table.operatingLocation})`,
+    ),
+    index("professional_profiles_working_hours_gin_idx").using(
+      "gin",
+      table.workingHours,
+    ),
   ],
 );
 

@@ -13,6 +13,15 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => currentSearch,
 }));
 
+const sessionMock = vi.fn(() => ({ data: null as unknown, isPending: false }));
+
+vi.mock("@/lib/auth-client", () => ({
+  authClient: {
+    useSession: () => sessionMock(),
+    signOut: vi.fn(),
+  },
+}));
+
 const result: MarketplaceSearchResult = {
   page: 1,
   pageSize: 9,
@@ -53,6 +62,7 @@ describe("marketplace page", () => {
   beforeEach(() => {
     currentSearch = new URLSearchParams();
     push.mockReset();
+    sessionMock.mockReturnValue({ data: null, isPending: false } as unknown as ReturnType<typeof sessionMock>);
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -235,6 +245,7 @@ describe("marketplace page", () => {
   });
 
   it("renders and removes an existing saved state", async () => {
+    sessionMock.mockReturnValue({ data: { user: { id: "1", email: "test@example.com" } }, isPending: false } as unknown as ReturnType<typeof sessionMock>);
     vi.mocked(fetch).mockImplementation(async (input) => {
       const url = String(input);
       if (url === "/api/v1/client/saved-professionals") {

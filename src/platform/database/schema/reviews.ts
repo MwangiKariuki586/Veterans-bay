@@ -120,5 +120,6 @@ export const professionalReputation = pgTable(
     check("professional_reputation_counts_check", sql`${table.verifiedJobs} >= 0 and ${table.reviewCount} >= 0`),
     check("professional_reputation_rating_check", sql`${table.averageRatingHundredths} is null or ${table.averageRatingHundredths} between 100 and 500`),
     check("professional_reputation_rates_check", sql`${table.responseRateBasisPoints} between 0 and 10000 and ${table.completionRateBasisPoints} between 0 and 10000 and ${table.repeatRateBasisPoints} between 0 and 10000 and ${table.cancellationRateBasisPoints} between 0 and 10000 and ${table.warrantyResolutionRateBasisPoints} between 0 and 10000 and ${table.disputeRateBasisPoints} between 0 and 10000`),
+    index("professional_reputation_rating_idx").on(table.averageRatingHundredths),
   ],
 );

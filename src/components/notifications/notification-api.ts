@@ -13,7 +13,8 @@ async function notificationApi<T>(
   init?: RequestInit,
 ): Promise<T> {
   const response = await fetch(path, {
-    cache: "no-store",
+    cache: "force-cache",
+    next: { revalidate: 30 } as never,
     credentials: "include",
     ...init,
   });

@@ -241,6 +241,7 @@ function GuestActions({
       {showHowItWorks ? (
         <Link
           href="/how-it-works"
+          prefetch={false}
           className="hidden text-sm font-semibold text-foreground transition-colors hover:text-[#5f7f00] xl:inline"
         >
           How It Works
@@ -249,6 +250,7 @@ function GuestActions({
       {showProfessional ? (
         <Link
           href="/become-a-professional"
+          prefetch={false}
           className="hidden text-sm font-semibold text-foreground transition-colors hover:text-[#5f7f00] lg:inline"
         >
           Become a Professional
@@ -256,6 +258,7 @@ function GuestActions({
       ) : null}
       <Link
         href="/login"
+        prefetch={false}
         className="hidden text-sm font-semibold text-foreground transition-colors hover:text-[#5f7f00] sm:inline"
       >
         Log In
@@ -263,6 +266,7 @@ function GuestActions({
       {!marketplace ? (
         <Link
           href="/marketplace"
+          prefetch={false}
           className={cn(
             buttonVariants({ variant: "primary" }),
             "h-12 rounded-full px-6 text-[0.8rem] shadow-[0_8px_22px_rgba(170,212,26,0.2)]",
@@ -323,6 +327,7 @@ function MobileNavLink({
     <SheetClose asChild>
       <Link
         href={href}
+        prefetch={false}
         className={cn(
           "flex min-h-12 items-center rounded-2xl px-4 font-semibold hover:bg-[#f7f9fa]",
           className,

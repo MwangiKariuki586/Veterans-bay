@@ -20,10 +20,14 @@ import { applyPublicProjectionCache } from "../../platform/http/public-cache";
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function createService(databaseUrl: string) {
-  const client = createDatabaseClient(databaseUrl);
+function createService(
+  databaseUrl: string,
+  existingClient?: ReturnType<typeof createDatabaseClient>,
+) {
+  const client = existingClient ?? createDatabaseClient(databaseUrl);
   return {
     client,
+    ownsClient: !existingClient,
     service: new MarketplaceModerationService(
       new MarketplaceModerationRepository(client.db),
       new IdentityRepository(client.db),
@@ -56,8 +60,10 @@ export function createMarketplaceModerationRoutes() {
     async (context) => {
       const account = context.get("account");
       if (!account) throw new Error("Authenticated account is required.");
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         return context.json({
@@ -65,7 +71,7 @@ export function createMarketplaceModerationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -80,8 +86,10 @@ export function createMarketplaceModerationRoutes() {
         createMarketplaceCategoryBodySchema,
         context.req.raw,
       );
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         return context.json(
@@ -96,7 +104,7 @@ export function createMarketplaceModerationRoutes() {
           201,
         );
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -119,8 +127,10 @@ export function createMarketplaceModerationRoutes() {
         marketplaceCategoryStatusBodySchema,
         context.req.raw,
       );
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         return context.json({
@@ -133,7 +143,7 @@ export function createMarketplaceModerationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -145,8 +155,10 @@ export function createMarketplaceModerationRoutes() {
       const account = context.get("account");
       if (!account) throw new Error("Authenticated account is required.");
       const input = parseQuery(marketplaceListingsQuerySchema, context.req.url);
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         return context.json({
@@ -154,7 +166,7 @@ export function createMarketplaceModerationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -177,8 +189,10 @@ export function createMarketplaceModerationRoutes() {
         listingModerationBodySchema,
         context.req.raw,
       );
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         return context.json({
@@ -191,7 +205,7 @@ export function createMarketplaceModerationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );

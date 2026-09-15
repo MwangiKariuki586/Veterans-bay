@@ -4,6 +4,7 @@ import {
   count,
   desc,
   eq,
+  inArray,
   isNotNull,
   sql,
   type SQL,
@@ -111,13 +112,15 @@ export class MarketplaceRepository implements MarketplaceStore {
       conditions.push(eq(professionalServices.pricingModel, input.pricingModel));
     }
     if (input.availability === "today") {
+      // Compute Nairobi day in JS to enable GIN index usage via @> instead of per-row to_char
+      const nairobiDay = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Africa/Nairobi",
+        weekday: "long",
+      })
+        .format(new Date())
+        .toLowerCase();
       conditions.push(
-        sql`coalesce(
-          ${professionalProfiles.workingHours}
-            -> lower(to_char(now() at time zone 'Africa/Nairobi', 'FMDay'))
-            ->> 'enabled',
-          'false'
-        ) = 'true'`,
+        sql`${professionalProfiles.workingHours} @> ${JSON.stringify({ [nairobiDay]: { enabled: true } })}::jsonb`,
       );
     }
     if (input.verified) {
@@ -141,24 +144,13 @@ export class MarketplaceRepository implements MarketplaceStore {
     }
 
     const where = and(...conditions);
-    const imagePublicId = sql<string | null>`(
-      select ${fileAssets.cloudinaryPublicId}
-      from ${professionalServiceImages}
-      inner join ${fileAssets}
-        on ${fileAssets.id} = ${professionalServiceImages.assetId}
-      where ${professionalServiceImages.serviceId} = ${professionalServices.id}
-        and ${fileAssets.visibility} = 'public'
-        and ${fileAssets.status} = 'ready'
-        and ${fileAssets.purpose} = 'SERVICE_IMAGE'
-      order by ${professionalServiceImages.position} asc, ${professionalServiceImages.id} asc
-      limit 1
-    )`;
     const relevance = input.q
       ? sql<number>`ts_rank(${searchVector()}, websearch_to_tsquery('simple', ${input.q}))`
       : sql<number>`0`;
 
     const base = this.db
       .select({
+        serviceId: professionalServices.id,
         organisationId: organisations.id,
         slug: professionalServices.slug,
         name: professionalServices.name,
@@ -169,7 +161,6 @@ export class MarketplaceRepository implements MarketplaceStore {
         priceMinor: professionalServices.priceMinor,
         currency: professionalServices.currency,
         serviceAreas: professionalServices.serviceAreas,
-        imagePublicId,
         estimatedDurationMinutes: professionalServices.estimatedDurationMinutes,
         directBookingEnabled: professionalServices.directBookingEnabled,
         providerSlug: organisations.slug,
@@ -198,7 +189,7 @@ export class MarketplaceRepository implements MarketplaceStore {
       )
       .where(where);
 
-    const [items, [total]] = await Promise.all([
+    const [itemsWithoutImages, [total]] = await Promise.all([
       base
         .orderBy(
           ...(input.sort === "relevance" && input.q ? [desc(relevance)] : []),
@@ -225,8 +216,40 @@ export class MarketplaceRepository implements MarketplaceStore {
         .where(where),
     ]);
 
+    // Batch fetch images in single query instead of 9 correlated subqueries (cuts 9 index lookups)
+    const imageMap = new Map<string, string | null>();
+    if (itemsWithoutImages.length > 0) {
+      const serviceIds = itemsWithoutImages.map((item) => item.serviceId);
+      const images = await this.db
+        .select({
+          serviceId: professionalServiceImages.serviceId,
+          publicId: fileAssets.cloudinaryPublicId,
+        })
+        .from(professionalServiceImages)
+        .innerJoin(fileAssets, eq(fileAssets.id, professionalServiceImages.assetId))
+        .where(
+          and(
+            inArray(professionalServiceImages.serviceId, serviceIds),
+            eq(fileAssets.visibility, "public"),
+            eq(fileAssets.status, "ready"),
+            eq(fileAssets.purpose, "SERVICE_IMAGE"),
+          ),
+        )
+        .orderBy(asc(professionalServiceImages.position), asc(professionalServiceImages.id));
+      for (const row of images) {
+        if (!imageMap.has(row.serviceId)) {
+          imageMap.set(row.serviceId, row.publicId);
+        }
+      }
+    }
+
+    const items = itemsWithoutImages.map(({ serviceId, ...rest }) => ({
+      ...rest,
+      imagePublicId: imageMap.get(serviceId) ?? null,
+    }));
+
     return {
-      items: items as MarketplaceSearchRecord[],
+      items: items as unknown as MarketplaceSearchRecord[],
       totalItems: total?.value ?? 0,
     };
   }

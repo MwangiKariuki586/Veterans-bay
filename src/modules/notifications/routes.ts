@@ -19,10 +19,14 @@ import type {
   NotificationListResult,
 } from "./types";
 
-function createService(databaseUrl: string) {
-  const client = createDatabaseClient(databaseUrl);
+function createService(
+  databaseUrl: string,
+  existingClient?: ReturnType<typeof createDatabaseClient>,
+) {
+  const client = existingClient ?? createDatabaseClient(databaseUrl);
   return {
     client,
+    ownsClient: !existingClient,
     service: new NotificationsService(
       new NotificationsRepository(client.db),
       new IdentityRepository(client.db),
@@ -45,8 +49,10 @@ export function createNotificationRoutes() {
 
   routes.get("/v1/notifications", async (context) => {
     const query = parseQuery(notificationListQuerySchema, context.req.url);
-    const { client, service } = createService(
+    const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
       context.get("environment").DATABASE_URL,
+      existingClient,
     );
     try {
       const data = await service.list({
@@ -58,13 +64,15 @@ export function createNotificationRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 
   routes.get("/v1/notifications/unread-count", async (context) => {
-    const { client, service } = createService(
+    const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
       context.get("environment").DATABASE_URL,
+      existingClient,
     );
     try {
       const data = await service.unreadCount(authUserId(context));
@@ -73,13 +81,15 @@ export function createNotificationRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 
   routes.post("/v1/notifications/read-all", async (context) => {
-    const { client, service } = createService(
+    const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
       context.get("environment").DATABASE_URL,
+      existingClient,
     );
     try {
       const data = await service.markAllRead({
@@ -91,7 +101,7 @@ export function createNotificationRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 
@@ -100,8 +110,10 @@ export function createNotificationRoutes() {
       notificationIdSchema,
       context.req.param("notificationId"),
     );
-    const { client, service } = createService(
+    const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
       context.get("environment").DATABASE_URL,
+      existingClient,
     );
     try {
       const data = await service.markRead({
@@ -114,7 +126,7 @@ export function createNotificationRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 

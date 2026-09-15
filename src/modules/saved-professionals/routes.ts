@@ -15,10 +15,15 @@ import type {
   SavedProfessionalMutation,
 } from "./types";
 
-function createService(databaseUrl: string, cloudName?: string) {
-  const client = createDatabaseClient(databaseUrl);
+function createService(
+  databaseUrl: string,
+  cloudName?: string,
+  existingClient?: ReturnType<typeof createDatabaseClient>,
+) {
+  const client = existingClient ?? createDatabaseClient(databaseUrl);
   return {
     client,
+    ownsClient: !existingClient,
     service: new SavedProfessionalsService(
       new SavedProfessionalsRepository(client.db),
       new IdentityRepository(client.db),
@@ -43,9 +48,11 @@ export function createSavedProfessionalsRoutes() {
     requireSessionMiddleware,
     async (context) => {
       const environment = context.get("environment");
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         environment.DATABASE_URL,
         environment.CLOUDINARY_CLOUD_NAME,
+        existingClient,
       );
       try {
         const data = await service.list(requireAccount(context).authUserId);
@@ -54,7 +61,7 @@ export function createSavedProfessionalsRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -68,7 +75,12 @@ export function createSavedProfessionalsRoutes() {
         context.req.param("providerSlug"),
       );
       const environment = context.get("environment");
-      const { client, service } = createService(environment.DATABASE_URL);
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
+        environment.DATABASE_URL,
+        undefined,
+        existingClient,
+      );
       try {
         const data = await service.save({
           authUserId: requireAccount(context).authUserId,
@@ -80,7 +92,7 @@ export function createSavedProfessionalsRoutes() {
           201,
         );
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -94,7 +106,12 @@ export function createSavedProfessionalsRoutes() {
         context.req.param("providerSlug"),
       );
       const environment = context.get("environment");
-      const { client, service } = createService(environment.DATABASE_URL);
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
+        environment.DATABASE_URL,
+        undefined,
+        existingClient,
+      );
       try {
         const data = await service.remove(
           requireAccount(context).authUserId,
@@ -105,7 +122,7 @@ export function createSavedProfessionalsRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );

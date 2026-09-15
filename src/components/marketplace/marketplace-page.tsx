@@ -27,6 +27,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useOptionalQueryClient } from "@/lib/optional-query-client";
 import { FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { authClient } from "@/lib/auth-client";
 
 import { ServiceCard } from "./service-card";
 
@@ -213,7 +214,19 @@ function fallbackImage(category: string) {
   return "/images/category-plumbing.png";
 }
 
-export function MarketplacePage() {
+type MarketplacePageProps = {
+  initialResult?: MarketplaceSearchResult | null;
+  initialError?: string | null;
+  initialCategories?: readonly string[];
+  initialSearchKey?: string;
+};
+
+export function MarketplacePage({
+  initialResult = null,
+  initialError = null,
+  initialCategories,
+  initialSearchKey,
+}: MarketplacePageProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useOptionalQueryClient();
@@ -224,11 +237,35 @@ export function MarketplacePage() {
   );
   const [retryAttempt, setRetryAttempt] = useState(0);
   const requestKey = `${searchKey}:${retryAttempt}`;
+  const hasServerResultForKey =
+    initialSearchKey !== undefined && initialSearchKey === requestKey;
   const [request, setRequest] = useState<{
     key: string;
     result: MarketplaceSearchResult | null;
     error: string | null;
-  }>({ key: "", result: null, error: null });
+  }>(() => {
+    if (hasServerResultForKey) {
+      return {
+        key: requestKey,
+        result: initialResult ?? null,
+        error: initialError ?? null,
+      };
+    }
+    // If server provided result for a different key (e.g. initial mount without retry),
+    // hydrate with it when keys match without retry suffix
+    if (
+      initialSearchKey !== undefined &&
+      initialSearchKey === searchKey &&
+      retryAttempt === 0
+    ) {
+      return {
+        key: `${initialSearchKey}:0`,
+        result: initialResult ?? null,
+        error: initialError ?? null,
+      };
+    }
+    return { key: "", result: null, error: null };
+  });
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [draftState, setDraftState] = useState(() => ({
     key: searchKey,
@@ -240,7 +277,9 @@ export function MarketplacePage() {
     new Set(),
   );
   const [categoryOptions, setCategoryOptions] = useState<readonly string[]>(
-    fallbackCategoryOptions,
+    initialCategories && initialCategories.length > 0
+      ? initialCategories
+      : fallbackCategoryOptions,
   );
   const filters = useMemo(
     () => activeFilters(currentSearchParams),
@@ -256,7 +295,29 @@ export function MarketplacePage() {
   const result = loading ? null : request.result;
   const error = loading ? null : request.error;
 
+  // Sync server-provided categories and results when navigation provides new props
   useEffect(() => {
+    if (initialCategories && initialCategories.length > 0) {
+      setCategoryOptions(initialCategories);
+    }
+  }, [initialCategories]);
+
+  useEffect(() => {
+    if (initialSearchKey === undefined) return;
+    if (initialSearchKey === searchKey && retryAttempt === 0) {
+      const key = `${searchKey}:0`;
+      if (request.key !== key) {
+        setRequest({
+          key,
+          result: initialResult ?? null,
+          error: initialError ?? null,
+        });
+      }
+    }
+  }, [initialSearchKey, initialResult, initialError, searchKey, retryAttempt, request.key]);
+
+  useEffect(() => {
+    if (initialCategories && initialCategories.length > 0) return;
     const controller = new AbortController();
     void fetch("/api/v1/public/categories", { signal: controller.signal })
       .then(async (response) => {
@@ -268,9 +329,20 @@ export function MarketplacePage() {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, []);
+  }, [initialCategories]);
 
   useEffect(() => {
+    if (request.key === requestKey) return;
+    // If server already provided data for this key, don't refetch
+    if (
+      initialSearchKey !== undefined &&
+      initialSearchKey === searchKey &&
+      retryAttempt === 0 &&
+      initialResult !== undefined
+    ) {
+      // Server result will be synced via effect above; skip fetch this tick
+      return;
+    }
     const controller = new AbortController();
     void fetch(
       `/api/v1/public/marketplace?${apiSearchParams(currentSearchParams)}`,
@@ -312,9 +384,12 @@ export function MarketplacePage() {
         });
       });
     return () => controller.abort();
-  }, [currentSearchParams, filters, requestKey]);
+  }, [currentSearchParams, filters, requestKey, request.key, initialSearchKey, initialResult]);
+
+  const { data: session } = authClient.useSession();
 
   useEffect(() => {
+    if (!session?.user) return;
     const controller = new AbortController();
     void fetch("/api/v1/client/saved-professionals", {
       credentials: "include",
@@ -330,7 +405,7 @@ export function MarketplacePage() {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, []);
+  }, [session?.user]);
 
   async function toggleSaved(providerSlug: string) {
     if (savingProviders.has(providerSlug)) return;
@@ -649,11 +724,12 @@ export function MarketplacePage() {
                     : "grid-cols-1",
                 )}
               >
-                {result.items.map((service) => (
+                {result.items.map((service, index) => (
                   <MarketplaceCard
                     key={service.slug}
                     service={service}
                     listView={view === "list"}
+                    priority={index < 3}
                     saved={savedProviders.has(service.provider.slug)}
                     saving={savingProviders.has(service.provider.slug)}
                     onToggleSaved={() => toggleSaved(service.provider.slug)}
@@ -741,6 +817,7 @@ export function MarketplacePage() {
             </div>
             <Link
               href="/categories"
+              prefetch={false}
               className="mt-3 flex min-h-9 items-center justify-between text-[0.7rem] font-semibold text-[#17304f]"
             >
               View all popular services <ArrowRight className="size-4" />
@@ -1095,6 +1172,7 @@ function HelpCard({ className }: { className?: string }) {
       </p>
       <Link
         href="/contact"
+        prefetch={false}
         className={cn(
           buttonVariants(),
           "mt-4 h-10 w-full justify-between rounded-xl px-4 text-xs",
@@ -1112,12 +1190,14 @@ function MarketplaceCard({
   saved,
   saving,
   onToggleSaved,
+  priority = false,
 }: {
   service: MarketplaceListing;
   listView: boolean;
   saved: boolean;
   saving: boolean;
   onToggleSaved: () => void;
+  priority?: boolean;
 }) {
   const location =
     service.provider.operatingLocation ??
@@ -1149,6 +1229,7 @@ function MarketplaceCard({
       </button>}
       image={<Link
         href={`/services/${service.slug}`}
+        prefetch={false}
         className={cn(
           "relative block min-h-[150px] bg-[#edf5d5] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           listView
@@ -1161,8 +1242,12 @@ function MarketplaceCard({
           src={service.imageUrl ?? fallbackImage(service.category)}
           alt={service.name}
           fill
+          unoptimized={Boolean(service.imageUrl?.includes("res.cloudinary.com"))}
+          priority={priority}
+          loading={priority ? undefined : "lazy"}
+          fetchPriority={priority ? "high" : "low"}
           className="object-cover"
-          sizes="(max-width: 639px) 42vw, (max-width: 1199px) 45vw, 24vw"
+          sizes="(max-width: 639px) 50vw, (max-width: 1199px) 33vw, 400px"
         />
         {service.provider.availableToday ? (
           <span
@@ -1180,7 +1265,7 @@ function MarketplaceCard({
           </span>
         ) : null}
       </Link>}
-      title={<Link href={`/services/${service.slug}`} className="hover:underline">
+      title={<Link href={`/services/${service.slug}`} prefetch={false} className="hover:underline">
             {service.name}
           </Link>}
       footer={<>          <div>
@@ -1195,6 +1280,7 @@ function MarketplaceCard({
           </div>
           <Link
             href={`/services/${service.slug}`}
+            prefetch={false}
             aria-label={`View ${service.name}`}
             className="grid size-8 place-items-center rounded-full bg-primary"
           >

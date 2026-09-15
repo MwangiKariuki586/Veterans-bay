@@ -147,6 +147,7 @@ export function PublicFooter({ marketplace = false }: { marketplace?: boolean } 
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     className="w-fit rounded-sm transition-colors hover:text-[#5f8d11] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   >
                     {item.label}
@@ -167,6 +168,7 @@ export function PublicFooter({ marketplace = false }: { marketplace?: boolean } 
           </p>
           <Link
             href="/contact"
+            prefetch={false}
             className={cn(
               buttonVariants({ variant: "outline" }),
               "mt-4 h-12 w-full justify-between gap-4 rounded-full border-white bg-white py-1 pr-1 pl-5 text-[0.82rem] font-semibold text-[#0b2545] shadow-[0_8px_22px_rgba(19,39,54,0.08)] hover:bg-white/90",
@@ -200,6 +202,7 @@ export function PublicFooter({ marketplace = false }: { marketplace?: boolean } 
         <nav className="flex flex-wrap items-center gap-4" aria-label="Legal">
           <Link
             href="/privacy"
+            prefetch={false}
             className="rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             Privacy Policy
@@ -210,6 +213,7 @@ export function PublicFooter({ marketplace = false }: { marketplace?: boolean } 
           />
           <Link
             href="/terms"
+            prefetch={false}
             className="rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             Terms of Service

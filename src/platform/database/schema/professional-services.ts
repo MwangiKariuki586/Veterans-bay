@@ -130,6 +130,25 @@ export const professionalServices = pgTable(
       table.pricingModel,
       table.status,
     ),
+    index("professional_services_marketplace_pagination_idx").on(
+      table.status,
+      table.moderationStatus,
+      table.publishedAt,
+      table.id,
+    ),
+    index("professional_services_category_lower_idx").using(
+      "btree",
+      sql`lower(${table.category})`,
+    ),
+    index("professional_services_fulfilment_marketplace_idx")
+      .on(table.fulfilmentModel)
+      .where(sql`${table.status} = 'published' AND ${table.moderationStatus} = 'clear'`),
+    index("professional_services_pricing_marketplace_idx")
+      .on(table.pricingModel)
+      .where(sql`${table.status} = 'published' AND ${table.moderationStatus} = 'clear'`),
+    index("professional_services_direct_booking_marketplace_idx")
+      .on(table.directBookingEnabled, table.estimatedDurationMinutes)
+      .where(sql`${table.status} = 'published' AND ${table.moderationStatus} = 'clear'`),
   ],
 );
 
