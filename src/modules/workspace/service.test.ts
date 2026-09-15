@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { IdentityStore } from "../identity/repository";
 import type { WorkspaceRepository } from "./repository";
-import { WorkspaceService } from "./service";
+import { defaultWorkspaceId, WorkspaceService } from "./service";
 import {
   buildClientWorkspaceId,
   buildOrganisationWorkspaceId,
@@ -26,7 +26,7 @@ function profile() {
 }
 
 describe("WorkspaceService", () => {
-  it("lists client, organisation, and platform workspaces from live records", async () => {
+  it("lists organisation workspaces from live membership records", async () => {
     const identityStore: IdentityStore = {
       reconcileProfile: vi.fn(),
       findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
@@ -75,10 +75,113 @@ describe("WorkspaceService", () => {
     const result = await service.listWorkspaces("user-1");
 
     expect(result.workspaces.map((item) => item.id)).toEqual([
-      buildClientWorkspaceId("profile-1"),
       buildOrganisationWorkspaceId("org-1"),
-      buildPlatformWorkspaceId(),
     ]);
+    expect(
+      result.workspaces.find((item) => item.kind === "organisation"),
+    ).toMatchObject({
+      organisationStatus: "active",
+      href: "/professional",
+    });
+  });
+
+  it("does not expose a client workspace to organisation members", async () => {
+    const identityStore = {
+      findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
+      findActiveRestrictions: vi.fn().mockResolvedValue([]),
+    } as unknown as IdentityStore;
+    const workspaceRepository = {
+      listActiveOrganisationMemberships: vi.fn().mockResolvedValue([
+        {
+          membershipId: "membership-1",
+          organisationId: "org-1",
+          organisationName: "Bay Repairs",
+          organisationSlug: "bay-repairs",
+          organisationStatus: "active",
+          membershipStatus: "active",
+          roleId: "role-owner",
+          roleKey: "owner",
+          assignedJobsOnly: false,
+          financialDataAccess: true,
+        },
+      ]),
+      listActivePlatformAssignments: vi.fn().mockResolvedValue([]),
+      listPermissionKeysForRoleIds: vi.fn().mockResolvedValue(new Map()),
+    } as unknown as WorkspaceRepository;
+
+    const result = await new WorkspaceService(
+      workspaceRepository,
+      identityStore,
+    ).listWorkspaces("user-1");
+
+    expect(result.workspaces.every((item) => item.kind !== "client")).toBe(true);
+  });
+
+  it("opens platform administration before the client shell for admins", async () => {
+    const identityStore = {
+      findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
+      findActiveRestrictions: vi.fn().mockResolvedValue([]),
+    } as unknown as IdentityStore;
+    const workspaceRepository = {
+      listActiveOrganisationMemberships: vi.fn().mockResolvedValue([]),
+      listActivePlatformAssignments: vi.fn().mockResolvedValue([
+        {
+          assignmentId: "assignment-1",
+          roleId: "role-platform",
+          roleKey: "platform_admin",
+          status: "active",
+        },
+      ]),
+      listPermissionKeysForRoleIds: vi.fn().mockResolvedValue(
+        new Map([["role-platform", ["platform.admin"]]]),
+      ),
+    } as unknown as WorkspaceRepository;
+
+    const result = await new WorkspaceService(
+      workspaceRepository,
+      identityStore,
+    ).listWorkspaces("user-1");
+
+    expect(result.workspaces.map((item) => item.kind)).toEqual([
+      "platform",
+      "client",
+    ]);
+    expect(defaultWorkspaceId(result.workspaces)).toBe(buildPlatformWorkspaceId());
+  });
+
+  it("routes a pending professional to application status instead of the dashboard", async () => {
+    const identityStore = {
+      findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
+      findActiveRestrictions: vi.fn().mockResolvedValue([]),
+    } as unknown as IdentityStore;
+    const workspaceRepository = {
+      listActiveOrganisationMemberships: vi.fn().mockResolvedValue([
+        {
+          membershipId: "membership-1",
+          organisationId: "org-1",
+          organisationName: "Bay Repairs",
+          organisationSlug: "bay-repairs",
+          organisationStatus: "pending_review",
+          membershipStatus: "active",
+          roleId: "role-owner",
+          roleKey: "owner",
+          assignedJobsOnly: false,
+          financialDataAccess: true,
+        },
+      ]),
+      listActivePlatformAssignments: vi.fn().mockResolvedValue([]),
+      listPermissionKeysForRoleIds: vi.fn().mockResolvedValue(new Map()),
+    } as unknown as WorkspaceRepository;
+
+    const result = await new WorkspaceService(
+      workspaceRepository,
+      identityStore,
+    ).listWorkspaces("user-1");
+
+    expect(result.workspaces[0]).toMatchObject({
+      organisationStatus: "pending_review",
+      href: "/professional/onboarding/review",
+    });
   });
 
   it("rejects cross-organisation and stale membership access", async () => {
@@ -110,7 +213,7 @@ describe("WorkspaceService", () => {
     ).rejects.toMatchObject({ code: "WORKSPACE_UNAVAILABLE" });
   });
 
-  it("blocks removing the final owner without transfer", async () => {
+  it("removes financial permissions when membership access is restricted", async () => {
     const identityStore: IdentityStore = {
       reconcileProfile: vi.fn(),
       findProfileByAuthUserId: vi.fn().mockResolvedValue(profile()),
@@ -132,15 +235,17 @@ describe("WorkspaceService", () => {
           membershipStatus: "active",
           roleId: "role-owner",
           roleKey: "owner",
+          assignedJobsOnly: false,
+          financialDataAccess: false,
         },
       ]),
       listActivePlatformAssignments: vi.fn().mockResolvedValue([]),
       listPermissionKeysForRoleIds: vi.fn().mockResolvedValue(
         new Map([
-          ["role-owner", ["organisation.view", "organisation.manage", "organisation.members.manage"]],
+          ["role-owner", ["organisation.view", "payments.view", "reports.financial.view"]],
         ]),
       ),
-      countActiveOwners: vi.fn().mockResolvedValue(1),
+      countActiveOwners: vi.fn(),
       findActiveMembership: vi.fn().mockResolvedValue({
         membershipId: "membership-1",
         organisationId: "org-1",
@@ -150,6 +255,8 @@ describe("WorkspaceService", () => {
         membershipStatus: "active",
         roleId: "role-owner",
         roleKey: "owner",
+        assignedJobsOnly: false,
+        financialDataAccess: false,
       }),
       markMembershipRemoved: vi.fn(),
       updateMembershipRole: vi.fn(),
@@ -158,14 +265,8 @@ describe("WorkspaceService", () => {
 
     const service = new WorkspaceService(workspaceRepository, identityStore);
 
-    await expect(
-      service.removeMember({
-        actorAuthUserId: "user-1",
-        organisationId: "org-1",
-        membershipId: "membership-1",
-        targetAccountProfileId: "profile-1",
-        targetRoleKey: "owner",
-      }),
-    ).rejects.toMatchObject({ code: "OWNER_TRANSFER_REQUIRED" });
+    const result = await service.listWorkspaces("user-1");
+    const organisation = result.workspaces.find((item) => item.kind === "organisation");
+    expect(organisation?.permissions).toEqual(["organisation.view"]);
   });
 });

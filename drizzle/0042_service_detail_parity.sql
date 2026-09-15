@@ -1,0 +1,4 @@
+ALTER TABLE "professional_services" ADD COLUMN "service_type" text;--> statement-breakpoint
+ALTER TABLE "professional_services" ADD COLUMN "included_items" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "professional_services" ADD COLUMN "excluded_items" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "professional_services" ADD CONSTRAINT "professional_services_service_type_check" CHECK ("professional_services"."service_type" is null or "professional_services"."service_type" in ('repairs_maintenance', 'installation', 'inspection', 'emergency', 'maintenance'));

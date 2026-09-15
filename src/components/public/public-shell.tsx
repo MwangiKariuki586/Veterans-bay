@@ -11,13 +11,35 @@ import { cn } from "@/lib/utils";
 export { SiteHeader as PublicHeader } from "@/components/public/site-header";
 export { PublicFooter } from "@/components/public/public-footer";
 
-export function PublicShell({ children }: { children: ReactNode }) {
+export function PublicShell({
+  children,
+  marketplace = false,
+}: {
+  children: ReactNode;
+  marketplace?: boolean;
+}) {
   return (
-    <div className={pageBackdropClass}>
-      <div className={pageFrameClass()}>
-        <SiteHeader />
-        <div className="mt-8">{children}</div>
-        <PublicFooter />
+    <div className={cn(pageBackdropClass, "flex flex-col")}>
+      <div
+        className={cn(
+          pageFrameClass(
+            marketplace
+              ? "max-w-[1440px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5"
+              : undefined,
+          ),
+          "flex flex-1 flex-col",
+        )}
+      >
+        <SiteHeader variant="marketing" marketplace={marketplace} />
+        <div
+          className={cn(
+            marketplace ? "mt-5 sm:mt-7" : "mt-8",
+            "flex flex-1 flex-col",
+          )}
+        >
+          {children}
+        </div>
+        <PublicFooter marketplace={marketplace} />
       </div>
     </div>
   );
@@ -43,7 +65,7 @@ export function PublicPageIntro({
         />
         {eyebrow}
       </span>
-      <h1 className="mt-6 text-4xl leading-[1.05] font-bold tracking-[-0.05em] sm:text-5xl">
+      <h1 className="mt-6 text-4xl leading-[1.05] font-semibold tracking-title sm:text-5xl">
         {title}
       </h1>
       <p className="mt-5 text-base leading-7 text-[#68717b] sm:text-lg">

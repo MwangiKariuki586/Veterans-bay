@@ -1,0 +1,1 @@
+INSERT INTO "marketplace_categories" ("name", "slug") VALUES ('Carpentry', 'carpentry') ON CONFLICT ("slug") DO UPDATE SET status='active', updated_at=now();

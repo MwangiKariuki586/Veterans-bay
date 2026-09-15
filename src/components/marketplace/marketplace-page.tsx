@@ -1,382 +1,1354 @@
 "use client";
 
 import {
+  ArrowLeft,
   ArrowRight,
   BadgeCheck,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Clock3,
   Grid2X2,
   Heart,
+  Headphones,
   List,
   MapPin,
-  Medal,
   RefreshCw,
+  Search,
   ShieldCheck,
+  SlidersHorizontal,
   Star,
-  Tag,
-  Headphones,
+  X,
+  Zap,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-
+import { useRouter, useSearchParams } from "next/navigation";
+import { useOptionalQueryClient } from "@/lib/optional-query-client";
 import {
-  marketplaceCategories,
-  marketplaceServices,
-} from "@/components/marketplace/fixtures";
-import { buttonVariants } from "@/components/ui/button";
-import { Surface } from "@/components/ui/surface";
-import { cn } from "@/lib/utils";
+  FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { toast } from "sonner";
+import { authClient } from "@/lib/auth-client";
 
-const trustItems = [
-  { label: "Verified Pros", icon: ShieldCheck },
-  { label: "Upfront Pricing", icon: Tag },
-  { label: "Real Reviews", icon: BadgeCheck },
-  { label: "Quality Guaranteed", icon: Medal },
+import { ServiceCard } from "./service-card";
+
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { StatePanel } from "@/components/ui/state-panel";
+import { cn } from "@/lib/utils";
+import { recordMarketplaceEvent } from "@/lib/marketplace-analytics";
+import type {
+  MarketplaceListing,
+  MarketplaceSearchResult,
+} from "@/modules/marketplace/types";
+import type { MarketplaceCategorySummary } from "@/modules/marketplace-moderation/types";
+
+import { MARKETPLACE_LOCATION_OPTIONS } from "@/lib/locations";
+import { LocationPicker } from "@/components/ui/location-picker";
+
+const fallbackCategoryOptions = [
+  "Plumbing",
+  "Electrical",
+  "Cleaning",
+  "Painting",
+  "Appliance Repair",
+] as const;
+const locationOptions = MARKETPLACE_LOCATION_OPTIONS;
+const popularServices = [
+  {
+    name: "Water Heater Repair",
+    price: "From KSh 3,500",
+    image: "/images/category-appliance.png",
+  },
+  {
+    name: "Toilet Installation",
+    price: "From KSh 3,000",
+    image: "/images/category-plumbing.png",
+  },
+  {
+    name: "Leak Detection",
+    price: "From KSh 2,000",
+    image: "/images/category-plumbing.png",
+  },
 ] as const;
 
-export function MarketplacePage() {
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [tab, setTab] = useState("All Services");
-  const [availableToday, setAvailableToday] = useState(false);
+type FilterDraft = {
+  q: string;
+  category: string;
+  location: string;
+  fulfilmentModel: string;
+  pricingModel: string;
+  availability: string;
+  verified: string;
+  topRated: string;
+  instantBooking: string;
+};
+
+const emptyDraft: FilterDraft = {
+  q: "",
+  category: "",
+  location: "",
+  fulfilmentModel: "",
+  pricingModel: "",
+  availability: "",
+  verified: "",
+  topRated: "",
+  instantBooking: "",
+};
+
+function draftFrom(searchParams: URLSearchParams): FilterDraft {
+  return {
+    q: searchParams.get("q") ?? "",
+    category: searchParams.get("category") ?? "",
+    location: searchParams.get("location") ?? "",
+    fulfilmentModel: searchParams.get("fulfilmentModel") ?? "",
+    pricingModel: searchParams.get("pricingModel") ?? "",
+    availability: searchParams.get("availability") ?? "",
+    verified: searchParams.get("verified") ?? "",
+    topRated: searchParams.get("topRated") ?? "",
+    instantBooking: searchParams.get("instantBooking") ?? "",
+  };
+}
+
+function apiSearchParams(searchParams: URLSearchParams) {
+  const next = new URLSearchParams();
+  for (const key of [
+    "q",
+    "category",
+    "location",
+    "fulfilmentModel",
+    "pricingModel",
+    "availability",
+    "verified",
+    "topRated",
+    "instantBooking",
+    "sort",
+    "page",
+  ]) {
+    const value = searchParams.get(key);
+    if (value) next.set(key, value);
+  }
+  next.set("pageSize", "9");
+  return next;
+}
+
+function formatPrice(listing: MarketplaceListing) {
+  if (listing.pricingModel === "custom_quote") return "Custom quote";
+  return new Intl.NumberFormat("en-KE", {
+    style: "currency",
+    currency: listing.currency,
+    maximumFractionDigits: 0,
+  })
+    .format((listing.priceMinor ?? 0) / 100)
+    .replace("KES", "KSh");
+}
+
+function formatNextSlot(listing: MarketplaceListing) {
+  const slot = listing.provider.nextAvailableSlot;
+  if (!slot) return "Check availability";
+  const startsAt = new Date(slot.startsAt);
+  const day = new Intl.DateTimeFormat("en-KE", {
+    timeZone: slot.timezone,
+    weekday: "short",
+  }).format(startsAt);
+  const time = new Intl.DateTimeFormat("en-KE", {
+    timeZone: slot.timezone,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(startsAt);
+  return listing.provider.availableToday ? time : `${day}, ${time}`;
+}
+
+function activeFilters(searchParams: URLSearchParams) {
+  const labels: Record<string, string> = {
+    q: "Search",
+    category: "Category",
+    location: "Location",
+    fulfilmentModel: "Service type",
+    pricingModel: "Pricing",
+    availability: "Availability",
+    verified: "Verification",
+    topRated: "Top rated",
+    instantBooking: "Instant booking",
+  };
+  return Object.entries(labels).flatMap(([key, label]) => {
+    const value = searchParams.get(key);
+    return value
+      ? [{ key, label, value: formatActiveFilterValue(key, value) }]
+      : [];
+  });
+}
+
+function formatActiveFilterValue(key: string, value: string) {
+  const values: Record<string, Record<string, string>> = {
+    availability: { today: "Available Today" },
+    verified: { true: "Verified", false: "Not Verified" },
+    topRated: { true: "Top Rated" },
+    instantBooking: { true: "Instant Booking" },
+    fulfilmentModel: {
+      on_site: "On-site",
+      remote: "Remote",
+      hybrid: "Hybrid",
+    },
+    pricingModel: {
+      fixed: "Fixed Price",
+      starting_from: "Starting From",
+      custom_quote: "Custom Quote",
+    },
+  };
+  return values[key]?.[value] ?? value.replaceAll("_", " ");
+}
+
+function fallbackImage(category: string) {
+  const value = category.toLowerCase();
+  if (value.includes("electric")) return "/images/category-electrical.png";
+  if (value.includes("clean")) return "/images/category-cleaning.png";
+  if (value.includes("paint")) return "/images/category-painting.png";
+  if (value.includes("appliance")) return "/images/category-appliance.png";
+  return "/images/category-plumbing.png";
+}
+
+type MarketplacePageProps = {
+  initialResult?: MarketplaceSearchResult | null;
+  initialError?: string | null;
+  initialCategories?: readonly string[];
+  initialSearchKey?: string;
+};
+
+export function MarketplacePage({
+  initialResult = null,
+  initialError = null,
+  initialCategories,
+  initialSearchKey,
+}: MarketplacePageProps = {}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useOptionalQueryClient();
+  const searchKey = searchParams.toString();
+  const currentSearchParams = useMemo(
+    () => new URLSearchParams(searchKey),
+    [searchKey],
+  );
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const requestKey = `${searchKey}:${retryAttempt}`;
+  const hasServerResultForKey =
+    initialSearchKey !== undefined && initialSearchKey === requestKey;
+  const [request, setRequest] = useState<{
+    key: string;
+    result: MarketplaceSearchResult | null;
+    error: string | null;
+  }>(() => {
+    if (hasServerResultForKey) {
+      return {
+        key: requestKey,
+        result: initialResult ?? null,
+        error: initialError ?? null,
+      };
+    }
+    // If server provided result for a different key (e.g. initial mount without retry),
+    // hydrate with it when keys match without retry suffix
+    if (
+      initialSearchKey !== undefined &&
+      initialSearchKey === searchKey &&
+      retryAttempt === 0
+    ) {
+      return {
+        key: `${initialSearchKey}:0`,
+        result: initialResult ?? null,
+        error: initialError ?? null,
+      };
+    }
+    return { key: "", result: null, error: null };
+  });
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [draftState, setDraftState] = useState(() => ({
+    key: searchKey,
+    value: draftFrom(currentSearchParams),
+  }));
   const [view, setView] = useState<"grid" | "list">("grid");
-  const [sort, setSort] = useState("popular");
-  const [minPrice, setMinPrice] = useState("500");
-  const [maxPrice, setMaxPrice] = useState("50000");
+  const [savedProviders, setSavedProviders] = useState<Set<string>>(new Set());
+  const [savingProviders, setSavingProviders] = useState<Set<string>>(
+    new Set(),
+  );
+  const [categoryOptions, setCategoryOptions] = useState<readonly string[]>(
+    initialCategories && initialCategories.length > 0
+      ? initialCategories
+      : fallbackCategoryOptions,
+  );
+  const filters = useMemo(
+    () => activeFilters(currentSearchParams),
+    [currentSearchParams],
+  );
+  const draft =
+    draftState.key === searchKey
+      ? draftState.value
+      : draftFrom(currentSearchParams);
+  const setDraft = (value: FilterDraft) =>
+    setDraftState({ key: searchKey, value });
+  const loading = request.key !== requestKey;
+  const result = loading ? null : request.result;
+  const error = loading ? null : request.error;
 
-  const filtered = useMemo(() => {
-    let items = [...marketplaceServices];
-    if (selectedCategories.length) {
-      items = items.filter((item) =>
-        selectedCategories.includes(item.category.toLowerCase().split(" ")[0]!),
+  // Sync server-provided categories and results when navigation provides new props
+  useEffect(() => {
+    if (initialCategories && initialCategories.length > 0) {
+      setCategoryOptions(initialCategories);
+    }
+  }, [initialCategories]);
+
+  useEffect(() => {
+    if (initialSearchKey === undefined) return;
+    if (initialSearchKey === searchKey && retryAttempt === 0) {
+      const key = `${searchKey}:0`;
+      if (request.key !== key) {
+        setRequest({
+          key,
+          result: initialResult ?? null,
+          error: initialError ?? null,
+        });
+      }
+    }
+  }, [
+    initialSearchKey,
+    initialResult,
+    initialError,
+    searchKey,
+    retryAttempt,
+    request.key,
+  ]);
+
+  useEffect(() => {
+    if (initialCategories && initialCategories.length > 0) return;
+    const controller = new AbortController();
+    void fetch("/api/v1/public/categories", { signal: controller.signal })
+      .then(async (response) => {
+        const body = (await response.json().catch(() => null)) as {
+          data?: MarketplaceCategorySummary[];
+        } | null;
+        if (response.ok && body?.data?.length)
+          setCategoryOptions(body.data.map((item) => item.name));
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [initialCategories]);
+
+  useEffect(() => {
+    if (request.key === requestKey) return;
+    // If server already provided data for this key, don't refetch
+    if (
+      initialSearchKey !== undefined &&
+      initialSearchKey === searchKey &&
+      retryAttempt === 0 &&
+      initialResult !== undefined
+    ) {
+      // Server result will be synced via effect above; skip fetch this tick
+      return;
+    }
+    const controller = new AbortController();
+    void fetch(
+      `/api/v1/public/marketplace?${apiSearchParams(currentSearchParams)}`,
+      { signal: controller.signal },
+    )
+      .then(async (response) => {
+        const body = (await response.json().catch(() => null)) as {
+          data?: MarketplaceSearchResult;
+          error?: { message?: string };
+        } | null;
+        if (!response.ok || !body?.data)
+          throw new Error(
+            body?.error?.message ?? "Marketplace results could not be loaded.",
+          );
+        setRequest({ key: requestKey, result: body.data, error: null });
+        recordMarketplaceEvent({
+          eventType: "marketplace.search_performed",
+          activeFilters: filters.map(
+            (filter) => filter.key as keyof FilterDraft,
+          ),
+          page: body.data.page,
+          resultCount: body.data.totalItems,
+          sort:
+            currentSearchParams.get("sort") === "newest"
+              ? "newest"
+              : "relevance",
+        });
+      })
+      .catch((cause) => {
+        if (cause instanceof DOMException && cause.name === "AbortError")
+          return;
+        setRequest({
+          key: requestKey,
+          result: null,
+          error:
+            cause instanceof Error
+              ? cause.message
+              : "Marketplace results could not be loaded.",
+        });
+      });
+    return () => controller.abort();
+  }, [
+    currentSearchParams,
+    filters,
+    requestKey,
+    request.key,
+    initialSearchKey,
+    initialResult,
+  ]);
+
+  const { data: session } = authClient.useSession();
+
+  useEffect(() => {
+    if (!session?.user) return;
+    const controller = new AbortController();
+    void fetch("/api/v1/client/saved-professionals", {
+      credentials: "include",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (response.status === 401) return;
+        const body = (await response.json().catch(() => null)) as {
+          data?: Array<{ slug: string }>;
+        } | null;
+        if (response.ok && body?.data)
+          setSavedProviders(new Set(body.data.map((item) => item.slug)));
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [session?.user]);
+
+  async function toggleSaved(providerSlug: string) {
+    if (savingProviders.has(providerSlug)) return;
+    const isSaved = savedProviders.has(providerSlug);
+    setSavingProviders((current) => new Set(current).add(providerSlug));
+    try {
+      const response = await fetch(
+        `/api/v1/client/saved-professionals/${encodeURIComponent(providerSlug)}`,
+        {
+          method: isSaved ? "DELETE" : "POST",
+          credentials: "include",
+        },
       );
+      if (response.status === 401) {
+        const returnPath = `/marketplace${searchKey ? `?${searchKey}` : ""}`;
+        router.push(`/login?redirect=${encodeURIComponent(returnPath)}`);
+        return;
+      }
+      const body = (await response.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      if (!response.ok)
+        throw new Error(
+          body?.error?.message ?? "Saved professionals could not be updated.",
+        );
+      setSavedProviders((current) => {
+        const next = new Set(current);
+        if (isSaved) next.delete(providerSlug);
+        else next.add(providerSlug);
+        return next;
+      });
+      // Invalidate client overview caches for saved and dashboard
+      void queryClient?.invalidateQueries({ queryKey: ["client-overview"] });
+      toast.success(isSaved ? "Removed from saved." : "Professional saved.");
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error
+          ? cause.message
+          : "Saved professionals could not be updated.",
+      );
+    } finally {
+      setSavingProviders((current) => {
+        const next = new Set(current);
+        next.delete(providerSlug);
+        return next;
+      });
     }
-    if (tab !== "All Services") {
-      items = items.filter((item) => item.category === tab);
-    }
-    if (availableToday) {
-      items = items.filter((item) => item.availability === "today");
-    }
-    const min = Number(minPrice) || 0;
-    const max = Number(maxPrice) || Number.POSITIVE_INFINITY;
-    items = items.filter(
-      (item) => item.priceFrom >= min && item.priceFrom <= max,
-    );
-    if (sort === "rating") {
-      items.sort((a, b) => b.rating - a.rating);
-    } else if (sort === "price") {
-      items.sort((a, b) => a.priceFrom - b.priceFrom);
-    }
-    return items;
-  }, [availableToday, maxPrice, minPrice, selectedCategories, sort, tab]);
+  }
 
-  function toggleCategory(id: string) {
-    setSelectedCategories((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id],
-    );
+  function navigate(next: URLSearchParams) {
+    const query = next.toString();
+    router.push(query ? `/marketplace?${query}` : "/marketplace");
+  }
+
+  function applyFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const next = new URLSearchParams(currentSearchParams);
+    for (const [key, value] of Object.entries(draft)) {
+      if (value.trim()) next.set(key, value.trim());
+      else next.delete(key);
+    }
+    next.delete("page");
+    navigate(next);
+    setMobileFiltersOpen(false);
   }
 
   function clearFilters() {
-    setSelectedCategories([]);
-    setAvailableToday(false);
-    setMinPrice("500");
-    setMaxPrice("50000");
-    setTab("All Services");
+    const next = new URLSearchParams(currentSearchParams);
+    for (const key of Object.keys(emptyDraft)) next.delete(key);
+    next.delete("page");
+    setDraft(emptyDraft);
+    navigate(next);
+  }
+
+  function removeFilter(key: string) {
+    const next = new URLSearchParams(currentSearchParams);
+    next.delete(key);
+    next.delete("page");
+    navigate(next);
+  }
+
+  function toggleQuickFilter(
+    key:
+      | "availability"
+      | "verified"
+      | "location"
+      | "topRated"
+      | "instantBooking",
+    value: string,
+  ) {
+    const next = new URLSearchParams(currentSearchParams);
+    if (next.get(key) === value) next.delete(key);
+    else next.set(key, value);
+    next.delete("page");
+    navigate(next);
+  }
+
+  function updateSort(sort: string) {
+    const next = new URLSearchParams(currentSearchParams);
+    if (sort === "relevance") next.delete("sort");
+    else next.set("sort", sort);
+    next.delete("page");
+    navigate(next);
+  }
+
+  function updateLocation(location: string) {
+    const next = new URLSearchParams(currentSearchParams);
+    if (location) next.set("location", location);
+    else next.delete("location");
+    next.delete("page");
+    navigate(next);
+  }
+
+  function updatePage(page: number) {
+    const next = new URLSearchParams(currentSearchParams);
+    if (page === 1) next.delete("page");
+    else next.set("page", String(page));
+    navigate(next);
   }
 
   return (
-    <div>
-      <nav className="text-sm text-[#68717b]" aria-label="Breadcrumb">
-        <Link href="/" className="hover:text-foreground">
-          Home
-        </Link>
-        <span className="mx-2">›</span>
-        <span className="text-foreground">Find Services</span>
-      </nav>
-      <h1 className="mt-4 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
-        Find Services
-      </h1>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-[#68717b]">
-        Discover verified professionals for repairs, maintenance, and home
-        improvements across Nairobi.
-      </p>
+    <div className="marketplace-page">
+      <header className="flex flex-wrap items-end justify-between gap-5 border-b border-black/[0.06] pb-5">
+        <div>
+          <h1 className="text-[2rem] leading-none font-semibold tracking-tight sm:text-[2.15rem]">
+            Find Services
+          </h1>
+          <p className="mt-2 text-[0.82rem] leading-5 text-[#5a6b84]">
+            Search trusted home service professionals in Nairobi.
+          </p>
+        </div>
+        <LocationPicker
+          value={currentSearchParams.get("location") ?? "Nairobi"}
+          onSelect={updateLocation}
+          className="w-full sm:w-[13rem]"
+        />
+      </header>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {trustItems.map(({ label, icon: Icon }) => (
-          <Surface
-            key={label}
-            className="flex items-center gap-3 p-4 shadow-none"
-          >
-            <span className="grid size-10 place-items-center rounded-full bg-[#eef8c8] text-[#5f8d11]">
-              <Icon className="size-4" aria-hidden="true" />
-            </span>
-            <span className="text-sm font-semibold">{label}</span>
-          </Surface>
-        ))}
-      </div>
+      <section
+        className="mt-5 rounded-2xl border border-black/8 bg-white/85 p-3 sm:p-4 min-[960px]:hidden"
+        aria-label="Marketplace controls"
+      >
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <MobileFilterSheet
+            draft={draft}
+            categoryOptions={categoryOptions}
+            onDraftChange={setDraft}
+            onSubmit={applyFilters}
+            onClear={clearFilters}
+            open={mobileFiltersOpen}
+            onOpenChange={setMobileFiltersOpen}
+            activeCount={filters.length}
+          />
+          <label className="relative">
+            <span className="sr-only">Sort services</span>
+            <select
+              value={currentSearchParams.get("sort") ?? "relevance"}
+              onChange={(event) => updateSort(event.target.value)}
+              className="h-12 w-full appearance-none rounded-xl border border-black/10 bg-white px-4 pr-9 text-sm font-semibold"
+              aria-label="Sort services"
+            >
+              <option value="relevance">Sort: Most relevant</option>
+              <option value="newest">Sort: Newest</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2" />
+          </label>
+          <div className="hidden rounded-xl border border-black/10 bg-white p-1 sm:col-span-1 sm:flex">
+            <ViewButton
+              label="Grid view"
+              active={view === "grid"}
+              onClick={() => setView("grid")}
+            >
+              <Grid2X2 className="size-5" />
+            </ViewButton>
+            <ViewButton
+              label="List view"
+              active={view === "list"}
+              onClick={() => setView("list")}
+            >
+              <List className="size-5" />
+            </ViewButton>
+          </div>
+        </div>
+        <QuickFilters
+          current={currentSearchParams}
+          onToggle={toggleQuickFilter}
+        />
+      </section>
 
-      <div className="mt-6 grid gap-5 xl:grid-cols-[240px_minmax(0,1fr)_240px]">
-        <aside className="space-y-4">
-          <Surface className="p-4 shadow-none">
-            <p className="text-xs font-semibold text-[#68717b]">Your Location</p>
-            <p className="mt-2 inline-flex items-center gap-2 text-sm font-semibold">
-              <MapPin className="size-4 text-[#5f8d11]" /> Nairobi, Kenya
-            </p>
-            <button type="button" className="mt-2 text-xs font-semibold text-[#5f8d11]">
-              Change location
+      {filters.length > 0 ? (
+        <div
+          className="mt-3 flex flex-wrap items-center gap-2"
+          aria-label="Active filters"
+        >
+          {filters.map((filter) => (
+            <button
+              key={filter.key}
+              type="button"
+              onClick={() => removeFilter(filter.key)}
+              className="inline-flex min-h-8 items-center gap-2 rounded-lg bg-[#eef8c8] px-3 text-xs font-medium text-[#486d09]"
+            >
+              {filter.value} <X className="size-3.5" />
+              <span className="sr-only">Remove {filter.label} filter</span>
             </button>
-          </Surface>
-          <Surface className="p-4 shadow-none">
-            <p className="text-sm font-bold">Category</p>
-            <ul className="mt-3 space-y-2">
-              {marketplaceCategories.map((category) => (
-                <li key={category.id}>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategories.includes(category.id)}
-                      onChange={() => toggleCategory(category.id)}
-                    />
-                    <span className="flex-1">{category.label}</span>
-                    <span className="text-xs text-[#68717b]">{category.count}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </Surface>
-          <Surface className="p-4 shadow-none">
-            <p className="text-sm font-bold">Price Range</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <input
-                value={minPrice}
-                onChange={(event) => setMinPrice(event.target.value)}
-                className="h-10 rounded-xl border border-black/8 px-3 text-xs"
-                aria-label="Minimum price"
-              />
-              <input
-                value={maxPrice}
-                onChange={(event) => setMaxPrice(event.target.value)}
-                className="h-10 rounded-xl border border-black/8 px-3 text-xs"
-                aria-label="Maximum price"
-              />
-            </div>
-          </Surface>
-          <Surface className="p-4 shadow-none">
-            <p className="text-sm font-bold">Availability</p>
-            <label className="mt-3 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={availableToday}
-                onChange={(event) => setAvailableToday(event.target.checked)}
-              />
-              Available Today
-            </label>
-          </Surface>
+          ))}
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-black/8 bg-white text-sm font-semibold"
+            className="min-h-8 px-2 text-xs font-semibold text-[#486d09]"
           >
-            <RefreshCw className="size-4" /> Clear Filters
+            Clear all
           </button>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-4 min-[960px]:grid-cols-[236px_minmax(0,1fr)_220px] min-[1200px]:grid-cols-[250px_minmax(0,1fr)_230px]">
+        <aside className="hidden min-[960px]:block">
+          <div className="sticky top-5 rounded-2xl border border-black/8 bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-medium">Refine your search</h2>
+            </div>
+
+            <FilterForm
+              draft={draft}
+              categoryOptions={categoryOptions}
+              onDraftChange={setDraft}
+              onSubmit={applyFilters}
+              onClear={clearFilters}
+              compact
+            />
+          </div>
         </aside>
 
-        <section>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-semibold">
-              Showing {filtered.length} services
+        <section
+          aria-labelledby="marketplace-results-heading"
+          className="min-w-0"
+        >
+          <div className="hidden items-center justify-between gap-3 min-[960px]:flex">
+            <p id="marketplace-results-heading" className="text-lg font-medium">
+              {loading ? (
+                "Loading services"
+              ) : (
+                <>
+                  {result?.totalItems ?? 0} services{" "}
+                  <span className="text-[#6d9e13]">in Nairobi</span>
+                </>
+              )}
             </p>
             <div className="flex items-center gap-2">
               <select
-                value={sort}
-                onChange={(event) => setSort(event.target.value)}
-                className="h-10 rounded-full border border-black/8 bg-white px-3 text-xs"
+                value={currentSearchParams.get("sort") ?? "relevance"}
+                onChange={(event) => updateSort(event.target.value)}
+                className="h-10 rounded-xl border border-black/8 bg-white px-3 text-[0.5rem] font-semibold"
                 aria-label="Sort services"
               >
-                <option value="popular">Sort by: Most Popular</option>
-                <option value="rating">Highest rated</option>
-                <option value="price">Lowest price</option>
+                <option value="relevance">Sort by: Most relevant</option>
+                <option value="newest">Sort by: Newest</option>
               </select>
-              <button
-                type="button"
-                className={cn(
-                  "grid size-10 place-items-center rounded-full border border-black/8",
-                  view === "grid" && "bg-primary",
-                )}
-                aria-label="Grid view"
+              <ViewButton
+                label="Grid view"
+                active={view === "grid"}
                 onClick={() => setView("grid")}
               >
                 <Grid2X2 className="size-4" />
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "grid size-10 place-items-center rounded-full border border-black/8",
-                  view === "list" && "bg-primary",
-                )}
-                aria-label="List view"
+              </ViewButton>
+              <ViewButton
+                label="List view"
+                active={view === "list"}
                 onClick={() => setView("list")}
               >
                 <List className="size-4" />
-              </button>
+              </ViewButton>
             </div>
           </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {["All Services", "Plumbing", "Electrical", "Cleaning", "Painting"].map(
-              (label) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setTab(label)}
-                  className={cn(
-                    "rounded-full px-4 py-2 text-xs font-semibold",
-                    tab === label
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-black/8 bg-white",
-                  )}
-                >
-                  {label}
-                </button>
-              ),
-            )}
+          <div className="hidden min-[960px]:block">
+            <QuickFilters
+              current={currentSearchParams}
+              onToggle={toggleQuickFilter}
+            />
           </div>
 
-          <div
-            className={cn(
-              "mt-5 grid gap-4",
-              view === "grid" ? "sm:grid-cols-2" : "grid-cols-1",
-            )}
-          >
-            {filtered.map((service) => (
-              <Link
-                key={service.id}
-                href={`/services/${service.slug}`}
-                className="block rounded-[22px] outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring"
+          <div className="mt-4">
+            {loading ? (
+              <StatePanel
+                variant="loading"
+                title="Loading services"
+                description="Searching the latest published marketplace listings."
+                className="min-h-72"
+              />
+            ) : error ? (
+              <StatePanel
+                variant="error"
+                title="Marketplace unavailable"
+                description={error}
+                actionLabel="Try again"
+                onAction={() => setRetryAttempt((current) => current + 1)}
+                className="min-h-72 font-semibold"
+              />
+            ) : result && result.items.length > 0 ? (
+              <div
+                className={cn(
+                  "grid gap-3",
+                  view === "grid"
+                    ? "sm:grid-cols-2 xl:grid-cols-3"
+                    : "grid-cols-1",
+                )}
               >
-                <Surface className="overflow-hidden p-0 shadow-none">
-                  <div className="relative aspect-[4/3]">
-                    <Image
-                      src={service.image}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="300px"
-                    />
-                    <span className="absolute top-3 left-3 rounded-full bg-primary px-2.5 py-1 text-[0.65rem] font-semibold">
-                      {service.availability === "today"
-                        ? "Available Today"
-                        : "Available This Week"}
-                    </span>
-                    <span
-                      className="absolute top-3 right-3 grid size-9 place-items-center rounded-full bg-white"
-                      aria-hidden="true"
-                    >
-                      <Heart className="size-4" />
-                    </span>
-                  </div>
-                  <div className="p-4">
-                    <h2 className="font-bold">{service.title}</h2>
-                    <p className="mt-1 text-xs text-[#68717b]">
-                      {service.serviceName} · {service.category}
-                    </p>
-                    <p className="mt-2 inline-flex items-center gap-1 text-sm font-semibold">
-                      <Star className="size-3.5 fill-[#ffb81c] text-[#ffb81c]" />
-                      {service.rating}{" "}
-                      <span className="font-normal text-[#68717b]">
-                        ({service.reviews})
-                      </span>
-                    </p>
-                    <p className="mt-2 inline-flex items-center gap-1 text-xs text-[#68717b]">
-                      <MapPin className="size-3.5" /> {service.location}
-                    </p>
-                    <div className="mt-4 flex items-end justify-between">
-                      <div>
-                        <p className="text-[0.65rem] text-[#68717b]">
-                          Starting from
-                        </p>
-                        <p className="text-sm font-bold">
-                          KSh {service.priceFrom.toLocaleString()}
-                        </p>
-                      </div>
-                      <span
-                        className="grid size-10 place-items-center rounded-full bg-primary"
-                        aria-hidden="true"
-                      >
-                        <ArrowRight className="size-4" />
-                      </span>
-                    </div>
-                  </div>
-                </Surface>
-              </Link>
-            ))}
+                {result.items.map((service, index) => (
+                  <MarketplaceCard
+                    key={service.slug}
+                    service={service}
+                    listView={view === "list"}
+                    priority={index < 3}
+                    saved={savedProviders.has(service.provider.slug)}
+                    saving={savingProviders.has(service.provider.slug)}
+                    onToggleSaved={() => toggleSaved(service.provider.slug)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <StatePanel
+                variant={filters.length > 0 ? "filtered" : "empty"}
+                title={
+                  filters.length > 0
+                    ? "No services match these filters"
+                    : "No published services yet"
+                }
+                description={
+                  filters.length > 0
+                    ? "Try removing a filter or broadening your search."
+                    : "Published services from active professionals will appear here."
+                }
+                actionLabel={filters.length > 0 ? "Clear filters" : undefined}
+                onAction={filters.length > 0 ? clearFilters : undefined}
+                className="min-h-72"
+              />
+            )}
           </div>
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-3 text-sm">
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5].map((page) => (
-                <button
-                  key={page}
-                  type="button"
-                  className={cn(
-                    "grid size-9 place-items-center rounded-lg font-semibold",
-                    page === 1 ? "bg-primary" : "border border-black/8 bg-white",
-                  )}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-[#68717b]">Show 12 per page</p>
-          </div>
+          {result && result.totalPages > 1 ? (
+            <nav
+              className="mt-7 flex items-center justify-between gap-3"
+              aria-label="Marketplace pagination"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={result.page <= 1}
+                onClick={() => updatePage(result.page - 1)}
+              >
+                <ArrowLeft className="size-4" /> Previous
+              </Button>
+              <p className="text-xs text-[#68717b]">
+                Page {result.page} of {result.totalPages}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={result.page >= result.totalPages}
+                onClick={() => updatePage(result.page + 1)}
+              >
+                Next <ArrowRight className="size-4" />
+              </Button>
+            </nav>
+          ) : null}
+          <HelpCard className="mt-5 min-[960px]:hidden" />
         </section>
 
-        <aside className="space-y-4">
-          <Surface className="p-5 shadow-none">
-            <h2 className="font-bold">Need help choosing?</h2>
-            <p className="mt-2 text-sm text-[#68717b]">
-              Get tailored recommendations for your home project.
-            </p>
-            <Link
-              href="/contact"
-              className={cn(
-                buttonVariants(),
-                "mt-4 h-11 w-full justify-between rounded-full pr-1 pl-4 text-xs",
-              )}
-            >
-              Get Recommendations
-              <span className="grid size-8 place-items-center rounded-full bg-secondary text-white">
-                <ArrowRight className="size-3.5" />
-              </span>
-            </Link>
-          </Surface>
-          <Surface className="p-5 shadow-none">
-            <h2 className="font-bold">Trusted by Thousands</h2>
-            <p className="mt-3 text-2xl font-bold">25,000+</p>
-            <p className="text-sm text-[#68717b]">Happy Customers</p>
-            <p className="mt-3 inline-flex items-center gap-1 text-sm font-semibold">
-              <Star className="size-3.5 fill-[#ffb81c] text-[#ffb81c]" /> 4.8/5
-            </p>
-          </Surface>
-          <Surface className="p-5 shadow-none">
-            <h2 className="inline-flex items-center gap-2 font-bold">
-              <Headphones className="size-4 text-[#5f8d11]" /> Need help?
-            </h2>
-            <Link
-              href="/contact"
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "mt-4 h-11 w-full justify-between rounded-full border-black/8 pr-1 pl-4 text-xs",
-              )}
-            >
-              Contact Support
-              <span className="grid size-8 place-items-center rounded-full bg-secondary text-white">
-                <ArrowRight className="size-3.5" />
-              </span>
-            </Link>
-          </Surface>
+        <aside className="hidden space-y-4 min-[960px]:block">
+          <HelpCard />
+          <div className="rounded-2xl border border-black/8 bg-white p-4">
+            <h2 className="font-semibold">Popular near you</h2>
+            <div className="mt-3 border-t border-black/8 pt-2">
+              {popularServices.map((service) => (
+                <Link
+                  key={service.name}
+                  href={`/marketplace?category=${encodeURIComponent(service.name.includes("Water Heater") ? "Appliance Repair" : "Plumbing")}`}
+                  prefetch={false}
+                  className="flex gap-3 border-b border-black/8 py-3 last:border-0 hover:bg-[#fbfdf4] rounded-lg px-1 -mx-1 transition-colors"
+                >
+                  <Image
+                    src={service.image}
+                    alt={service.name}
+                    width={54}
+                    height={54}
+                    className="size-[54px] rounded-lg object-cover"
+                  />
+                  <div className="min-w-0 text-[0.68rem] leading-4">
+                    <p className="font-semibold">{service.name}</p>
+                    <p className="text-[#52647a]">{service.price}</p>
+                    <p className="mt-1 text-[#52647a]">
+                      <Star className="mr-1 inline size-3 fill-[#ffb000] text-[#ffb000]" />
+                      Popular locally
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
         </aside>
       </div>
     </div>
+  );
+}
+
+function ViewButton({
+  label,
+  active,
+  onClick,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "grid size-10 shrink-0 place-items-center rounded-lg",
+        active
+          ? "bg-primary shadow-[0_5px_14px_rgba(173,222,0,0.3)]"
+          : "bg-white",
+      )}
+      aria-label={label}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function QuickFilters({
+  current,
+  onToggle,
+}: {
+  current: URLSearchParams;
+  onToggle: (
+    key:
+      | "availability"
+      | "verified"
+      | "location"
+      | "topRated"
+      | "instantBooking",
+    value: string,
+  ) => void;
+}) {
+  const itemClass =
+    "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-black/8 bg-white px-4 text-xs font-medium text-[#203953] transition hover:border-[#a7d923]";
+  return (
+    <div
+      className="mt-3 flex gap-2 overflow-x-auto pb-1"
+      aria-label="Quick filters"
+    >
+      <button
+        type="button"
+        onClick={() => onToggle("availability", "today")}
+        aria-pressed={current.get("availability") === "today"}
+        className={cn(
+          itemClass,
+          current.get("availability") === "today" &&
+            "border-[#9aca1d] bg-[#f6fce8]",
+        )}
+      >
+        <CalendarDays className="size-4 text-[#6d9e13]" />
+        Available Today
+      </button>
+      <button
+        type="button"
+        onClick={() => onToggle("verified", "true")}
+        aria-pressed={current.get("verified") === "true"}
+        className={cn(
+          itemClass,
+          current.get("verified") === "true" && "border-[#9aca1d] bg-[#f6fce8]",
+        )}
+      >
+        <ShieldCheck className="size-4 text-[#6d9e13]" />
+        Verified
+      </button>
+      <button
+        type="button"
+        onClick={() => onToggle("topRated", "true")}
+        aria-pressed={current.get("topRated") === "true"}
+        className={cn(
+          itemClass,
+          current.get("topRated") === "true" && "border-[#9aca1d] bg-[#f6fce8]",
+        )}
+      >
+        <Star className="size-4 text-[#ffb000]" />
+        Top Rated
+      </button>
+      <button
+        type="button"
+        onClick={() => onToggle("location", "Nairobi")}
+        aria-pressed={current.get("location") === "Nairobi"}
+        className={cn(
+          itemClass,
+          current.get("location") === "Nairobi" &&
+            "border-[#9aca1d] bg-[#f6fce8]",
+        )}
+      >
+        <MapPin className="size-4" />
+        Near Me
+      </button>
+      <button
+        type="button"
+        onClick={() => onToggle("instantBooking", "true")}
+        aria-pressed={current.get("instantBooking") === "true"}
+        className={cn(
+          itemClass,
+          current.get("instantBooking") === "true" &&
+            "border-[#9aca1d] bg-[#f6fce8]",
+        )}
+      >
+        <Zap className="size-4 text-[#ffb000]" />
+        Instant Booking
+      </button>
+    </div>
+  );
+}
+
+function MobileFilterSheet({
+  draft,
+  categoryOptions,
+  onDraftChange,
+  onSubmit,
+  onClear,
+  open,
+  onOpenChange,
+  activeCount,
+}: {
+  draft: FilterDraft;
+  categoryOptions: readonly string[];
+  onDraftChange: (draft: FilterDraft) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onClear: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  activeCount: number;
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetTrigger asChild>
+        <Button
+          ref={triggerRef}
+          type="button"
+          variant="outline"
+          className="h-12 justify-start rounded-xl border-black/10 bg-white px-4 min-[960px]:hidden"
+        >
+          <SlidersHorizontal className="size-5" /> Filter
+          {activeCount > 0 ? (
+            <span className="grid size-5 place-items-center rounded-full bg-primary text-[0.65rem]">
+              {activeCount}
+            </span>
+          ) : null}
+        </Button>
+      </SheetTrigger>
+      <SheetContent
+        side="bottom"
+        aria-describedby="marketplace-filter-description"
+        className="max-h-[92vh] p-0 min-[960px]:hidden"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          triggerRef.current?.focus();
+        }}
+      >
+        <div className="border-b border-black/8 px-6 py-5 pr-16">
+          <SheetTitle className="text-xl font-semibold">
+            Refine your search
+          </SheetTitle>
+          <SheetDescription
+            id="marketplace-filter-description"
+            className="mt-1 text-sm text-[#68717b]"
+          >
+            Choose the service details that matter to you.
+          </SheetDescription>
+        </div>
+        <FilterForm
+          draft={draft}
+          categoryOptions={categoryOptions}
+          onDraftChange={onDraftChange}
+          onSubmit={onSubmit}
+          onClear={onClear}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function FilterForm({
+  draft,
+  categoryOptions,
+  onDraftChange,
+  onSubmit,
+  onClear,
+  compact = false,
+}: {
+  draft: FilterDraft;
+  categoryOptions: readonly string[];
+  onDraftChange: (draft: FilterDraft) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onClear: () => void;
+  compact?: boolean;
+}) {
+  const fieldClass = compact
+    ? "mt-1 h-9 w-full max-w-full min-w-0 rounded-sm border-b border-black/10 bg-white px-2.5 text-[0.7rem] outline-none focus:border-[#7cae17]"
+    : "mt-2 h-11 w-full max-w-full min-w-0 rounded-sm border-b border-black/10 bg-white px-3 text-sm outline-none focus:border-[#7cae17]";
+  const update = (key: keyof FilterDraft, value: string) =>
+    onDraftChange({ ...draft, [key]: value });
+  return (
+    <form
+      onSubmit={onSubmit}
+      className={cn(
+        "grid min-w-0 max-w-full",
+        compact ? "mt-4 gap-3" : "gap-5 overflow-y-auto p-6",
+      )}
+    >
+      <FilterSelect
+        label="Category"
+        value={draft.category}
+        onChange={(value) => update("category", value)}
+        className={fieldClass}
+      >
+        <option value="">All categories</option>
+        {categoryOptions.map((category) => (
+          <option key={category} value={category}>
+            {category}
+          </option>
+        ))}
+      </FilterSelect>
+      <div
+        className={cn(
+          "min-w-0 max-w-full font-medium",
+          compact ? "text-[0.7rem]" : "text-sm",
+        )}
+      >
+        Location
+        <LocationPicker
+          value={draft.location}
+          onSelect={(value) => update("location", value)}
+          compact={compact}
+          field
+        />
+      </div>
+      <FilterSelect
+        label="Service type"
+        value={draft.fulfilmentModel}
+        onChange={(value) => update("fulfilmentModel", value)}
+        className={fieldClass}
+      >
+        <option value="">All service types</option>
+        <option value="on_site">On-site</option>
+        <option value="remote">Remote</option>
+        <option value="hybrid">Hybrid</option>
+      </FilterSelect>
+      <FilterSelect
+        label="Pricing"
+        value={draft.pricingModel}
+        onChange={(value) => update("pricingModel", value)}
+        className={fieldClass}
+      >
+        <option value="">Any price</option>
+        <option value="fixed">Fixed price</option>
+        <option value="starting_from">Starting from</option>
+        <option value="custom_quote">Custom quote</option>
+      </FilterSelect>
+      <FilterSelect
+        label="Availability"
+        value={draft.availability}
+        onChange={(value) => update("availability", value)}
+        className={fieldClass}
+      >
+        <option value="">Any availability</option>
+        <option value="today">Available today</option>
+      </FilterSelect>
+      <FilterSelect
+        label="Verification"
+        value={draft.verified}
+        onChange={(value) => update("verified", value)}
+        className={fieldClass}
+      >
+        <option value="">All professionals</option>
+        <option value="true">Verified professionals only</option>
+        <option value="false">Not yet verified</option>
+      </FilterSelect>
+      <p className="sr-only">Published services only</p>
+      <div
+        className={cn(
+          "grid gap-2 border-t border-black/8 pt-3",
+          !compact && "sticky bottom-0 -mx-6 bg-white px-6 sm:grid-cols-2",
+        )}
+      >
+        <Button type="submit" className="h-10 rounded-xl text-xs">
+          Show results
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  className,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="min-w-0 max-w-full text-[0.7rem] font-medium">
+      {label}
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={className}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function HelpCard({ className }: { className?: string }) {
+  return (
+    <aside
+      className={cn(
+        "rounded-2xl border border-[#e8ecd7] bg-[#fbfdf4] p-5",
+        className,
+      )}
+    >
+      <span className="grid size-11 place-items-center rounded-full bg-[#eff8cf] text-[#648f12]">
+        <Headphones className="size-5" />
+      </span>
+      <h2 className="mt-3 text-base font-semibold">Need help choosing?</h2>
+      <p className="mt-2 text-sm leading-6 text-[#425671]">
+        Tell us what you need and we&apos;ll help you find the right
+        professional.
+      </p>
+      <Link
+        href="/contact"
+        className={cn(
+          buttonVariants(),
+          "mt-4 h-10 w-full justify-between rounded-xl px-4 text-xs",
+        )}
+      >
+        Get matched <ArrowRight className="size-4" />
+      </Link>
+    </aside>
+  );
+}
+
+function MarketplaceCard({
+  service,
+  listView,
+  saved,
+  saving,
+  onToggleSaved,
+  priority = false,
+}: {
+  service: MarketplaceListing;
+  listView: boolean;
+  saved: boolean;
+  saving: boolean;
+  onToggleSaved: () => void;
+  priority?: boolean;
+}) {
+  const location =
+    service.provider.operatingLocation ??
+    service.serviceAreas[0] ??
+    "Location confirmed with provider";
+  const topRated =
+    service.provider.rating != null &&
+    service.provider.rating >= 4.7 &&
+    service.provider.reviewCount > 0;
+  return (
+    <ServiceCard
+      listView={listView}
+      action={
+        <button
+          type="button"
+          onClick={onToggleSaved}
+          disabled={saving}
+          aria-pressed={saved}
+          aria-label={
+            saved
+              ? `Remove ${service.provider.businessName} from saved`
+              : `Save ${service.provider.businessName}`
+          }
+          className={cn(
+            "absolute top-2.5 right-2.5 z-20 grid size-8 place-items-center rounded-full border border-black/10 bg-white text-[#17304f] shadow-[0_3px_10px_rgba(7,21,34,0.16)]",
+            saved && "bg-[#eff8cf] text-[#5f8d11]",
+          )}
+        >
+          <Heart className={cn("size-4", saved && "fill-current")} />
+        </button>
+      }
+      image={
+        <Link
+          href={`/services/${service.slug}`}
+          prefetch={false}
+          className={cn(
+            "relative block min-h-[150px] bg-[#edf5d5] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+            listView
+              ? "sm:h-full sm:min-h-full sm:self-stretch sm:aspect-auto"
+              : "sm:aspect-[16/9] sm:min-h-0",
+          )}
+          aria-label={`Open ${service.name}`}
+        >
+          <Image
+            src={service.imageUrl ?? fallbackImage(service.category)}
+            alt={service.name}
+            fill
+            unoptimized={Boolean(
+              service.imageUrl?.includes("res.cloudinary.com"),
+            )}
+            priority={priority}
+            loading={priority ? undefined : "lazy"}
+            fetchPriority={priority ? "high" : "low"}
+            className="object-cover"
+            sizes="(max-width: 639px) 50vw, (max-width: 1199px) 33vw, 400px"
+          />
+          {service.provider.availableToday ? (
+            <span
+              aria-label="Service status: Available Today"
+              className="absolute top-2.5 left-2.5 rounded-full bg-primary px-2.5 py-1 text-[0.58rem] font-medium text-[#102300]"
+            >
+              Available Today
+            </span>
+          ) : topRated ? (
+            <span
+              aria-label="Service status: Top Rated"
+              className="absolute top-2.5 left-2.5 rounded-full bg-[#ffc21a] px-2.5 py-1 text-[0.58rem] font-medium text-[#2d2400]"
+            >
+              Top Rated
+            </span>
+          ) : null}
+        </Link>
+      }
+      title={
+        <Link
+          href={`/services/${service.slug}`}
+          prefetch={false}
+          className="hover:underline"
+        >
+          {service.name}
+        </Link>
+      }
+      footer={
+        <>
+          {" "}
+          <div>
+            <p className="text-[0.58rem] text-[#68717b]">
+              {service.pricingModel === "custom_quote"
+                ? "Pricing"
+                : service.pricingModel === "starting_from"
+                  ? "Starting from"
+                  : "Fixed price"}
+            </p>
+            <p className="text-sm font-semibold">{formatPrice(service)}</p>
+          </div>
+          <Link
+            href={`/services/${service.slug}`}
+            prefetch={false}
+            aria-label={`View ${service.name}`}
+            className="grid size-8 place-items-center rounded-full bg-primary"
+          >
+            <ArrowRight className="size-4" />
+          </Link>
+        </>
+      }
+    >
+      <p className="mt-1 flex min-w-0 items-center gap-1.5 text-[0.72rem] text-[#40536c]">
+        <span className="truncate">{service.provider.businessName}</span>
+        {service.provider.verified ? (
+          <span className="inline-flex shrink-0 items-center gap-1 font-medium text-[#65970d]">
+            <BadgeCheck className="size-3.5" />
+            Verified
+          </span>
+        ) : null}
+      </p>
+      <p className="mt-1 flex items-center gap-1.5 text-[0.72rem] text-[#52647a]">
+        {service.provider.rating == null ? (
+          <span>New professional</span>
+        ) : (
+          <>
+            <Star className="size-3 fill-[#ffb000] text-[#ffb000]" />
+            <span>
+              {service.provider.rating.toFixed(1)} (
+              {service.provider.reviewCount})
+            </span>
+          </>
+        )}
+        <span aria-hidden="true">•</span>
+        <span>
+          {service.provider.experienceYears == null
+            ? "Experience not listed"
+            : service.provider.experienceYears === 0
+              ? "Under 1 year"
+              : `${service.provider.experienceYears}+ years`}
+        </span>
+      </p>
+      <p className="mt-1 line-clamp-1 text-[0.72rem] text-[#52647a]">
+        <MapPin className="mr-1 inline size-3" />
+        {location}
+      </p>
+      <p className="mt-1 mb-2 line-clamp-1 text-[0.72rem ] text-[#52647a]">
+        <Clock3 className="mr-1 inline size-3 text-[#789a1d]" />
+        Next slot:{" "}
+        <span className="font-medium text-[0.72rem]">
+          {formatNextSlot(service)}
+        </span>
+      </p>
+    </ServiceCard>
   );
 }

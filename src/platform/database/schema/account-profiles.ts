@@ -16,10 +16,17 @@ export const accountProfiles = pgTable(
     displayName: text("display_name").notNull(),
     primaryEmail: text("primary_email").notNull().unique(),
     phone: text("phone"),
+    location: text("location"),
+    bio: text("bio"),
+    avatarAssetId: uuid("avatar_asset_id"),
     timezone: text("timezone").notNull().default("UTC"),
     status: text("status").notNull().default("active"),
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     privacyAcceptedAt: timestamp("privacy_accepted_at", { withTimezone: true }),
+    deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
+    personalDataRemovedAt: timestamp("personal_data_removed_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

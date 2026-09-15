@@ -108,7 +108,7 @@ Establish the shared Veterans Bay visual system before implementing additional p
 ### Prerequisites
 
 - Feature 00.01 complete.
-- `public/design-reference/homepage.png` exists and is readable.
+- `context/design-reference/homepage.png` exists and is readable.
 
 ### Routes
 

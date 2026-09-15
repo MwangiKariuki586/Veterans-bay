@@ -26,7 +26,7 @@ describe("OutboxProofConsumer", () => {
     };
 
     await expect(consumer.handleMessage(message)).resolves.toBe("ack");
-    await expect(consumer.handleMessage(message)).resolves.toBe("ack");
+    await expect(consumer.handleMessage(message)).resolves.toBe("duplicate");
     expect(repository.applyProofEffect).toHaveBeenCalledTimes(2);
   });
 

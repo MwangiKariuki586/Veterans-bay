@@ -12,7 +12,7 @@ export class OutboxProofConsumer {
   async handleMessage(
     raw: unknown,
     attemptCount = 1,
-  ): Promise<"ack" | "retry" | "dead_letter"> {
+  ): Promise<"ack" | "duplicate" | "retry" | "dead_letter"> {
     const parsed = domainEventEnvelopeSchema.safeParse(raw);
     if (!parsed.success) {
       return "dead_letter";
@@ -56,14 +56,14 @@ export class OutboxProofConsumer {
     }
 
     try {
-      await this.repository.applyProofEffect({
+      const result = await this.repository.applyProofEffect({
         eventId: envelope.eventId,
         consumerName: OUTBOX_PROOF_CONSUMER,
         eventType: envelope.eventType,
         eventVersion: envelope.eventVersion,
         marker: payload.data.marker,
       });
-      return "ack";
+      return result.created ? "ack" : "duplicate";
     } catch {
       if (attemptCount >= 5) {
         await this.repository.recordDeadLetter({

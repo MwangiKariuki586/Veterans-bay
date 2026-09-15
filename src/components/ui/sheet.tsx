@@ -12,6 +12,25 @@ export const SheetClose = DialogPrimitive.Close;
 export const SheetTitle = DialogPrimitive.Title;
 export const SheetDescription = DialogPrimitive.Description;
 
+/** Shared workspace inspection drawer used by invoices and service management. */
+export function WorkspaceDrawer({
+  children,
+  onClose,
+  className,
+  ...props
+}: ComponentProps<typeof SheetContent> & { onClose: () => void }) {
+  return (
+    <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent
+        {...props}
+        className={cn("flex h-full w-[min(36rem,94vw)] flex-col overflow-hidden p-0", className)}
+      >
+        {children}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function SheetContent({
   children,
   className,

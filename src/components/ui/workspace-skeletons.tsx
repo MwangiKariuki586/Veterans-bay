@@ -1,0 +1,232 @@
+"use client";
+
+import type { ReactNode } from "react";
+
+import { Skeleton } from "@/components/ui/skeleton";
+import { Surface } from "@/components/ui/surface";
+import { useWorkspaceContentReady } from "@/components/workspace/workspace-chrome";
+import { cn } from "@/lib/utils";
+
+function SkeletonBlock({
+  className,
+  ...props
+}: React.ComponentProps<typeof Skeleton>) {
+  return <Skeleton className={cn("rounded-2xl", className)} {...props} />;
+}
+
+function BusyFrame({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  useWorkspaceContentReady(false);
+  return (
+    <div aria-busy="true" className={className}>
+      {children}
+    </div>
+  );
+}
+
+export function PageHeaderSkeleton({
+  actions = 0,
+  className,
+}: {
+  actions?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-end justify-between gap-4",
+        className,
+      )}
+    >
+      <div className="grid gap-2">
+        <SkeletonBlock className="h-3 w-28 rounded-full" />
+        <SkeletonBlock className="h-9 w-56" />
+        <SkeletonBlock className="h-4 w-80 max-w-full" />
+      </div>
+      {actions > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: actions }).map((_, index) => (
+            <SkeletonBlock key={index} className="h-10 w-32 rounded-xl" />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function FilterChipSkeleton({ count = 5 }: { count?: number }) {
+  return (
+    <div className="mt-6 flex gap-2 overflow-hidden pb-2" aria-hidden="true">
+      {Array.from({ length: count }).map((_, index) => (
+        <SkeletonBlock
+          key={index}
+          className="h-10 w-24 shrink-0 rounded-full"
+        />
+      ))}
+    </div>
+  );
+}
+
+export function ListPageSkeleton({
+  rows = 4,
+  actions = 0,
+  className,
+  title,
+  summaryLabels,
+}: {
+  rows?: number;
+  actions?: number;
+  className?: string;
+  title?: string;
+  summaryLabels?: string[];
+}) {
+  return (
+    <BusyFrame className={cn(className)}>
+      {title ? <h1 className="text-[1.75rem] font-semibold leading-tight tracking-title sm:text-[2rem]">{title}</h1> : <PageHeaderSkeleton actions={actions} />}
+      {summaryLabels ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" role="status" aria-label="Loading summary">
+          {summaryLabels.map((label) => (
+            <Surface key={label} className="flex h-[128px] gap-2.5 rounded-[16px] p-3">
+              <SkeletonBlock className="size-9 shrink-0 rounded-[10px]" />
+              <div className="min-w-0 flex-1">
+                <span className="block min-h-7 text-[0.72rem] font-medium leading-3.5 text-muted-foreground">{label}</span>
+                <SkeletonBlock className="mt-1 h-6 w-14 rounded-md" />
+                <SkeletonBlock className="mt-2 h-2.5 w-4/5 rounded-full" />
+              </div>
+            </Surface>
+          ))}
+        </div>
+      ) : null}
+      <FilterChipSkeleton />
+      <div className="mt-5 grid gap-4">
+        {Array.from({ length: rows }).map((_, index) => (
+          title ? <Surface key={index} className="flex gap-3 rounded-[16px] p-4">
+            <SkeletonBlock className="size-12 shrink-0" />
+            <div className="flex-1"><SkeletonBlock className="h-4 w-2/3 rounded-full" /><SkeletonBlock className="mt-3 h-3 w-1/3 rounded-full" /></div>
+            <SkeletonBlock className="h-6 w-20 rounded-full" />
+          </Surface> : <SkeletonBlock key={index} className="h-28 w-full rounded-[22px]" />
+        ))}
+      </div>
+    </BusyFrame>
+  );
+}
+
+export function DetailPageSkeleton({ className }: { className?: string }) {
+  return (
+    <BusyFrame className={cn("grid gap-4", className)}>
+      <div className="grid gap-2">
+        <SkeletonBlock className="h-3 w-24 rounded-full" />
+        <SkeletonBlock className="h-9 w-72 max-w-full" />
+        <SkeletonBlock className="h-4 w-96 max-w-full" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="grid gap-4">
+          <SkeletonBlock className="h-48 w-full rounded-[22px]" />
+          <SkeletonBlock className="h-64 w-full rounded-[22px]" />
+        </div>
+        <div className="grid gap-4">
+          <SkeletonBlock className="h-40 w-full rounded-[22px]" />
+          <SkeletonBlock className="h-32 w-full rounded-[22px]" />
+        </div>
+      </div>
+    </BusyFrame>
+  );
+}
+
+export function ProfessionalDashboardSkeleton() {
+  return (
+    <BusyFrame className="space-y-3">
+      <section className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="grid gap-2">
+          <SkeletonBlock className="h-8 w-72 max-w-full" />
+          <SkeletonBlock className="h-4 w-56" />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <SkeletonBlock className="h-11 w-full rounded-xl" />
+          <SkeletonBlock className="h-11 w-full rounded-xl" />
+          <SkeletonBlock className="h-11 w-full rounded-xl" />
+        </div>
+      </section>
+
+      <section className="grid items-stretch gap-3 xl:grid-cols-[minmax(0,1fr)_336px]">
+        <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <SkeletonBlock key={index} className="h-36 w-full rounded-[22px]" />
+          ))}
+        </div>
+        <SkeletonBlock className="h-36 w-full rounded-[22px]" />
+      </section>
+
+      <div className="grid items-stretch gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(260px,1fr)_minmax(0,0.55fr)]">
+        <SkeletonBlock className="h-72 w-full rounded-[22px]" />
+        <SkeletonBlock className="h-72 w-full rounded-[22px] xl:col-span-2" />
+        <div className="grid gap-3">
+          <SkeletonBlock className="h-40 w-full rounded-[22px]" />
+          <SkeletonBlock className="h-28 w-full rounded-[22px]" />
+        </div>
+        <SkeletonBlock className="h-56 w-full rounded-[22px] xl:col-span-2" />
+        <SkeletonBlock className="h-56 w-full rounded-[22px]" />
+      </div>
+    </BusyFrame>
+  );
+}
+
+export function ProfessionalReportsSkeleton() {
+  return (
+    <BusyFrame className="space-y-3">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="grid gap-2">
+          <SkeletonBlock className="h-7 w-32 rounded-full" />
+          <SkeletonBlock className="h-4 w-96 max-w-full" />
+        </div>
+        <div className="flex gap-2">
+          <SkeletonBlock className="h-9 w-44 rounded-xl" />
+          <SkeletonBlock className="h-9 w-28 rounded-xl" />
+          <SkeletonBlock className="h-9 w-32 rounded-xl" />
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <SkeletonBlock key={index} className="h-[110px] w-full rounded-xl" />
+        ))}
+      </div>
+      <div className="grid gap-3 xl:grid-cols-[1.55fr_1fr]">
+        <SkeletonBlock className="h-[360px] w-full rounded-xl" />
+        <SkeletonBlock className="h-[360px] w-full rounded-xl" />
+      </div>
+      <div className="grid gap-3 xl:grid-cols-3">
+        <SkeletonBlock className="h-[420px] w-full rounded-xl" />
+        <SkeletonBlock className="h-[420px] w-full rounded-xl" />
+        <SkeletonBlock className="h-[420px] w-full rounded-xl" />
+      </div>
+      <div className="grid gap-3 xl:grid-cols-3">
+        <SkeletonBlock className="h-[320px] w-full rounded-xl" />
+        <SkeletonBlock className="h-[320px] w-full rounded-xl" />
+        <SkeletonBlock className="h-[320px] w-full rounded-xl" />
+      </div>
+    </BusyFrame>
+  );
+}
+
+export function WorkspaceMainSkeleton({
+  children,
+}: {
+  children?: ReactNode;
+}) {
+  return (
+    <BusyFrame className="grid gap-4">
+      {children ?? (
+        <>
+          <SkeletonBlock className="h-8 w-48" />
+          <SkeletonBlock className="h-4 w-80 max-w-full" />
+          <SkeletonBlock className="mt-2 h-64 w-full rounded-[22px]" />
+        </>
+      )}
+    </BusyFrame>
+  );
+}

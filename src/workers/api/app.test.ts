@@ -17,6 +17,7 @@ function bindings(overrides: Partial<ApiBindings> = {}): ApiBindings {
     BETTER_AUTH_SECRET: "test-better-auth-secret-with-32-chars!",
     BETTER_AUTH_URL: "http://localhost:3000",
     DATABASE_URL: "postgresql://neondb_owner:password@example.neon.tech/neondb?sslmode=require",
+    PUBLIC_REGISTRATION_ENABLED: "true",
     WEB_ORIGIN: "http://localhost:3000",
     ...overrides,
   };
@@ -121,32 +122,133 @@ describe("Veterans Bay API foundation", () => {
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
   });
 
-  it("allows the configured origin and handles preflight", async () => {
+  it("allows each configured development origin and handles preflight", async () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
-    const environment = bindings();
+    const environment = bindings({
+      ADDITIONAL_WEB_ORIGINS:
+        "http://192.168.100.8:3001, http://localhost:3000",
+    });
+    const origins = [environment.WEB_ORIGIN, "http://192.168.100.8:3001"];
+
+    for (const origin of origins) {
+      const response = await app.request(
+        "/api/health",
+        { headers: { origin } },
+        environment,
+      );
+      const preflight = await app.request(
+        "/api/v1/system/probe",
+        {
+          headers: { origin },
+          method: "OPTIONS",
+        },
+        environment,
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+      expect(response.headers.get("access-control-allow-credentials")).toBe(
+        "true",
+      );
+      expect(preflight.status).toBe(204);
+      expect(preflight.headers.get("access-control-allow-origin")).toBe(origin);
+      expect(preflight.headers.get("access-control-allow-methods")).toContain(
+        "POST",
+      );
+    }
+  });
+
+  it("fails safely when an additional origin is malformed", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     const response = await app.request(
       "/api/health",
-      { headers: { origin: environment.WEB_ORIGIN } },
-      environment,
+      {},
+      bindings({
+        ADDITIONAL_WEB_ORIGINS: "http://localhost:3001/not-an-origin",
+      }),
     );
-    const preflight = await app.request(
-      "/api/v1/system/probe",
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "CONFIGURATION_ERROR" },
+    });
+
+    const unsupportedProtocolResponse = await app.request(
+      "/api/health",
+      {},
+      bindings({ ADDITIONAL_WEB_ORIGINS: "ftp://localhost:3001" }),
+    );
+    expect(unsupportedProtocolResponse.status).toBe(503);
+  });
+
+  it.each(["preview", "production"])(
+    "rejects additional origins in the %s environment",
+    async (appEnvironment) => {
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+      const response = await app.request(
+        "/api/health",
+        {},
+        bindings({
+          ADDITIONAL_WEB_ORIGINS: "https://secondary.example.com",
+          APP_ENV: appEnvironment,
+          BETTER_AUTH_URL: "https://primary.example.com",
+          WEB_ORIGIN: "https://primary.example.com",
+        }),
+      );
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "CONFIGURATION_ERROR" },
+      });
+    },
+  );
+
+  it("rejects origin lookalikes instead of using prefix matching", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request(
+      "/api/health",
+      { headers: { origin: "http://localhost:3000.attacker.example" } },
+      bindings({
+        ADDITIONAL_WEB_ORIGINS: "http://192.168.100.8:3001",
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("disables public registration when the environment switch is off", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings({ PUBLIC_REGISTRATION_ENABLED: "false" });
+
+    const response = await app.request(
+      "/api/auth/sign-up/email",
       {
-        headers: { origin: environment.WEB_ORIGIN },
-        method: "OPTIONS",
+        body: JSON.stringify({
+          email: "real-user@example.com",
+          name: "Real User",
+          password: "password123",
+          privacyAccepted: true,
+          termsAccepted: true,
+        }),
+        headers: {
+          "content-type": "application/json",
+          origin: environment.WEB_ORIGIN,
+        },
+        method: "POST",
       },
       environment,
     );
+    const body = await response.json<{ error: { code: string; message: string } }>();
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("access-control-allow-origin")).toBe(
-      environment.WEB_ORIGIN,
-    );
-    expect(preflight.status).toBe(204);
-    expect(preflight.headers.get("access-control-allow-methods")).toContain(
-      "POST",
-    );
+    expect(response.status).toBe(403);
+    expect(body.error).toEqual({
+      code: "PUBLIC_REGISTRATION_DISABLED",
+      message: "Public registration is currently disabled.",
+    });
   });
 
   it("returns bounded validation issues for invalid query and JSON input", async () => {
@@ -183,6 +285,185 @@ describe("Veterans Bay API foundation", () => {
     expect(jsonBody.error.issues).toEqual([
       { code: "invalid_json", path: "request" },
     ]);
+  });
+
+  it("rejects unbounded public marketplace queries before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const response = await app.request(
+      "/api/v1/public/marketplace?pageSize=11",
+      {},
+      bindings(),
+    );
+    const body = await response.json<{
+      error: { code: string; issues: Array<{ path: string }> };
+    }>();
+
+    expect(response.status).toBe(422);
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+    expect(body.error.issues).toEqual([
+      { code: "too_big", path: "pageSize" },
+    ]);
+  });
+
+  it("protects client and professional conversation routes before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const requestId = "00000000-0000-4000-8000-000000000010";
+
+    const [clientResponse, professionalResponse] = await Promise.all([
+      app.request(
+        `/api/v1/client/requests/${requestId}/conversation`,
+        {},
+        bindings(),
+      ),
+      app.request(
+        `/api/v1/professional/enquiries/${requestId}/conversation`,
+        {},
+        bindings(),
+      ),
+    ]);
+
+    expect(clientResponse.status).toBe(401);
+    expect(professionalResponse.status).toBe(401);
+    await expect(clientResponse.json()).resolves.toMatchObject({
+      error: { code: "UNAUTHORIZED" },
+    });
+    await expect(professionalResponse.json()).resolves.toMatchObject({
+      error: { code: "UNAUTHORIZED" },
+    });
+  });
+
+  it("protects client and professional quotation routes before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const quotationId = "00000000-0000-4000-8000-000000000020";
+    const responses = await Promise.all([
+      app.request("/api/v1/client/quotations", {}, bindings()),
+      app.request(
+        `/api/v1/client/quotations/${quotationId}`,
+        {},
+        bindings(),
+      ),
+      app.request("/api/v1/professional/quotations", {}, bindings()),
+      app.request(
+        `/api/v1/professional/quotations/${quotationId}`,
+        {},
+        bindings(),
+      ),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401,
+    ]);
+  });
+
+  it("protects booking, calendar, and availability routes before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const bookingId = "00000000-0000-4000-8000-000000000030";
+    const blockId = "00000000-0000-4000-8000-000000000031";
+    const responses = await Promise.all([
+      app.request("/api/v1/client/bookings", {}, bindings()),
+      app.request(
+        "/api/v1/client/services/veteran-repairs/home-repair/booking-slots?from=2026-07-28T00%3A00%3A00.000Z&to=2026-07-29T00%3A00%3A00.000Z",
+        {},
+        bindings(),
+      ),
+      app.request(
+        `/api/v1/client/bookings/${bookingId}`,
+        {},
+        bindings(),
+      ),
+      app.request("/api/v1/professional/bookings", {}, bindings()),
+      app.request(
+        `/api/v1/professional/bookings/${bookingId}`,
+        {},
+        bindings(),
+      ),
+      app.request("/api/v1/professional/calendar", {}, bindings()),
+      app.request("/api/v1/professional/availability", {}, bindings()),
+      app.request(
+        `/api/v1/professional/availability/blocks/${blockId}`,
+        { method: "DELETE" },
+        bindings(),
+      ),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401, 401, 401, 401, 401,
+    ]);
+  });
+
+  it("protects notification list, count, and read actions before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const notificationId = "00000000-0000-4000-8000-000000000070";
+    const responses = await Promise.all([
+      app.request("/api/v1/notifications", {}, bindings()),
+      app.request("/api/v1/notifications/unread-count", {}, bindings()),
+      app.request(
+        `/api/v1/notifications/${notificationId}/read`,
+        { method: "POST" },
+        bindings(),
+      ),
+      app.request(
+        "/api/v1/notifications/read-all",
+        { method: "POST" },
+        bindings(),
+      ),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401,
+    ]);
+  });
+
+  it("protects client and professional warranty routes before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const warrantyId = "00000000-0000-4000-8000-000000000080";
+    const claimId = "00000000-0000-4000-8000-000000000081";
+    const responses = await Promise.all([
+      app.request("/api/v1/client/warranties", {}, bindings()),
+      app.request(
+        `/api/v1/client/warranties/${warrantyId}`,
+        {},
+        bindings(),
+      ),
+      app.request("/api/v1/professional/warranties", {}, bindings()),
+      app.request(
+        `/api/v1/professional/warranties/${warrantyId}`,
+        {},
+        bindings(),
+      ),
+      app.request(
+        `/api/v1/professional/warranty-claims/${claimId}/action`,
+        { method: "POST" },
+        bindings(),
+      ),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401, 401,
+    ]);
+  });
+
+  it("rejects unsafe marketplace analytics payloads before database access", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const response = await app.request(
+      "/api/v1/public/marketplace/events",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          eventType: "marketplace.search_performed",
+          activeFilters: ["rawSearchText"],
+          page: 1,
+          resultCount: -1,
+          sort: "relevance",
+          query: "private address details",
+        }),
+      },
+      bindings(),
+    );
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "VALIDATION_ERROR" },
+    });
   });
 
   it("keeps routes thin while returning a mapped probe contract", async () => {
@@ -234,7 +515,9 @@ describe("Veterans Bay API foundation", () => {
 
     expect(response.status).toBe(429);
     expect(body.error.code).toBe("RATE_LIMITED");
-    expect(limiter.limit).toHaveBeenCalledWith({ key: "/api/health" });
+    expect(limiter.limit).toHaveBeenCalledWith({
+      key: "api:unknown:/api/health",
+    });
   });
 
   it("applies the public submission limiter key for auth posts", async () => {
@@ -308,5 +591,110 @@ describe("Veterans Bay API foundation", () => {
 
     expect(response.status).toBe(404);
     expect(body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("mounts team contracts behind live session and workspace authorization", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+    const requests = [
+      app.request("/api/v1/professional/team", {}, environment),
+      app.request(
+        "/api/v1/professional/team/invitations",
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "member@example.com", role: "technician" }) },
+        environment,
+      ),
+      app.request(
+        "/api/v1/professional/team/invitations/accept",
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: "a".repeat(64) }) },
+        environment,
+      ),
+    ];
+    const responses = await Promise.all(requests);
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 401]);
+  });
+
+  it("protects the professional service lifecycle behind session authorization", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+    const json = { headers: { "content-type": "application/json" } };
+    const responses = await Promise.all([
+      app.request("/api/v1/professional/services", {}, environment),
+      app.request("/api/v1/professional/services/service-1", {}, environment),
+      app.request("/api/v1/professional/services/service-1", {
+        ...json,
+        method: "PATCH",
+        body: JSON.stringify({ version: 1, name: "Updated service" }),
+      }, environment),
+      app.request("/api/v1/professional/services/service-1/publish", {
+        ...json,
+        method: "POST",
+        body: JSON.stringify({ version: 1 }),
+      }, environment),
+      app.request("/api/v1/professional/services/service-1/unpublish", {
+        ...json,
+        method: "POST",
+        body: JSON.stringify({ version: 1 }),
+      }, environment),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 401, 401, 401]);
+  });
+
+  it("protects saved professionals behind session authorization", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+    const responses = await Promise.all([
+      app.request("/api/v1/client/saved-professionals", {}, environment),
+      app.request(
+        "/api/v1/client/saved-professionals/trusted-plumbing",
+        { method: "POST" },
+        environment,
+      ),
+      app.request(
+        "/api/v1/client/saved-professionals/trusted-plumbing",
+        { method: "DELETE" },
+        environment,
+      ),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 401]);
+  });
+
+  it("protects marketplace moderation behind session authorization", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const environment = bindings();
+    const json = { headers: { "content-type": "application/json" } };
+    const id = "11111111-1111-4111-8111-111111111111";
+    const responses = await Promise.all([
+      app.request("/api/v1/admin/categories", {}, environment),
+      app.request(
+        "/api/v1/admin/categories",
+        { ...json, method: "POST", body: JSON.stringify({ name: "Roofing" }) },
+        environment,
+      ),
+      app.request(
+        `/api/v1/admin/categories/${id}/status`,
+        {
+          ...json,
+          method: "POST",
+          body: JSON.stringify({
+            action: "deactivate",
+            reason: "Policy review.",
+          }),
+        },
+        environment,
+      ),
+      app.request("/api/v1/admin/marketplace/listings", {}, environment),
+      app.request(
+        `/api/v1/admin/marketplace/listings/${id}/moderation`,
+        {
+          ...json,
+          method: "POST",
+          body: JSON.stringify({ action: "hide", reason: "Policy review." }),
+        },
+        environment,
+      ),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([
+      401, 401, 401, 401, 401,
+    ]);
   });
 });

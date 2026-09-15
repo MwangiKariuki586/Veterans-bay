@@ -1,5 +1,5 @@
 import { AppError } from "../../platform/errors/app-error";
-import type { IdentityStore } from "../identity/repository";
+import type { AccountProfileRecord, IdentityStore } from "../identity/repository";
 import type { WorkspaceRepository } from "./repository";
 import {
   buildClientWorkspaceId,
@@ -61,56 +61,88 @@ export class WorkspaceService {
     const permissionsByRole =
       await this.workspaceRepository.listPermissionKeysForRoleIds(roleIds);
 
-    const workspaces: WorkspaceSummary[] = [
-      {
-        id: buildClientWorkspaceId(profile.id),
-        kind: "client",
-        label: "Client workspace",
-        href: "/client",
-        organisationId: null,
-        membershipId: null,
-        roleKey: null,
-        permissions: [],
-      },
-    ];
+    const organisationWorkspaces: WorkspaceSummary[] = [];
 
     for (const membership of memberships) {
       if (
         membership.organisationStatus === "suspended" ||
-        membership.organisationStatus === "closed"
+        membership.organisationStatus === "deactivated"
       ) {
         continue;
       }
 
-      workspaces.push({
+      organisationWorkspaces.push({
         id: buildOrganisationWorkspaceId(membership.organisationId),
         kind: "organisation",
         label: membership.organisationName,
-        href: "/professional",
+        href:
+          membership.organisationStatus === "active"
+            ? "/professional"
+            : membership.organisationStatus === "pending_review"
+              ? "/professional/onboarding/review"
+              : "/professional/onboarding",
         organisationId: membership.organisationId,
         membershipId: membership.membershipId,
         roleKey: membership.roleKey,
-        permissions: permissionsByRole.get(membership.roleId) ?? [],
+        organisationStatus: membership.organisationStatus as
+          | "draft"
+          | "pending_review"
+          | "active"
+          | "requires_changes",
+        permissions: (permissionsByRole.get(membership.roleId) ?? []).filter(
+          (permission) =>
+            membership.financialDataAccess ||
+            (permission !== "payments.view" &&
+              permission !== "payments.manage" &&
+              permission !== "reports.financial.view"),
+        ),
+        assignedJobsOnly: membership.assignedJobsOnly,
+        financialDataAccess: membership.financialDataAccess,
       });
     }
 
-    if (platformAssignments.some((item) => item.roleKey === "platform_admin")) {
-      const adminAssignment = platformAssignments.find(
-        (item) => item.roleKey === "platform_admin",
-      );
-      workspaces.push({
-        id: buildPlatformWorkspaceId(),
-        kind: "platform",
-        label: "Platform administration",
-        href: "/admin",
-        organisationId: null,
-        membershipId: null,
-        roleKey: "platform_admin",
-        permissions: adminAssignment
-          ? (permissionsByRole.get(adminAssignment.roleId) ?? [])
-          : [],
-      });
-    }
+    const adminAssignment = platformAssignments.find(
+      (item) => item.roleKey === "platform_admin",
+    );
+    const platformWorkspace: WorkspaceSummary | null = adminAssignment
+      ? {
+          id: buildPlatformWorkspaceId(),
+          kind: "platform",
+          label: "Platform administration",
+          href: "/admin",
+          organisationId: null,
+          membershipId: null,
+          roleKey: "platform_admin",
+          organisationStatus: null,
+          permissions: permissionsByRole.get(adminAssignment.roleId) ?? [],
+          assignedJobsOnly: false,
+          financialDataAccess: true,
+        }
+      : null;
+
+    // Single-role accounts: organisation members are professionals, not clients.
+    // Platform admins without an organisation also keep the client shell so an
+    // ops account used for marketplace verification can open /client directly.
+    const clientWorkspace: WorkspaceSummary = {
+      id: buildClientWorkspaceId(profile.id),
+      kind: "client",
+      label: "Client workspace",
+      href: "/client",
+      organisationId: null,
+      membershipId: null,
+      roleKey: null,
+      organisationStatus: null,
+      permissions: [],
+      assignedJobsOnly: false,
+      financialDataAccess: false,
+    };
+
+    const workspaces: WorkspaceSummary[] =
+      organisationWorkspaces.length > 0
+        ? organisationWorkspaces
+        : platformWorkspace
+          ? [platformWorkspace, clientWorkspace]
+          : [clientWorkspace];
 
     return {
       accountProfileId: profile.id,
@@ -155,114 +187,60 @@ export class WorkspaceService {
     };
   }
 
-  async changeMemberRole(input: {
-    actorAuthUserId: string;
-    organisationId: string;
-    membershipId: string;
-    roleKey: string;
-    correlationId?: string;
-  }): Promise<void> {
-    const selection = await this.resolveWorkspace(
-      input.actorAuthUserId,
-      buildOrganisationWorkspaceId(input.organisationId),
-    );
+  async resolveWorkspaceForActiveProfile(
+    profile: AccountProfileRecord,
+    authUserId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceSelection> {
+    const parsed = parseWorkspaceId(workspaceId);
+    if (!parsed) throw unavailable();
 
-    if (!selection.workspace.permissions.includes("organisation.members.manage")) {
-      throw new AppError({
-        code: "PERMISSION_DENIED",
-        message: "You do not have permission to perform this action.",
-        status: 403,
-      });
+    if (parsed.kind === "client") {
+      if (parsed.referenceId !== profile.id) throw unavailable();
+      return { accountProfileId: profile.id, authUserId, workspace: { id: workspaceId, kind: "client", label: "Client workspace", href: "/client", organisationId: null, membershipId: null, roleKey: null, organisationStatus: null, permissions: [], assignedJobsOnly: false, financialDataAccess: false } };
     }
 
-    const role = await this.workspaceRepository.findOrganisationRoleByKey(
-      input.roleKey,
-    );
-    if (!role) {
-      throw new AppError({
-        code: "VALIDATION_ERROR",
-        message: "The requested role is invalid.",
-        status: 422,
-      });
+    if (parsed.kind === "organisation") {
+      const membership = await this.workspaceRepository.findActiveMembership(profile.id, parsed.referenceId);
+      if (!membership || membership.organisationStatus === "suspended" || membership.organisationStatus === "deactivated") throw unavailable();
+      const permissions = (await this.workspaceRepository.listPermissionKeysForRoleIds([membership.roleId])).get(membership.roleId) ?? [];
+      return { accountProfileId: profile.id, authUserId, workspace: {
+        id: workspaceId, kind: "organisation", label: membership.organisationName,
+        href: membership.organisationStatus === "active" ? "/professional" : membership.organisationStatus === "pending_review" ? "/professional/onboarding/review" : "/professional/onboarding",
+        organisationId: membership.organisationId, membershipId: membership.membershipId, roleKey: membership.roleKey,
+        organisationStatus: membership.organisationStatus as "draft" | "pending_review" | "active" | "requires_changes",
+        permissions: permissions.filter((permission) => membership.financialDataAccess || !["payments.view", "payments.manage", "reports.financial.view"].includes(permission)),
+        assignedJobsOnly: membership.assignedJobsOnly, financialDataAccess: membership.financialDataAccess,
+      } };
     }
 
-    await this.workspaceRepository.updateMembershipRole(
-      input.membershipId,
-      role.id,
-    );
-
-    await this.identityStore.insertDomainEvent({
-      eventType: "organization.member_role_changed",
-      eventVersion: 1,
-      aggregateType: "organisation_membership",
-      aggregateId: input.membershipId,
-      actorAccountId: selection.accountProfileId,
-      correlationId: input.correlationId,
-      payload: {
-        organisationId: input.organisationId,
-        roleKey: input.roleKey,
-      },
-    });
+    const assignments = await this.workspaceRepository.listActivePlatformAssignments(profile.id);
+    const admin = assignments.find((item) => item.roleKey === "platform_admin");
+    if (!admin) throw unavailable();
+    const permissions = (await this.workspaceRepository.listPermissionKeysForRoleIds([admin.roleId])).get(admin.roleId) ?? [];
+    return { accountProfileId: profile.id, authUserId, workspace: { id: workspaceId, kind: "platform", label: "Platform administration", href: "/admin", organisationId: null, membershipId: null, roleKey: "platform_admin", organisationStatus: null, permissions, assignedJobsOnly: false, financialDataAccess: true } };
   }
 
-  async removeMember(input: {
-    actorAuthUserId: string;
-    organisationId: string;
-    membershipId: string;
-    targetAccountProfileId: string;
-    targetRoleKey: string;
-    correlationId?: string;
-  }): Promise<void> {
-    const selection = await this.resolveWorkspace(
-      input.actorAuthUserId,
-      buildOrganisationWorkspaceId(input.organisationId),
-    );
+}
 
-    if (!selection.workspace.permissions.includes("organisation.members.manage")) {
-      throw new AppError({
-        code: "PERMISSION_DENIED",
-        message: "You do not have permission to perform this action.",
-        status: 403,
-      });
-    }
+function unavailable() {
+  return new AppError({ code: "WORKSPACE_UNAVAILABLE", message: "The requested workspace is not available.", status: 403 });
+}
 
-    if (input.targetRoleKey === "owner") {
-      const ownerCount = await this.workspaceRepository.countActiveOwners(
-        input.organisationId,
-      );
-      if (ownerCount <= 1) {
-        throw new AppError({
-          code: "OWNER_TRANSFER_REQUIRED",
-          message:
-            "The final owner cannot lose ownership without an approved transfer.",
-          status: 409,
-        });
-      }
-    }
+export function primaryWorkspace(
+  workspaces: WorkspaceSummary[],
+): WorkspaceSummary | null {
+  const platform = workspaces.find((item) => item.kind === "platform");
+  if (platform) return platform;
 
-    await this.workspaceRepository.markMembershipRemoved(input.membershipId);
+  const organisation = workspaces.find((item) => item.kind === "organisation");
+  if (organisation) return organisation;
 
-    await this.identityStore.insertDomainEvent({
-      eventType: "organization.member_removed",
-      eventVersion: 1,
-      aggregateType: "organisation_membership",
-      aggregateId: input.membershipId,
-      actorAccountId: selection.accountProfileId,
-      correlationId: input.correlationId,
-      payload: {
-        organisationId: input.organisationId,
-        targetAccountProfileId: input.targetAccountProfileId,
-      },
-    });
-  }
+  return workspaces.find((item) => item.kind === "client") ?? workspaces[0] ?? null;
 }
 
 export function defaultWorkspaceId(workspaces: WorkspaceSummary[]): string | null {
-  if (workspaces.length === 1) {
-    return workspaces[0]?.id ?? null;
-  }
-
-  return null;
+  return primaryWorkspace(workspaces)?.id ?? null;
 }
 
 export function isValidWorkspaceIdFormat(workspaceId: string): boolean {
