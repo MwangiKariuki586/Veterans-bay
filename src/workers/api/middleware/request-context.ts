@@ -30,6 +30,10 @@ export const requestContextMiddleware = createMiddleware<ApiAppEnvironment>(
     // .dev.vars entries for Zod's object parse.
     const envBindings = context.env as unknown as Record<string, unknown>;
     const parsedEnvironment = apiEnvironmentSchema.safeParse({
+      ADDITIONAL_WEB_ORIGINS: readOptionalString(
+        envBindings,
+        "ADDITIONAL_WEB_ORIGINS",
+      ),
       APP_ENV: envBindings.APP_ENV,
       API_RATE_LIMITER: envBindings.API_RATE_LIMITER,
       BETTER_AUTH_SECRET: envBindings.BETTER_AUTH_SECRET,
@@ -45,6 +49,7 @@ export const requestContextMiddleware = createMiddleware<ApiAppEnvironment>(
       ),
       DATABASE_URL: envBindings.DATABASE_URL,
       DOMAIN_EVENTS_QUEUE: envBindings.DOMAIN_EVENTS_QUEUE,
+      PUBLIC_REGISTRATION_ENABLED: envBindings.PUBLIC_REGISTRATION_ENABLED,
       PUBLIC_SUBMISSION_RATE_LIMITER: envBindings.PUBLIC_SUBMISSION_RATE_LIMITER,
       WEB_ORIGIN: envBindings.WEB_ORIGIN,
     });

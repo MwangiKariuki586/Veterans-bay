@@ -83,7 +83,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                     className="object-cover"
                     sizes="80px"
                   />
-                  <span className="absolute inset-0 grid place-items-center bg-black/45 text-sm font-bold text-white">
+                  <span className="absolute inset-0 grid place-items-center bg-black/45 text-sm font-semibold text-white">
                     +{extraPhotos}
                   </span>
                 </div>
@@ -110,7 +110,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                   {service.tag}
                 </span>
               </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-[-0.04em]">
+              <h1 className="mt-4 text-3xl font-semibold tracking-title">
                 {service.serviceName}
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
@@ -121,7 +121,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                     ({service.reviews} reviews)
                   </span>
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 text-[0.68rem] font-semibold text-[#5f8d11]">
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#eef8c8] px-2.5 py-1 type-caption font-semibold text-[#5f8d11]">
                   <BadgeCheck className="size-3.5" /> Verified
                 </span>
               </div>
@@ -140,14 +140,14 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                 {[
                   { label: "Quality Guaranteed", icon: ShieldCheck },
                   { label: "On-Time Service", icon: Clock3 },
-                  { label: "Secure Payments", icon: Lock },
+                  { label: "Clear Records", icon: Lock },
                 ].map(({ label, icon: Icon }) => (
                   <div
                     key={label}
                     className="rounded-2xl border border-black/8 px-3 py-3 text-center"
                   >
                     <Icon className="mx-auto size-4 text-[#5f8d11]" />
-                    <p className="mt-2 text-[0.68rem] font-semibold">{label}</p>
+                    <p className="mt-2 type-caption font-semibold">{label}</p>
                   </div>
                 ))}
               </div>
@@ -181,7 +181,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
               {tab === "Overview" || tab === "What's Included" ? (
                 <>
                   <div>
-                    <h2 className="text-lg font-bold">
+                    <h2 className="text-lg font-semibold">
                       {tab === "Overview" ? "Service Overview" : "What's Included"}
                     </h2>
                     <p className="mt-3 text-sm leading-6 text-[#68717b]">
@@ -189,7 +189,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                     </p>
                     <div className="mt-6 grid gap-4 sm:grid-cols-2">
                       <div>
-                        <p className="text-sm font-bold">Ideal For</p>
+                        <p className="text-sm font-semibold">Ideal For</p>
                         <ul className="mt-2 space-y-1 text-sm text-[#68717b]">
                           {service.idealFor.map((item) => (
                             <li key={item}>{item}</li>
@@ -197,7 +197,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                         </ul>
                       </div>
                       <div>
-                        <p className="text-sm font-bold">Service Duration</p>
+                        <p className="text-sm font-semibold">Service Duration</p>
                         <p className="mt-2 inline-flex items-center gap-2 text-sm text-[#68717b]">
                           <Clock3 className="size-4 text-[#5f8d11]" />
                           {service.duration}
@@ -206,7 +206,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
                     </div>
                   </div>
                   <aside className="rounded-[22px] bg-[#eef8c8] p-5">
-                    <h3 className="font-bold">You&apos;ll Receive</h3>
+                    <h3 className="font-semibold">You&apos;ll Receive</h3>
                     <ul className="mt-4 space-y-3">
                       {service.youReceive.map((item) => (
                         <li key={item} className="flex gap-2 text-sm text-[#3d4a2a]">
@@ -221,7 +221,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
 
               {tab === "Reviews" ? (
                 <div className="lg:col-span-2">
-                  <h2 className="text-lg font-bold">{tabLabel}</h2>
+                  <h2 className="text-lg font-semibold">{tabLabel}</h2>
                   <p className="mt-3 text-sm text-[#68717b]">
                     Fixture reviews will connect when the review phase is
                     implemented. Current rating: {service.rating} from{" "}
@@ -232,7 +232,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
 
               {tab === "Provider Info" ? (
                 <div className="lg:col-span-2">
-                  <h2 className="text-lg font-bold">Provider Info</h2>
+                  <h2 className="text-lg font-semibold">Provider Info</h2>
                   <p className="mt-3 text-sm text-[#68717b]">
                     {service.provider.name} · {service.provider.experience} ·{" "}
                     {service.provider.location}
@@ -242,7 +242,7 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
 
               {tab === "FAQs" ? (
                 <div className="lg:col-span-2 space-y-3">
-                  <h2 className="text-lg font-bold">FAQs</h2>
+                  <h2 className="text-lg font-semibold">FAQs</h2>
                   <details className="rounded-2xl border border-black/8 px-4 py-3">
                     <summary className="cursor-pointer font-semibold">
                       Do I need to be home during the visit?
@@ -269,9 +269,9 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
 
         <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
           <Surface className="p-5 shadow-none">
-            <h2 className="font-bold">Book this service</h2>
+            <h2 className="font-semibold">Book this service</h2>
             <p className="mt-3 text-sm text-[#68717b]">Starting from</p>
-            <p className="text-3xl font-bold text-[#5f8d11]">
+            <p className="text-3xl font-semibold text-[#5f8d11]">
               KSh {service.priceFrom.toLocaleString()}
             </p>
             <label className="mt-5 block text-xs font-semibold text-[#68717b]">
@@ -315,14 +315,14 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
               <MessageCircle className="size-4" /> Chat with Provider
             </Link>
             <p className="mt-4 inline-flex items-center gap-2 text-xs text-[#68717b]">
-              <Lock className="size-3.5" /> Safe and secure payments
+              <Lock className="size-3.5" /> No payment processing in demo mode
             </p>
           </Surface>
 
           <Surface className="p-5 shadow-none">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="font-bold">About the Provider</h2>
-              <span className="rounded-full bg-[#eef8c8] px-2 py-0.5 text-[0.62rem] font-semibold text-[#5f8d11]">
+              <h2 className="font-semibold">About the Provider</h2>
+              <span className="rounded-full bg-[#eef8c8] px-2 py-0.5 type-caption font-semibold text-[#5f8d11]">
                 Verified Professional
               </span>
             </div>
@@ -350,20 +350,20 @@ export function ServiceDetailPage({ service }: { service: MarketplaceService }) 
             </div>
             <dl className="mt-5 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-2xl bg-[#f7f9fa] px-2 py-3">
-                <dt className="text-[0.62rem] text-[#68717b]">Jobs</dt>
-                <dd className="mt-1 text-sm font-bold">
+                <dt className="type-caption text-[#68717b]">Jobs</dt>
+                <dd className="mt-1 text-sm font-semibold">
                   {service.provider.jobsCompleted}
                 </dd>
               </div>
               <div className="rounded-2xl bg-[#f7f9fa] px-2 py-3">
-                <dt className="text-[0.62rem] text-[#68717b]">On-time</dt>
-                <dd className="mt-1 text-sm font-bold">
+                <dt className="type-caption text-[#68717b]">On-time</dt>
+                <dd className="mt-1 text-sm font-semibold">
                   {service.provider.onTimeRate}
                 </dd>
               </div>
               <div className="rounded-2xl bg-[#f7f9fa] px-2 py-3">
-                <dt className="text-[0.62rem] text-[#68717b]">Rating</dt>
-                <dd className="mt-1 text-sm font-bold">
+                <dt className="type-caption text-[#68717b]">Rating</dt>
+                <dd className="mt-1 text-sm font-semibold">
                   {service.provider.rating}
                 </dd>
               </div>

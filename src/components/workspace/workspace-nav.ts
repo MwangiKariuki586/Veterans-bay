@@ -1,16 +1,21 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
+  Blocks,
   BriefcaseBusiness,
   CalendarDays,
+  Clock3,
   ClipboardList,
   CreditCard,
   FileText,
+  Heart,
   LayoutDashboard,
   Settings,
+  ShieldCheck,
   Shield,
+  Scale,
   ShoppingBag,
-  Star,
+  Store,
   Users,
   Wrench,
 } from "lucide-react";
@@ -33,28 +38,16 @@ const professionalNav: ReadonlyArray<WorkspaceNavGroup> = [
     id: "primary",
     items: [
       { href: "/professional", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
-      { href: "/professional/requests", label: "Requests", icon: ClipboardList },
+      { href: "/professional/enquiries", label: "Enquiries", icon: ClipboardList },
       { href: "/professional/quotations", label: "Quotations", icon: FileText },
       { href: "/professional/bookings", label: "Bookings", icon: CalendarDays },
       { href: "/professional/jobs", label: "Jobs", icon: Wrench },
-    ],
-  },
-  {
-    id: "management",
-    items: [
       { href: "/professional/customers", label: "Customers", icon: Users },
-      { href: "/professional/payments", label: "Payments", icon: CreditCard },
-      { href: "/professional/warranties", label: "Warranties", icon: Shield },
-      { href: "/professional/reviews", label: "Reviews", icon: Star },
-    ],
-  },
-  {
-    id: "system",
-    items: [
-      { href: "/professional/team", label: "Team", icon: Users },
-      { href: "/professional/analytics", label: "Analytics", icon: BarChart3 },
-      { href: "/account/profile", label: "Settings", icon: Settings },
+      { href: "/professional/services", label: "Services", icon: Store },
+      { href: "/professional/invoices", label: "Finance", icon: CreditCard },
+      { href: "/professional/team", label: "My Team", icon: Users },
+      { href: "/professional/analytics", label: "Reports", icon: BarChart3 },
+      { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
     ],
   },
 ];
@@ -66,15 +59,11 @@ const clientNav: ReadonlyArray<WorkspaceNavGroup> = [
       { href: "/client", label: "Dashboard", icon: LayoutDashboard },
       { href: "/marketplace", label: "Marketplace", icon: ShoppingBag },
       { href: "/client/requests", label: "Requests", icon: ClipboardList },
+      { href: "/client/quotations", label: "Quotations", icon: FileText },
       { href: "/client/bookings", label: "Bookings", icon: CalendarDays },
+      { href: "/client/saved", label: "Saved", icon: Heart },
       { href: "/client/invoices", label: "Invoices", icon: FileText },
-    ],
-  },
-  {
-    id: "system",
-    items: [
-      { href: "/account/profile", label: "Settings", icon: Settings },
-      { href: "/help", label: "Help Center", icon: BriefcaseBusiness },
+      { href: "/client/warranties", label: "Warranties", icon: ShieldCheck },
     ],
   },
 ];
@@ -84,6 +73,12 @@ const adminNav: ReadonlyArray<WorkspaceNavGroup> = [
     id: "primary",
     items: [
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/admin/professionals", label: "Professional Reviews", icon: ShieldCheck },
+      { href: "/admin/marketplace/listings", label: "Listing Moderation", icon: Store },
+      { href: "/admin/categories", label: "Categories", icon: Blocks },
+      { href: "/admin/reports", label: "Reports", icon: FileText },
+      { href: "/admin/disputes", label: "Disputes", icon: Scale },
+      { href: "/admin/warranties/escalated", label: "Escalated Warranties", icon: Shield },
       { href: "/admin/organisations", label: "Organisations", icon: BriefcaseBusiness },
       { href: "/admin/users", label: "Users", icon: Users },
       { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -92,7 +87,9 @@ const adminNav: ReadonlyArray<WorkspaceNavGroup> = [
   {
     id: "system",
     items: [
-      { href: "/account/profile", label: "Settings", icon: Settings },
+      { href: "/admin/audit", label: "Audit", icon: ShieldCheck },
+      { href: "/admin/rules", label: "Platform Rules", icon: Settings },
+      { href: "/admin/operations/async", label: "Async Operations", icon: Clock3 },
       { href: "/help", label: "Help Center", icon: BriefcaseBusiness },
     ],
   },
@@ -138,9 +135,9 @@ export function getAuthenticatedFooterLinks(
 
   return [
     { href: "/professional", label: "Dashboard" },
-    { href: "/professional/requests", label: "Requests" },
+    { href: "/professional/enquiries", label: "Enquiries" },
     { href: "/professional/bookings", label: "Bookings" },
-    { href: "/professional/payments", label: "Invoices" },
+    { href: "/professional/invoices", label: "Finance" },
     { href: "/account/profile", label: "Settings" },
     { href: "/help", label: "Help Center" },
     { href: "/privacy", label: "Privacy" },
@@ -151,4 +148,16 @@ export const shellContextLabel: Record<AuthenticatedShellKind, string> = {
   client: "Client workspace",
   professional: "Professional workspace",
   admin: "Platform workspace",
+};
+
+export const shellKindShortLabel: Record<AuthenticatedShellKind, string> = {
+  client: "Client",
+  professional: "Professional",
+  admin: "Platform",
+};
+
+export const shellHomeHref: Record<AuthenticatedShellKind, string> = {
+  client: "/client",
+  professional: "/professional",
+  admin: "/admin",
 };

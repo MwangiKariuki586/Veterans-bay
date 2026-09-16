@@ -1,0 +1,1406 @@
+"use client";
+
+import {
+  CalendarDays,
+  CheckCircle2,
+  CircleDollarSign,
+  ClipboardCheck,
+  FileImage,
+  History,
+  MessageSquareText,
+  Pause,
+  Play,
+  Route,
+  Send,
+  UserRoundPlus,
+} from "lucide-react";
+import Link from "next/link";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import { EngagementConversation } from "@/components/conversations/engagement-conversation";
+import { createInvoiceFromJob } from "@/components/invoices/invoice-api";
+import { ensureWarrantyFromJob } from "@/components/warranties/warranty-api";
+import { ReviewJobPanel } from "@/components/reviews/review-job-panel";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { Input } from "@/components/ui/input";
+import { StatePanel } from "@/components/ui/state-panel";
+import { DetailPageSkeleton } from "@/components/ui/workspace-skeletons";
+import { Surface } from "@/components/ui/surface";
+import type { JobDetail as JobDetailRecord } from "@/modules/jobs/types";
+import {
+  clientJobAction,
+  getJob,
+  jobApi,
+  professionalJobAction,
+  uploadJobEvidence,
+} from "./job-api";
+
+const selectClass =
+  "min-h-11 w-full rounded-2xl border border-black/8 bg-white px-4 text-sm focus-visible:border-[#071522]/35 focus-visible:outline-none";
+const textareaClass =
+  "min-h-28 w-full resize-y rounded-2xl border border-black/8 bg-white px-4 py-3 text-sm focus-visible:border-[#071522]/35 focus-visible:outline-none";
+
+type TeamMember = {
+  id: string;
+  name: string;
+  status: "active" | "deactivated";
+};
+
+export function JobDetail({
+  audience,
+  jobId,
+  embedded = false,
+  onChanged,
+}: {
+  audience: "client" | "professional";
+  jobId: string;
+  embedded?: boolean;
+  onChanged?: () => void | Promise<void>;
+}) {
+  const [job, setJob] = useState<JobDetailRecord | null>(null);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [updateText, setUpdateText] = useState("");
+  const [updateVisibility, setUpdateVisibility] = useState<
+    "CLIENT" | "PROFESSIONAL"
+  >("CLIENT");
+  const [assignmentId, setAssignmentId] = useState("");
+  const [variation, setVariation] = useState({
+    description: "",
+    reason: "",
+    amount: "",
+    scheduleImpactMinutes: "",
+  });
+
+  const refresh = useCallback(async () => {
+    try {
+      setJob(await getJob(audience, jobId));
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Job unavailable.");
+    }
+  }, [audience, jobId]);
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => void refresh(), 0);
+    if (audience === "professional") {
+      void jobApi<{ members: TeamMember[] }>("/api/v1/professional/team")
+        .then((result) =>
+          setTeam(
+            result.members.filter((member) => member.status === "active"),
+          ),
+        )
+        .catch(() => undefined);
+    }
+    return () => window.clearTimeout(initial);
+  }, [audience, refresh]);
+
+  async function run(key: string, action: () => Promise<JobDetailRecord>) {
+    setBusy(key);
+    setError(null);
+    try {
+      const next = await action();
+      setJob(next);
+      await onChanged?.();
+      toast.success("Job updated.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Job action failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (!job && !error) {
+    return <DetailPageSkeleton />;
+  }
+  if (!job) {
+    return (
+      <StatePanel
+        variant="error"
+        title="Job unavailable"
+        description={error ?? "The job could not be loaded."}
+      />
+    );
+  }
+
+  const action = (path: string, reason?: string) =>
+    run(path, () =>
+      professionalJobAction(job.id, path, {
+        lockVersion: job.lockVersion,
+        ...(reason ? { reason } : {}),
+      }),
+    );
+
+  if (embedded && audience === "client" && job.status === "COMPLETED") {
+    return (
+      <div id="service-progress" className="mt-6 scroll-mt-24">
+        <ReviewJobPanel jobId={job.id} />
+      </div>
+    );
+  }
+
+  if (embedded && audience === "client") {
+    return (
+      <div id="service-progress" className="mt-6 scroll-mt-24">
+        {error ? (
+          <InlineAlert
+            className="mb-4"
+            variant="error"
+            title="Service progress needs attention"
+            description={error}
+          />
+        ) : null}
+        <ClientActions job={job} busy={busy} run={run} />
+        <ClientEmbeddedProgress job={job} busy={busy} run={run} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      id={embedded ? "service-progress" : undefined}
+      className={embedded ? "mt-6 scroll-mt-24" : undefined}
+    >
+      {embedded ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold text-[#6b9f16]">Fulfilment</p>
+            <h2 className="mt-1 text-xl font-semibold tracking-title">
+              Service progress
+            </h2>
+          </div>
+          <Badge variant={statusVariant(job.status)}>
+            {job.status.replaceAll("_", " ")}
+          </Badge>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={statusVariant(job.status)}>
+                {job.status.replaceAll("_", " ")}
+              </Badge>
+              <span className="text-xs text-[#7a838c]">
+                Job {job.id.slice(0, 8)}
+              </span>
+            </div>
+            <h1 className="mt-3 text-3xl font-semibold tracking-title">
+              {job.serviceName}
+            </h1>
+            <p className="mt-2 text-sm text-[#68717b]">
+              {audience === "client" ? job.providerName : job.clientName}
+            </p>
+          </div>
+          <Link
+            href={`/${audience}/bookings/${job.bookingId}`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <CalendarDays className="size-4" /> Booking
+          </Link>
+        </div>
+      )}
+
+      {error ? (
+        <InlineAlert
+          className="mt-5"
+          variant="error"
+          title="Job needs attention"
+          description={error}
+        />
+      ) : null}
+
+      {audience === "professional" ? (
+        <ProfessionalActions job={job} busy={busy} onAction={action} />
+      ) : (
+        <ClientActions job={job} busy={busy} run={run} />
+      )}
+      {audience === "client" && job.status === "COMPLETED" ? (
+        <ReviewJobPanel jobId={job.id} />
+      ) : null}
+
+      <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,.7fr)]">
+        <div className="grid gap-5">
+          <Surface className="p-5 shadow-none sm:p-6">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="size-5 text-[#5f8d11]" />
+              <h2 className="text-lg font-semibold">
+                {embedded ? "Service checklist" : "Scope and checklist"}
+              </h2>
+            </div>
+            {!embedded ? (
+              <>
+                <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#46515b]">
+                  {job.scopeSnapshot}
+                </p>
+                {job.exclusionsSnapshot ? (
+                  <p className="mt-3 text-xs leading-5 text-[#7a838c]">
+                    Exclusions: {job.exclusionsSnapshot}
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+            <div className="mt-5 divide-y divide-black/6 border-y border-black/6">
+              {job.checklist.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex min-h-14 items-start gap-3 py-3 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-5 accent-[#9ac62b]"
+                    checked={item.completed}
+                    disabled={
+                      audience === "client" ||
+                      busy === `checklist-${item.id}` ||
+                      ["COMPLETED", "CANCELLED", "DISPUTED"].includes(
+                        job.status,
+                      )
+                    }
+                    onChange={(event) =>
+                      void run(`checklist-${item.id}`, () =>
+                        jobApi<JobDetailRecord>(
+                          `/api/v1/professional/jobs/${job.id}/checklist/${item.id}`,
+                          {
+                            method: "PUT",
+                            body: JSON.stringify({
+                              completed: event.target.checked,
+                            }),
+                          },
+                        ),
+                      )
+                    }
+                  />
+                  <span>
+                    <span className="font-semibold">{item.label}</span>
+                    {item.required ? (
+                      <span className="ml-2 text-xs text-[#7a838c]">
+                        Required
+                      </span>
+                    ) : null}
+                    {item.resultNote ? (
+                      <span className="mt-1 block text-xs text-[#68717b]">
+                        {item.resultNote}
+                      </span>
+                    ) : null}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </Surface>
+
+          {job.updates.length ? (
+            <Surface className="p-5 shadow-none sm:p-6">
+              <div className="flex items-center gap-2">
+                <MessageSquareText className="size-5 text-[#5f8d11]" />
+                <h2 className="text-lg font-semibold">Progress updates</h2>
+              </div>
+              <div className="mt-4 grid gap-3">
+                {job.updates.map((update) => (
+                  <article
+                    key={update.id}
+                    className="rounded-2xl border border-black/6 bg-[#f8faf8] px-4 py-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-[#5f8d11]">
+                        {update.updateType.replaceAll("_", " ")}
+                      </p>
+                      <time className="text-xs text-[#7a838c]">
+                        {new Date(update.createdAt).toLocaleString()}
+                      </time>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#46515b]">
+                      {update.content}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </Surface>
+          ) : null}
+
+          {audience === "professional" &&
+          !["COMPLETED", "CANCELLED", "DISPUTED"].includes(job.status) ? (
+            <Surface className="p-5 shadow-none sm:p-6">
+              <div className="flex items-center gap-2">
+                <MessageSquareText className="size-5 text-[#5f8d11]" />
+                <h2 className="text-lg font-semibold">Record field update</h2>
+              </div>
+              <form
+                className="mt-4 grid gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!updateText.trim()) return;
+                  void run("update", () =>
+                    professionalJobAction(job.id, "updates", {
+                      updateType: "PROGRESS",
+                      visibility: updateVisibility,
+                      content: updateText,
+                    }),
+                  ).then(() => setUpdateText(""));
+                }}
+              >
+                <textarea
+                  aria-label="Progress update"
+                  className={textareaClass}
+                  value={updateText}
+                  onChange={(event) => setUpdateText(event.target.value)}
+                  placeholder="What changed, what was completed, or what needs attention?"
+                />
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <select
+                    aria-label="Update visibility"
+                    className="min-h-11 rounded-2xl border border-black/8 bg-white px-4 text-sm"
+                    value={updateVisibility}
+                    onChange={(event) =>
+                      setUpdateVisibility(
+                        event.target.value as "CLIENT" | "PROFESSIONAL",
+                      )
+                    }
+                  >
+                    <option value="CLIENT">Visible to client</option>
+                    <option value="PROFESSIONAL">Professional only</option>
+                  </select>
+                  <Button type="submit" loading={busy === "update"}>
+                    <Send className="size-4" /> Add update
+                  </Button>
+                </div>
+              </form>
+            </Surface>
+          ) : null}
+
+          <EvidenceSection
+            key={`${job.status}:${job.checklist.every((item) => !item.required || item.completed)}`}
+            job={job}
+            audience={audience}
+            busy={busy}
+            run={run}
+          />
+
+          <EngagementConversation
+            audience={audience}
+            basePath={`/api/v1/${audience}/jobs/${job.id}/conversation`}
+            contextLabel="job"
+            allowAttachments={false}
+          />
+
+          <VariationSection
+            job={job}
+            audience={audience}
+            busy={busy}
+            variation={variation}
+            setVariation={setVariation}
+            run={run}
+          />
+        </div>
+
+        <div className="grid content-start gap-5">
+          {!embedded ? (
+            <Surface className="p-5 shadow-none">
+              <div className="flex items-center gap-2">
+                <CircleDollarSign className="size-5 text-[#5f8d11]" />
+                <h2 className="font-semibold">Commercial record</h2>
+              </div>
+              <p className="mt-4 text-2xl font-semibold">
+                {formatMoney(job.totalMinor, job.currency)}
+              </p>
+              <div className="mt-4 grid gap-2 text-sm text-[#68717b]">
+                <div className="flex justify-between gap-4">
+                  <span>Accepted booking</span>
+                  <span>{formatMoney(job.baseTotalMinor, job.currency)}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span>Approved variations</span>
+                  <span>
+                    {formatMoney(job.approvedVariationTotalMinor, job.currency)}
+                  </span>
+                </div>
+              </div>
+              {audience === "professional" && job.status === "COMPLETED" ? (
+                <div className="mt-5 grid gap-2">
+                  <Button
+                    className="w-full"
+                    loading={busy === "invoice"}
+                    onClick={() => {
+                      setBusy("invoice");
+                      setError(null);
+                      void createInvoiceFromJob(job.id)
+                        .then((invoice) => {
+                          window.location.assign(
+                            `/professional/invoices?invoiceId=${invoice.id}`,
+                          );
+                        })
+                        .catch((cause: unknown) =>
+                          setError(
+                            cause instanceof Error
+                              ? cause.message
+                              : "Invoice creation failed.",
+                          ),
+                        )
+                        .finally(() => setBusy(null));
+                    }}
+                  >
+                    Create or open invoice
+                  </Button>
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    loading={busy === "warranty"}
+                    onClick={() => {
+                      setBusy("warranty");
+                      setError(null);
+                      void ensureWarrantyFromJob(job.id)
+                        .then((warranty) => {
+                          window.location.assign(
+                            `/professional/warranties/${warranty.id}`,
+                          );
+                        })
+                        .catch((cause: unknown) =>
+                          setError(
+                            cause instanceof Error
+                              ? cause.message
+                              : "Warranty creation failed.",
+                          ),
+                        )
+                        .finally(() => setBusy(null));
+                    }}
+                  >
+                    Create or open warranty
+                  </Button>
+                </div>
+              ) : null}
+            </Surface>
+          ) : null}
+
+          <Surface className="p-5 shadow-none">
+            <div className="flex items-center gap-2">
+              <UserRoundPlus className="size-5 text-[#5f8d11]" />
+              <h2 className="font-semibold">Assigned team</h2>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {job.assignments.filter((item) => item.active).length ? (
+                job.assignments
+                  .filter((item) => item.active)
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 rounded-2xl bg-[#f6f8f8] px-4 py-3 text-sm"
+                    >
+                      <span className="font-semibold">{item.displayName}</span>
+                      {audience === "professional" ? (
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-red-700"
+                          disabled={busy === `unassign-${item.id}`}
+                          onClick={() =>
+                            void run(`unassign-${item.id}`, () =>
+                              jobApi<JobDetailRecord>(
+                                `/api/v1/professional/jobs/${job.id}/assignments/${item.id}`,
+                                {
+                                  method: "DELETE",
+                                  body: JSON.stringify({
+                                    lockVersion: job.lockVersion,
+                                    reason:
+                                      "Assignment updated from job detail.",
+                                  }),
+                                },
+                              ),
+                            )
+                          }
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                  ))
+              ) : (
+                <p className="text-sm text-[#7a838c]">Assignment pending.</p>
+              )}
+            </div>
+            {audience === "professional" && team.length ? (
+              <form
+                className="mt-4 flex gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!assignmentId) return;
+                  void run("assign", () =>
+                    professionalJobAction(job.id, "assignments", {
+                      membershipId: assignmentId,
+                      lockVersion: job.lockVersion,
+                    }),
+                  ).then(() => setAssignmentId(""));
+                }}
+              >
+                <select
+                  aria-label="Team member"
+                  className={selectClass}
+                  value={assignmentId}
+                  onChange={(event) => setAssignmentId(event.target.value)}
+                >
+                  <option value="">Choose team member</option>
+                  {team.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
+                <Button type="submit" size="sm" loading={busy === "assign"}>
+                  Assign
+                </Button>
+              </form>
+            ) : null}
+          </Surface>
+
+          <Surface className="p-5 shadow-none">
+            <div className="flex items-center gap-2">
+              <History className="size-5 text-[#5f8d11]" />
+              <h2 className="font-semibold">Fulfilment timeline</h2>
+            </div>
+            <div className="mt-4 grid gap-4">
+              {job.history.length ? (
+                job.history.map((item) => (
+                  <div
+                    key={item.id}
+                    className="relative border-l border-[#cbd7c3] pl-4 text-sm"
+                  >
+                    <span className="absolute -left-1 top-1 size-2 rounded-full bg-[#95bf24]" />
+                    <p className="font-semibold">
+                      {item.action.replaceAll("_", " ")}
+                    </p>
+                    <p className="mt-1 text-xs text-[#7a838c]">
+                      {new Date(item.createdAt).toLocaleString()}
+                    </p>
+                    {item.reason ? (
+                      <p className="mt-1 text-xs leading-5 text-[#68717b]">
+                        {item.reason}
+                      </p>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-[#7a838c]">No activity yet.</p>
+              )}
+            </div>
+          </Surface>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfessionalActions({
+  job,
+  busy,
+  onAction,
+}: {
+  job: JobDetailRecord;
+  busy: string | null;
+  onAction: (path: string, reason?: string) => Promise<void>;
+}) {
+  const actions: Array<{
+    path: string;
+    label: string;
+    icon: typeof Play;
+    show: boolean;
+    variant?: "primary" | "outline" | "danger";
+  }> = [
+    {
+      path: "check-in",
+      label: "Check in",
+      icon: Route,
+      show: ["SCHEDULED", "TEAM_ASSIGNED", "RETURN_VISIT_REQUIRED"].includes(
+        job.status,
+      ),
+    },
+    {
+      path: "start",
+      label: "Start work",
+      icon: Play,
+      show: ["CREATED", "SCHEDULED", "TEAM_ASSIGNED", "EN_ROUTE"].includes(
+        job.status,
+      ),
+    },
+    {
+      path: "hold",
+      label: "Put on hold",
+      icon: Pause,
+      show: job.status === "IN_PROGRESS",
+      variant: "outline",
+    },
+    {
+      path: "resume",
+      label: "Resume",
+      icon: Play,
+      show: job.status === "ON_HOLD",
+    },
+    {
+      path: "ready",
+      label: "Ready for confirmation",
+      icon: CheckCircle2,
+      show: ["IN_PROGRESS", "RETURN_VISIT_REQUIRED"].includes(job.status),
+    },
+  ];
+  if (!actions.some((item) => item.show)) return null;
+  return (
+    <Surface className="mt-5 flex flex-wrap gap-2 bg-[#f7fbef] p-4 shadow-none">
+      {actions
+        .filter((item) => item.show)
+        .map((item) => (
+          <Button
+            key={item.path}
+            type="button"
+            variant={item.variant}
+            loading={busy === item.path}
+            onClick={() => void onAction(item.path)}
+          >
+            <item.icon className="size-4" /> {item.label}
+          </Button>
+        ))}
+    </Surface>
+  );
+}
+
+function ClientActions({
+  job,
+  busy,
+  run,
+}: {
+  job: JobDetailRecord;
+  busy: string | null;
+  run: (key: string, action: () => Promise<JobDetailRecord>) => Promise<void>;
+}) {
+  if (job.status !== "AWAITING_CLIENT_CONFIRMATION") return null;
+  return (
+    <Surface className="mt-5 border-[#b5d657] bg-[#f7fbef] p-5 shadow-none">
+      <p className="text-sm font-semibold text-[#5f8d11]">
+        Your response is needed
+      </p>
+      <h2 className="mt-1 text-xl font-semibold">Review the completed work</h2>
+      <p className="mt-2 text-sm text-[#68717b]">
+        Check the evidence and confirm completion, request clarification, or
+        report work that remains unresolved.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button
+          loading={busy === "confirm"}
+          onClick={() =>
+            void run("confirm", () =>
+              clientJobAction(job.id, "completion-response", {
+                response: "CONFIRM",
+              }),
+            )
+          }
+        >
+          Confirm completion
+        </Button>
+        <Button
+          variant="outline"
+          loading={busy === "clarification"}
+          onClick={() =>
+            void run("clarification", () =>
+              clientJobAction(job.id, "completion-response", {
+                response: "CLARIFICATION",
+                comments: "Please clarify the completion evidence.",
+              }),
+            )
+          }
+        >
+          Request clarification
+        </Button>
+        <Button
+          variant="danger"
+          loading={busy === "unresolved"}
+          onClick={() =>
+            void run("unresolved", () =>
+              clientJobAction(job.id, "completion-response", {
+                response: "UNRESOLVED",
+                comments: "The work still has an unresolved issue.",
+              }),
+            )
+          }
+        >
+          Report unresolved
+        </Button>
+      </div>
+    </Surface>
+  );
+}
+
+function ClientEmbeddedProgress({
+  job,
+  busy,
+  run,
+}: {
+  job: JobDetailRecord;
+  busy: string | null;
+  run: (key: string, action: () => Promise<JobDetailRecord>) => Promise<void>;
+}) {
+  const assignments = job.assignments.filter((item) => item.active);
+  const status = clientProgressStatus(job);
+  const completedChecklistItems = job.checklist.filter(
+    (item) => item.completed,
+  ).length;
+
+  return (
+    <div className="grid gap-4">
+      <Surface className="overflow-hidden rounded-[14px] border-black/8 bg-white p-0 shadow-[0_4px_16px_rgba(15,31,43,0.04)]">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-black/7 px-4 py-4 sm:px-5">
+          <div>
+            <h2 className="text-[0.84rem] font-semibold text-[#0b1e2e]">
+              Service progress
+            </h2>
+            <p className="mt-1.5 text-[0.78rem] font-medium text-[#507d0d]">
+              {status.title}
+            </p>
+            <p className="mt-1 max-w-2xl text-[0.74rem] leading-5 text-[#5f6c76]">
+              {status.description}
+            </p>
+          </div>
+          <Badge variant={statusVariant(job.status)}>
+            {job.status.replaceAll("_", " ")}
+          </Badge>
+        </div>
+
+        <div className="grid md:grid-cols-2 md:divide-x md:divide-black/7">
+          <section
+            className="px-4 py-4 sm:px-5"
+            aria-labelledby="assigned-professionals-heading"
+          >
+            <div className="flex items-center gap-2">
+              <UserRoundPlus
+                className="size-4 text-[#6b9f16]"
+                aria-hidden="true"
+              />
+              <h3
+                id="assigned-professionals-heading"
+                className="text-[0.76rem] font-semibold text-[#0b1e2e]"
+              >
+                Assigned professional{assignments.length === 1 ? "" : "s"}
+              </h3>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {assignments.length ? (
+                assignments.map((item) => (
+                  <div
+                    key={item.id}
+                    className="inline-flex items-center gap-2.5 rounded-full border border-black/7 bg-[#f7f9f6] py-1.5 pl-1.5 pr-3"
+                  >
+                    <span
+                      className="grid size-7 place-items-center rounded-full bg-[#e8f2d7] text-[0.68rem] font-semibold text-[#527d0d]"
+                      aria-hidden="true"
+                    >
+                      {initials(item.displayName)}
+                    </span>
+                    <span className="text-[0.74rem] font-medium text-[#21313e]">
+                      {item.displayName}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[0.74rem] text-[#6f7d87]">
+                  Assignment is being finalised.
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section
+            className="border-t border-black/7 px-4 py-4 sm:px-5 md:border-t-0"
+            aria-labelledby="latest-activity-heading"
+          >
+            <div className="flex items-center gap-2">
+              <History className="size-4 text-[#6b9f16]" aria-hidden="true" />
+              <h3
+                id="latest-activity-heading"
+                className="text-[0.76rem] font-semibold text-[#0b1e2e]"
+              >
+                Latest activity
+              </h3>
+            </div>
+            {job.history.length ? (
+              <div className="mt-3 flex items-start gap-3">
+                <span
+                  className="mt-1.5 size-2 shrink-0 rounded-full bg-[#95bf24]"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="text-[0.74rem] font-medium text-[#2d3d49]">
+                    {job.history[0].action.replaceAll("_", " ")}
+                  </p>
+                  <time
+                    className="mt-0.5 block text-[0.68rem] text-[#7a858e]"
+                    dateTime={job.history[0].createdAt}
+                  >
+                    {new Date(job.history[0].createdAt).toLocaleString()}
+                  </time>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-3 text-[0.74rem] leading-5 text-[#6f7d87]">
+                New service updates will appear here as work progresses.
+              </p>
+            )}
+          </section>
+        </div>
+
+        {job.updates.length ? (
+          <section
+            className="border-t border-black/7 px-4 py-4 sm:px-5"
+            aria-labelledby="client-progress-updates-heading"
+          >
+            <h3
+              id="client-progress-updates-heading"
+              className="text-[0.76rem] font-semibold text-[#0b1e2e]"
+            >
+              Progress updates
+            </h3>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {job.updates.slice(0, 4).map((update) => (
+                <article
+                  key={update.id}
+                  className="rounded-xl bg-[#f7f9f6] px-3.5 py-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.06em] text-[#648f1b]">
+                      {update.updateType.replaceAll("_", " ")}
+                    </p>
+                    <time
+                      className="text-[0.66rem] text-[#84909a]"
+                      dateTime={update.createdAt}
+                    >
+                      {new Date(update.createdAt).toLocaleDateString()}
+                    </time>
+                  </div>
+                  <p className="mt-1.5 text-[0.74rem] leading-5 text-[#4f5d68]">
+                    {update.content}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {job.checklist.length ? (
+          <section
+            className="border-t border-black/7 px-4 py-4 sm:px-5"
+            aria-labelledby="client-service-checklist-heading"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ClipboardCheck
+                  className="size-4 text-[#6b9f16]"
+                  aria-hidden="true"
+                />
+                <h3
+                  id="client-service-checklist-heading"
+                  className="text-[0.76rem] font-semibold text-[#0b1e2e]"
+                >
+                  Service checklist
+                </h3>
+              </div>
+              <span className="text-[0.68rem] text-[#7a858e]">
+                {completedChecklistItems} of {job.checklist.length} complete
+              </span>
+            </div>
+            <div className="mt-3 grid gap-x-5 gap-y-2 sm:grid-cols-2">
+              {job.checklist.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex min-h-8 items-start gap-2 text-[0.74rem] text-[#44525d]"
+                >
+                  <CheckCircle2
+                    className={`mt-0.5 size-4 shrink-0 ${item.completed ? "fill-[#edf6dc] text-[#6b9f16]" : "text-[#b7c0c6]"}`}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {item.label}
+                    {item.resultNote ? (
+                      <span className="mt-0.5 block text-[0.68rem] text-[#7a858e]">
+                        {item.resultNote}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </Surface>
+
+      {job.evidence.length ? (
+        <EvidenceSection job={job} audience="client" busy={busy} run={run} />
+      ) : null}
+
+      <EngagementConversation
+        audience="client"
+        basePath={`/api/v1/client/jobs/${job.id}/conversation`}
+        contextLabel="job"
+        allowAttachments={false}
+        compact
+      />
+
+      {job.variations.length ? (
+        <VariationSection
+          job={job}
+          audience="client"
+          busy={busy}
+          variation={{
+            description: "",
+            reason: "",
+            amount: "",
+            scheduleImpactMinutes: "",
+          }}
+          setVariation={() => undefined}
+          run={run}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function clientProgressStatus(job: JobDetailRecord) {
+  const professional = job.assignments.find((item) => item.active)?.displayName;
+  switch (job.status) {
+    case "CREATED":
+    case "SCHEDULED":
+      return {
+        title: "Your service is scheduled",
+        description:
+          "We’ll show your assigned professional and live updates here as the visit approaches.",
+      };
+    case "TEAM_ASSIGNED":
+      return {
+        title: "Your service team is ready",
+        description: professional
+          ? `${professional} is assigned to this booking. You’ll see travel and work updates here.`
+          : "Your professional is assigned. You’ll see travel and work updates here.",
+      };
+    case "EN_ROUTE":
+      return {
+        title: "Your professional is on the way",
+        description:
+          "Follow arrival updates here and use the conversation if you need to share access details.",
+      };
+    case "IN_PROGRESS":
+      return {
+        title: "Work is in progress",
+        description:
+          "Checklist results, progress notes, and service evidence will appear here as they are recorded.",
+      };
+    case "ON_HOLD":
+      return {
+        title: "Work is temporarily on hold",
+        description:
+          "Check the latest update or message your professional for the next step.",
+      };
+    case "AWAITING_CLIENT_CONFIRMATION":
+      return {
+        title: "The work is ready for your review",
+        description:
+          "Review the service evidence and respond to the completion request above.",
+      };
+    case "RETURN_VISIT_REQUIRED":
+      return {
+        title: "A return visit is required",
+        description:
+          "The revised visit details and any supporting updates will appear here.",
+      };
+    case "DISPUTED":
+      return {
+        title: "This service needs resolution",
+        description:
+          "Keep relevant messages and evidence together here while the issue is reviewed.",
+      };
+    case "CANCELLED":
+      return {
+        title: "This service was cancelled",
+        description:
+          "The service activity remains available here for your records.",
+      };
+    default:
+      return {
+        title: "Service progress",
+        description: "Operational updates for this booking will appear here.",
+      };
+  }
+}
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
+function EvidenceSection({
+  job,
+  audience,
+  busy,
+  run,
+}: {
+  job: JobDetailRecord;
+  audience: "client" | "professional";
+  busy: string | null;
+  run: (key: string, action: () => Promise<JobDetailRecord>) => Promise<void>;
+}) {
+  type EvidenceType = Exclude<
+    JobDetailRecord["evidence"][number]["evidenceType"],
+    "VARIATION"
+  >;
+  const [evidenceType, setEvidenceType] = useState<EvidenceType>(() =>
+    defaultEvidenceType(job),
+  );
+
+  async function openEvidence(assetId: string) {
+    try {
+      const result = await jobApi<{ url: string }>(
+        `/api/v1/storage/assets/${assetId}/delivery`,
+      );
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error ? cause.message : "Evidence unavailable.",
+      );
+    }
+  }
+  return (
+    <Surface className="p-5 shadow-none sm:p-6">
+      <div className="flex items-center gap-2">
+        <FileImage className="size-5 text-[#5f8d11]" />
+        <h2 className="text-lg font-semibold">Work evidence</h2>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {job.evidence.length ? (
+          job.evidence.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => void openEvidence(item.assetId)}
+              className="rounded-2xl border border-black/8 bg-[#f8f9f9] p-4 text-left"
+            >
+              <Badge variant="neutral">{item.evidenceType}</Badge>
+              <p className="mt-2 text-sm font-semibold">
+                {item.caption ?? "View evidence"}
+              </p>
+              <p className="mt-1 text-xs text-[#7a838c]">
+                {new Date(item.createdAt).toLocaleString()}
+              </p>
+            </button>
+          ))
+        ) : (
+          <p className="text-sm text-[#7a838c]">No evidence added yet.</p>
+        )}
+      </div>
+      {audience === "professional" &&
+      !["COMPLETED", "CANCELLED", "DISPUTED"].includes(job.status) ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 sm:items-end">
+          <label className="grid gap-2 text-sm font-semibold">
+            Evidence stage
+            <select
+              aria-label="Evidence stage"
+              className={selectClass}
+              value={evidenceType}
+              disabled={busy === "evidence"}
+              onChange={(event) =>
+                setEvidenceType(event.target.value as EvidenceType)
+              }
+            >
+              <option value="BEFORE">Before work</option>
+              <option value="PROGRESS">Progress</option>
+              <option value="AFTER">After work</option>
+              <option value="COMPLETION">Completion</option>
+            </select>
+          </label>
+          <label className="flex min-h-12 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-[#9caf7c] bg-[#fbfdf7] px-4 text-sm font-semibold">
+            {busy === "evidence"
+              ? "Uploading evidence…"
+              : "Add photo or PDF evidence"}
+            <input
+              type="file"
+              className="sr-only"
+              accept="image/jpeg,image/png,application/pdf"
+              disabled={busy === "evidence"}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                void run("evidence", async () => {
+                  const assetId = await uploadJobEvidence(file);
+                  return professionalJobAction(job.id, "evidence", {
+                    assetId,
+                    evidenceType,
+                    visibility: "CLIENT",
+                    caption: file.name,
+                  });
+                });
+              }}
+            />
+          </label>
+        </div>
+      ) : null}
+    </Surface>
+  );
+}
+
+function defaultEvidenceType(
+  job: JobDetailRecord,
+): Exclude<JobDetailRecord["evidence"][number]["evidenceType"], "VARIATION"> {
+  if (
+    ["CREATED", "SCHEDULED", "TEAM_ASSIGNED", "EN_ROUTE"].includes(job.status)
+  ) {
+    return "BEFORE";
+  }
+  if (
+    job.status === "AWAITING_CLIENT_CONFIRMATION" ||
+    (job.status === "IN_PROGRESS" &&
+      job.checklist.every((item) => !item.required || item.completed))
+  ) {
+    return "COMPLETION";
+  }
+  return "PROGRESS";
+}
+
+function VariationSection({
+  job,
+  audience,
+  busy,
+  variation,
+  setVariation,
+  run,
+}: {
+  job: JobDetailRecord;
+  audience: "client" | "professional";
+  busy: string | null;
+  variation: {
+    description: string;
+    reason: string;
+    amount: string;
+    scheduleImpactMinutes: string;
+  };
+  setVariation: React.Dispatch<
+    React.SetStateAction<{
+      description: string;
+      reason: string;
+      amount: string;
+      scheduleImpactMinutes: string;
+    }>
+  >;
+  run: (key: string, action: () => Promise<JobDetailRecord>) => Promise<void>;
+}) {
+  const activeJob = [
+    "EN_ROUTE",
+    "IN_PROGRESS",
+    "ON_HOLD",
+    "RETURN_VISIT_REQUIRED",
+  ].includes(job.status);
+  async function create(event: FormEvent) {
+    event.preventDefault();
+    await run("variation-create", () =>
+      professionalJobAction(job.id, "variations", {
+        description: variation.description,
+        reason: variation.reason,
+        additionalAmountMinor: Math.round(Number(variation.amount) * 100),
+        scheduleImpactMinutes: Number(variation.scheduleImpactMinutes || 0),
+      }),
+    );
+    setVariation({
+      description: "",
+      reason: "",
+      amount: "",
+      scheduleImpactMinutes: "",
+    });
+  }
+  return (
+    <Surface className="p-5 shadow-none sm:p-6">
+      <div className="flex items-center gap-2">
+        <CircleDollarSign className="size-5 text-[#5f8d11]" />
+        <h2 className="text-lg font-semibold">Additional work</h2>
+      </div>
+      <div className="mt-4 grid gap-3">
+        {job.variations.length ? (
+          job.variations.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-2xl border border-black/8 p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Badge
+                  variant={
+                    item.status === "ACCEPTED"
+                      ? "trust"
+                      : item.status === "REJECTED"
+                        ? "danger"
+                        : "warning"
+                  }
+                >
+                  {item.status}
+                </Badge>
+                <strong>
+                  {formatMoney(item.additionalAmountMinor, item.currency)}
+                </strong>
+              </div>
+              <p className="mt-3 font-semibold">{item.description}</p>
+              <p className="mt-1 text-sm leading-6 text-[#68717b]">
+                {item.reason}
+              </p>
+              {item.scheduleImpactMinutes ? (
+                <p className="mt-2 text-xs text-[#7a838c]">
+                  Schedule impact: {item.scheduleImpactMinutes} minutes
+                </p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {audience === "professional" && item.status === "DRAFT" ? (
+                  <Button
+                    size="sm"
+                    loading={busy === `submit-${item.id}`}
+                    onClick={() =>
+                      void run(`submit-${item.id}`, () =>
+                        professionalJobAction(
+                          job.id,
+                          `variations/${item.id}/submit`,
+                          {},
+                        ),
+                      )
+                    }
+                  >
+                    Submit to client
+                  </Button>
+                ) : null}
+                {audience === "client" && item.status === "SUBMITTED" ? (
+                  <>
+                    <Button
+                      size="sm"
+                      loading={busy === `accept-${item.id}`}
+                      onClick={() =>
+                        void run(`accept-${item.id}`, () =>
+                          clientJobAction(
+                            job.id,
+                            `variations/${item.id}/respond`,
+                            { decision: "ACCEPT" },
+                          ),
+                        )
+                      }
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      loading={busy === `reject-${item.id}`}
+                      onClick={() =>
+                        void run(`reject-${item.id}`, () =>
+                          clientJobAction(
+                            job.id,
+                            `variations/${item.id}/respond`,
+                            { decision: "REJECT" },
+                          ),
+                        )
+                      }
+                    >
+                      Reject
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-[#7a838c]">
+            No additional work has been requested.
+          </p>
+        )}
+      </div>
+      {audience === "professional" && activeJob ? (
+        <form
+          className="mt-5 grid gap-3 border-t border-black/6 pt-5"
+          onSubmit={create}
+        >
+          <h3 className="font-semibold">Draft a variation</h3>
+          <Input
+            aria-label="Additional work description"
+            placeholder="Additional work description"
+            value={variation.description}
+            onChange={(event) =>
+              setVariation((current) => ({
+                ...current,
+                description: event.target.value,
+              }))
+            }
+            required
+          />
+          <textarea
+            aria-label="Reason for additional work"
+            className={textareaClass}
+            placeholder="Why is this needed?"
+            value={variation.reason}
+            onChange={(event) =>
+              setVariation((current) => ({
+                ...current,
+                reason: event.target.value,
+              }))
+            }
+            required
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              aria-label="Additional amount in KES"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Additional amount (KES)"
+              value={variation.amount}
+              onChange={(event) =>
+                setVariation((current) => ({
+                  ...current,
+                  amount: event.target.value,
+                }))
+              }
+              required
+            />
+            <Input
+              aria-label="Schedule impact in minutes"
+              type="number"
+              min="0"
+              placeholder="Schedule impact (minutes)"
+              value={variation.scheduleImpactMinutes}
+              onChange={(event) =>
+                setVariation((current) => ({
+                  ...current,
+                  scheduleImpactMinutes: event.target.value,
+                }))
+              }
+            />
+          </div>
+          <Button type="submit" loading={busy === "variation-create"}>
+            Create draft
+          </Button>
+        </form>
+      ) : null}
+    </Surface>
+  );
+}
+
+function statusVariant(status: JobDetailRecord["status"]) {
+  if (status === "COMPLETED") return "trust" as const;
+  if (["CANCELLED", "DISPUTED"].includes(status)) return "danger" as const;
+  if (
+    [
+      "ON_HOLD",
+      "RETURN_VISIT_REQUIRED",
+      "AWAITING_CLIENT_CONFIRMATION",
+    ].includes(status)
+  ) {
+    return "warning" as const;
+  }
+  return "success" as const;
+}
+
+function formatMoney(amountMinor: number, currency: string) {
+  return new Intl.NumberFormat("en-KE", {
+    style: "currency",
+    currency,
+  }).format(amountMinor / 100);
+}

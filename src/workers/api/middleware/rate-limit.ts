@@ -20,7 +20,8 @@ function isPublicSubmission(method: string, path: string): boolean {
 
   return (
     path.startsWith("/api/auth/") ||
-    path.startsWith("/api/v1/public/")
+    path.startsWith("/api/v1/public/") ||
+    path === "/api/v1/reports"
   );
 }
 
@@ -37,7 +38,7 @@ export const rateLimitMiddleware = createMiddleware<ApiAppEnvironment>(
 
     const key = publicSubmission
       ? `public:${clientIp(context)}:${path}`
-      : path;
+      : `api:${clientIp(context)}:${path}`;
 
     const outcome = await limiter.limit({ key });
 

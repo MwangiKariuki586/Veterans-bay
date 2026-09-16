@@ -14,6 +14,9 @@ out/
 coverage/
 playwright-report/
 test-results/
+artifacts/
+.playwright-mcp/
+.codex-*.png
 
 # Local environment files
 .env
@@ -22,9 +25,40 @@ test-results/
 
 # Logs and local tooling
 *.log
+logs/
+.tmp/
 .DS_Store
 Thumbs.db
 *.tsbuildinfo
+
+# Ephemeral generated scripts — do not commit
+# Curated tooling in scripts/ (check-runtime.mjs, seed-*.mjs, lib/) is tracked.
+# One-off verification/debug scripts must go to .tmp/ (ignored) or the
+# external temp dir C:\Users\ADMINI~1\AppData\Local\Temp\opencode — never
+# to the repo root or scripts/.
+*.tmp.mjs
+*.tmp.js
+*.tmp.ts
+*.generated.mjs
+*.generated.js
+*.generated.ts
+verify-*.mjs
+verify-*.js
+verify-*.ts
+debug-*.mjs
+debug-*.js
+debug-*.ts
+tmp-*.mjs
+tmp-*.js
+tmp-*.ts
+temp-*.mjs
+temp-*.js
+scripts/*.tmp.*
+scripts/*.generated.*
+scripts/verify-*
+scripts/debug-*
+scripts/tmp-*
+scripts/temp-*
 
 # Editor settings
 .idea/

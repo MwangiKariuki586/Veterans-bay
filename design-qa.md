@@ -1,56 +1,292 @@
-# Homepage Design QA
+# Professional My Services — 7 September 2026
 
-- Source visual truth: `public/design-reference/homepage.png`
-- Desktop implementation capture: `design-qa-homepage-desktop.png`
-- Mobile implementation capture: `design-qa-homepage-mobile.png`
-- Combined comparison: `design-qa-homepage-comparison.png`
-- Desktop viewport: 1448 × 1086, default homepage state
-- Mobile viewport: 390 × 844, default homepage state
+- Latest interaction update: service-card non-control surfaces open inspection; Add/Edit/Continue setup use embedded existing forms in WorkspaceDrawer. Legacy creation/editor routes redirect to the catalogue's editor query. Eleven service tests, typecheck and lint pass; browser verification remains pending.
 
-**Findings**
+- Source visual truth: user-supplied 1536 × 1024 Services mockup in this conversation; shared homepage reference inspected at `context/design-reference/homepage.png`.
+- Implementation: `/professional/services`, populated catalogue with a service selected. After the user's component-reuse correction, KPI cards use WorkspaceMetricCard, service cards use the extracted existing Marketplace ServiceCard layout, skeletons share that card layout, and desktop/mobile inspection uses the shared invoice WorkspaceDrawer frame with fixed header/footer and a scrolling body. The custom desktop docked panel has been removed.
+- Implementation screenshot: unavailable. Browser runtime initialized, but the in-app browser was unavailable and browser discovery returned `[]`.
+- Viewport comparison: intended 1536 × 1024 desktop and narrow mobile; rendered dimensions, CSS pixel density, and overflow remain unverified.
+- Full-view and focused-region comparisons: blocked without a rendered capture. Typography, spacing, grid proportions, colors, image crops, and text wrapping cannot be certified from code checks.
+- Data: saved service records and managed images supply content. Empty/missing image states are explicit; no mock service records or generated business imagery were inserted.
+- Interaction evidence: all nine service component tests pass for progressive loading, preserved search, filtering, service links, shared modal inspection, confirmed unpublication, dismissal, failed image reads, and list retry. Marketplace and invoice regressions pass except for two unrelated stale expectations (Marketplace search textbox and professional Invoices heading, now Finance). These are not browser visual evidence.
+- Findings: [P1] Rendered comparison against the supplied mockup remains unavailable. Existing shared header/sidebar are preserved; their differences from the mockup require review alongside the page.
+- Comparison history: no rendered comparison performed; no visual pass claimed.
+- Next verification: open the authenticated route, select View service, compare at the source viewport, then inspect narrow mobile, focus restoration, scrolling, overflow, image loading, and console errors.
 
-- No actionable P0, P1, or P2 differences remain.
-- Fonts and typography: Inter matches the source's modern sans-serif character closely; display weight, line wrapping, hierarchy, and compact UI text are aligned.
-- Spacing and layout rhythm: the 1340px outer frame, header, two-column composition, 18px panel gaps, 582px hero region, right-side card stack, lower triptych, radii, borders, and soft elevation follow the source.
-- Colors and visual tokens: white and cool-neutral surfaces, deep navy controls, lime actions, teal trust surfaces, and category accents match the approved palette.
-- Image quality and asset fidelity: all visible image slots use real raster assets. The previously missing painting category now has a project-local service image, and the approved brand mark is used in the header.
-- Copy and content: headings, labels, service categories, trust copy, professional details, and booking statistics match the visual target.
-- Icons: controls use one consistent line-icon family with matching scale and circular treatment.
-- Responsive behavior: the 390px implementation has no horizontal overflow; the header, search, hero copy, actions, and content stack remain usable.
-- Accessibility and behavior: landmarks, headings, labels, alt text, focus styles, reduced-motion support, and semantic links/buttons are present.
+final result: blocked
 
-**Open Questions**
+---
 
-- None blocking. The generated hero professional has a somewhat larger crop than the mockup; the subject, hierarchy, and art direction remain consistent, so this is retained as P3 follow-up polish.
+# Professional Service Detail — 8 September 2026
 
-**Comparison History**
+## Evidence
 
-1. Earlier review finding: P1 desktop composition drift caused the right column and lower panels to occupy the wrong grid rows.
-   Fix: rebuilt the desktop layout as measured four-row tracks (`176 / 207 / 161 / 234px`), with the hero and home-experts cards spanning the source-equivalent rows.
-   Post-fix evidence: `design-qa-homepage-comparison.png`.
-2. P2 asset and branding gaps: the painting tile was missing and the header used a text stand-in for the visual mark.
-   Fix: added `public/images/category-painting.png` and extracted the approved mark to `public/images/veterans-bay-mark.png`.
-   Post-fix evidence: `design-qa-homepage-desktop.png` and `design-qa-homepage-comparison.png`.
-3. P2 mobile clipping risk: the desktop hero content width and full header action set did not fit a narrow viewport.
-   Fix: added a full-width mobile hero treatment, stacked primary actions, responsive type sizing, and compact mobile header actions.
-   Post-fix evidence: `design-qa-homepage-mobile.png`; browser measurement reported no horizontal overflow.
+- Source visual truth: the user-supplied Professional Service Detail mockup in the current conversation. The source attachment has no local file path, so an image-level side-by-side composite could not be saved.
+- Implementation route: `/professional/services/[serviceId]`.
+- Implementation captures: `.playwright-mcp/service-detail-desktop.png` at 1440 × 1100 CSS pixels and `.playwright-mcp/service-detail-mobile.png` at 520 × 900 CSS pixels, both density 1.
+- State: published Plumbing Repair service loaded through fixture-backed professional API responses; the source’s service image was unavailable in the fixture, so the explicit no-image state is shown rather than a simulated image.
 
-**Primary Interactions Tested**
+## Comparison evidence
 
-- `Find Services` navigates from `/` to `/marketplace`.
-- Browser console warnings/errors checked: none.
+- Full view: the rendered route matches the source hierarchy with the service heading/actions, wide media region, compact facts strip, detail sections and desktop publication rail. At compact width, the actions, facts, horizontally scrollable tabs and publication information stack without horizontal control overflow.
+- Focused tab region: all section controls have `border-0 border-b-2`; only the shared tab baseline and the selected bottom indicator render. This removes the source issue’s top, left and right outlines.
+- Interaction: card content and the card's View service action open the overview drawer. The drawer and kebab menu each expose View details links to the full route; the route’s Service areas tab was selected successfully in the compact capture.
 
-**Implementation Checklist**
+## Findings
 
-- [x] Desktop composition matches the approved source.
-- [x] Required raster assets are present and rendered.
-- [x] Mobile layout is usable without horizontal overflow.
-- [x] Primary conversion action works.
-- [x] Browser console is clean.
-- [x] Typecheck, lint, tests, and production build pass.
+- [P2] The primary media comparison remains incomplete because the fixture provides no real managed image and the source attachment is not locally available for a side-by-side image comparison.
+  - Fix: repeat the capture with an authenticated service that has images and compare it with the original attachment at its exact source viewport.
 
-**Follow-up Polish**
+## Required fidelity surfaces
 
-- P3: refine the hero-professional crop if the explicit visual review requests a closer subject scale.
+- Fonts and typography: established workspace font and hierarchy are used; the route maintains the title, metadata and compact operational-label scale in the reference.
+- Spacing and layout rhythm: the desktop composition uses a broad primary column plus a 285px readiness rail; compact screens stack regions and retain tab scrolling.
+- Colors and visual tokens: existing neutral workspace surfaces, lime status/readiness, navy text and soft borders are reused.
+- Image quality and asset fidelity: no new image assets were introduced. The current fixture explicitly displays the no-image state; the source’s real service image still requires a live comparison.
+- Copy and content: title, pricing, duration, areas, warranty, requirements and publication status come from the professional service record.
 
-final result: passed
+final result: blocked
+
+---
+
+# Invoice Inspection Drawer — 2 September 2026
+
+## Evidence
+
+- Source visual truth: user-supplied invoice-list and invoice-drawer mockups in the current conversation; no local source-image path is available.
+- Implementation routes: `/client/invoices?invoiceId=:invoiceId` and `/professional/invoices?invoiceId=:invoiceId`.
+- Implementation screenshot: unavailable because browser discovery returned no available browser surfaces.
+- Intended viewport: supplied desktop workspace composition, plus responsive drawer behavior down to mobile width; exact source viewport and density metadata are unavailable.
+- State: authenticated client or professional inspecting an invoice without leaving the invoice list.
+
+## Full-view comparison evidence
+
+Blocked. The implementation keeps the established invoice list visible beneath a modal sheet and replaces dedicated detail navigation with a 94vw-capped, 36rem drawer. No browser-rendered capture is available to compare its shell, overlay, vertical rhythm, or viewport fit with the supplied mockup.
+
+## Focused-region comparison evidence
+
+Blocked. Component tests cover the loaded drawer content and actions, but they do not establish pixel fidelity for the financial summary, related-service grid, line-item table, payment history, status timeline, notes, or sticky action footer.
+
+## Findings
+
+- [P1] Browser-rendered invoice drawer comparison unavailable.
+  - Location: invoice row inspection on client and professional invoice lists.
+  - Evidence: the configured browser runtime reported no available browser surfaces.
+  - Impact: exact spacing, drawer scrolling, overlay treatment, responsive stacking, and visual fidelity cannot be signed off from code and tests alone.
+  - Fix: capture a partially paid invoice drawer at desktop and mobile widths, compare it with the supplied mockup, and correct any P0, P1, or P2 differences.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Veterans Bay workspace hierarchy and semibold weight ceiling are preserved; rendered comparison blocked.
+- Spacing and layout rhythm: compact numbered sections and sticky actions follow the supplied hierarchy; rendered comparison blocked.
+- Colors and visual tokens: existing lime, neutral, warning, danger, border, and surface tokens are reused; rendered comparison blocked.
+- Image quality and asset fidelity: no new raster assets are required; existing Lucide invoice, payment, person, and calendar icons are used.
+- Copy and content: financial figures, related service, line items, payments, timeline, terms, and manual-record guidance are sourced from authoritative invoice data.
+
+## Comparison history
+
+- Implementation pass: converted invoice selection into an in-place drawer and redirected legacy invoice-detail routes back to the list with the selected invoice open.
+- Workflow pass: replaced generic full-detail and support actions with PDF download and a role-aware service or job destination; the unnecessary reference-copy action was removed.
+- Header collision follow-up: the supplied crop showed the status badge beneath the close button. The header now preserves a 4rem right-side close-control lane at mobile and desktop breakpoints; browser-rendered post-fix evidence remains unavailable.
+- Automated evidence: focused UI/PDF tests, database tests, changed-file lint, typecheck, production build, and whitespace checks pass.
+- Post-fix rendered comparison: blocked because no browser surface is available.
+
+final result: blocked
+
+# Client Quotation Detail Design QA
+
+## Evidence
+
+- Source visual truth: user-supplied desktop quotation-detail mockup in the current conversation; no local source-image path is available.
+- Implementation route: `/client/quotations/d5000000-0000-4000-8000-000000000002`.
+- Implementation screenshot: unavailable because the configured in-app browser reported no available browser surfaces.
+- Intended viewport: desktop reference at approximately 1680 by 971 CSS pixels, plus tablet and mobile responsive states.
+- Source pixels and density: 1680 by 971 supplied image; density metadata unavailable.
+- Implementation pixels and density: unavailable.
+- State: authenticated client, current quotation version 2, awaiting decision, with accept, revision, or decline confirmation modal open.
+
+## Full-view comparison evidence
+
+Blocked. The source quotation layout and the user's inline-confirmation screenshots are available in the conversation, but a browser-rendered capture of the replacement modal states could not be produced. Code, test output, build output, and HTTP responses are not substitutes for the required visual comparison.
+
+## Focused-region comparison evidence
+
+Blocked for the same reason. The intended focused regions are the stable journey and decision panel, each modal's heading, copy, note field and actions, focus containment, and narrow-screen modal geometry.
+
+## Findings
+
+- [P1] Browser-rendered modal comparison unavailable.
+  - Location: accept, request-revision, and decline decision states on the client quotation detail route.
+  - Evidence: browser discovery returned no available surfaces, so there is no rendered modal screenshot to compare with the supplied inline states and established workspace dialog pattern.
+  - Impact: modal spacing, viewport fit, focus behavior, and final visual fidelity cannot be signed off.
+  - Fix: connect the in-app browser or approve a Playwright CLI capture, then check all modal states at desktop and mobile widths.
+
+## Required fidelity surfaces
+
+- Fonts and typography: implemented with the existing Poppins workspace typography and semibold maximum weight; rendered comparison blocked.
+- Spacing and layout rhythm: the summary panel stays fixed-height while a centered, bounded dialog owns each confirmation; rendered comparison blocked.
+- Colors and visual tokens: existing Veterans Bay lime, neutral, warning, border, and surface tokens are used; rendered comparison blocked.
+- Image quality and asset fidelity: the existing brand shell is preserved and the professional's real published logo is used when available; rendered comparison blocked.
+- Copy and content: accept names the preserved version and total, revision prompts for requested changes, and decline makes its reason optional; rendered comparison blocked.
+
+## Comparison history
+
+- No visual iteration was possible because an implementation capture was unavailable.
+
+## Implementation checklist
+
+- Capture the authenticated desktop route with each of the three decision modals open.
+- Verify focus containment, Escape/backdrop dismissal, busy-state dismissal prevention, and retry behavior.
+- Capture mobile width and check dialog fit, textarea height, scrolling, and full-width stacked actions.
+- Confirm the underlying journey panel does not resize when a modal opens.
+- Check console errors and repeat the comparison until no P0, P1, or P2 findings remain.
+
+final result: blocked
+
+## Saved Items Loading Skeleton — 2 September 2026
+
+### Evidence
+
+- Source visual truth: user-supplied desktop screenshot of `/client/saved` in the current conversation; no local source-image path is available.
+- Implementation route: `/client/saved`.
+- Implementation screenshot: unavailable because browser discovery returned no available browser surfaces.
+- Intended viewport: supplied desktop screenshot at 1920 by 1080 pixels and a responsive mobile fallback.
+- Source density: browser screenshot captured at 80% zoom; device-pixel density metadata is unavailable.
+- Implementation pixels, CSS viewport, and density normalization: unavailable.
+- State: authenticated client while saved professionals are loading.
+
+### Full-view comparison evidence
+
+Blocked. The surrounding workspace shell, page heading, summary cards, search, filters, and sort controls are intentionally unchanged. The generic centered spinner panel is replaced by a two-column grid of four card-shaped skeletons, but no browser-rendered implementation screenshot could be captured for direct comparison.
+
+### Focused-region comparison evidence
+
+Blocked. Source-informed code mirrors the loaded cards' 16px radius, border, white surface, subtle elevation, internal 16px padding, avatar or service-thumbnail geometry, title, badge, metadata, description, heart-control, and saved-date positions. A rendered focused crop is unavailable, so exact rhythm and shimmer appearance cannot be signed off.
+
+### Required fidelity surfaces
+
+- Fonts and typography: skeleton bars follow the existing text hierarchy and do not add visible loading copy; rendered comparison blocked.
+- Spacing and layout rhythm: four placeholders use the loaded two-column grid and switch to one column below the existing medium breakpoint; rendered comparison blocked.
+- Colors and visual tokens: the shared muted skeleton token, existing card border, white surface, and shadow are reused; rendered comparison blocked.
+- Image quality and asset fidelity: no new image assets are required; avatar and service-image slots are represented by shared skeleton primitives.
+- Copy and content: the former loading title and description are visually removed while an accessible `Loading saved items` busy status remains.
+
+### Findings
+
+- [P1] Browser-rendered loading-state comparison unavailable.
+  - Location: saved-items card grid below the toolbar.
+  - Evidence: the configured browser runtime reported no available browser surfaces.
+  - Impact: exact desktop card proportions, shimmer contrast, mobile stacking, and viewport fit cannot be approved from code and tests alone.
+  - Fix: capture the delayed saved-professionals request at the supplied desktop proportions and at a mobile width, then compare both renders with the loaded card grid.
+
+### Comparison history
+
+- Implementation pass: replaced the centered spinner panel with alternating professional and service card skeletons and retained an accessible busy announcement.
+- Automated post-fix evidence: three focused component tests, changed-file lint, typecheck through the 82-route production build, and whitespace checks pass.
+- Post-fix rendered comparison: blocked because no browser surface is available.
+
+### Implementation checklist
+
+- Capture the authenticated loading state at desktop and mobile widths.
+- Confirm the grid transition, card height consistency, and no horizontal overflow.
+- Check the browser console and repeat the comparison until no P0, P1, or P2 findings remain.
+
+final result: blocked
+
+## Dynamic Quotation Status Card — 1 September 2026
+
+### Evidence
+
+- Source visual truth: the four user-supplied desktop mockups in the current conversation for awaiting-decision, revision-requested, accepted, and declined quotation states; no local source-image paths are available.
+- Implementation route: `/client/quotations/d5000000-0000-4000-8000-000000000002`.
+- Implementation screenshot: unavailable because the configured browser connection reported no available browser surfaces.
+- Intended viewport: supplied desktop mockups at approximately 1450 by 1086 pixels, plus responsive tablet and mobile states.
+- Implementation pixels, CSS viewport, and density normalization: unavailable.
+- State: authenticated client viewing the current quotation version.
+
+### Full-view comparison evidence
+
+Blocked. The implementation places the status card in the same 360px desktop grid track as Timing, Professional, Request summary, and the protection note. The quotation body spans the left track unchanged. On narrower layouts, source order promotes the status card ahead of the quotation body while the remaining supporting cards stay below it. A rendered screenshot is unavailable, so exact alignment and responsive geometry cannot be signed off.
+
+### Focused-region comparison evidence
+
+Blocked. Code and interaction tests cover the four supplied workflow states, semantic headings, actions, modal entry points, preserved revision and decline reasons, accepted booking link, current-version binding, and closed-state recovery links. They do not establish pixel fidelity for card height, wrapping, border tone, or rail alignment.
+
+### Required fidelity surfaces
+
+- Fonts and typography: existing Veterans Bay Poppins hierarchy and semibold weight ceiling are preserved; rendered comparison blocked.
+- Spacing and layout rhythm: the card uses the established 360px rail, 20px grid gap, responsive 20px/24px padding, and shared surface radius; rendered comparison blocked.
+- Colors and visual tokens: calm lime, amber, green, red, and neutral state treatments follow the supplied states without changing global tokens; rendered comparison blocked.
+- Image quality and asset fidelity: no new raster assets are required; the implementation uses the existing icon library and preserves existing provider imagery.
+- Copy and content: awaiting, revision, accepted, declined, expired, cancelled, replaced, and draft states use authoritative quotation, version, booking, date, provider, and history data.
+
+### Findings
+
+- [P1] Browser-rendered state-card comparison unavailable.
+  - Location: first card in the client quotation detail right rail.
+  - Evidence: browser selection returned no available browser surface.
+  - Impact: exact right-rail alignment, state-card proportions, mobile ordering, and visual fidelity cannot be approved from code and tests alone.
+  - Fix: capture awaiting, revision-requested, accepted, and declined states at desktop and mobile widths, compare each against the matching supplied mockup, and correct any P0/P1/P2 differences.
+
+### Comparison history
+
+- Implementation pass: replaced the full-width journey/action panel with one status-aware right-rail card while preserving the quotation body and supporting cards.
+- State pass: bound decision messaging and actions to the authoritative current version even when an older version is selected for inspection.
+- Post-fix rendered comparison: blocked because no browser surface is available.
+
+final result: blocked
+
+## Attachment Row Padding Follow-up — 1 September 2026
+
+### Evidence
+
+- Source visual truth: user-supplied focused crop of the `Quotation_V2.pdf` attachment row in the current conversation; no local source-image path is available.
+- Implementation route: `/client/quotations/d5000000-0000-4000-8000-000000000002`.
+- Implementation screenshot: unavailable because the configured browser connection reported no available browser surfaces.
+- Intended viewport: responsive attachment card within the client quotation detail layout; exact source viewport and density metadata are unavailable.
+- State: authenticated client viewing the current quotation attachment.
+
+### Focused-region comparison evidence
+
+Blocked. The source crop shows the attachment pill, document tile, two-line label, and download control, but no browser-rendered implementation crop could be captured. The source-guided change separates horizontal and vertical padding, increasing the side inset from `0.5rem` to `0.75rem` while preserving the compact `0.5rem` vertical inset, icon dimensions, text truncation, and responsive full width.
+
+### Required fidelity surfaces
+
+- Fonts and typography: unchanged; existing semibold/medium quotation hierarchy is preserved.
+- Spacing and layout rhythm: horizontal edge clearance is increased without increasing row height; rendered comparison remains blocked.
+- Colors and visual tokens: unchanged.
+- Image quality and asset fidelity: unchanged; the existing icon-library assets remain in use.
+- Copy and content: unchanged.
+
+### Finding
+
+- [P2] Browser-rendered padding comparison unavailable.
+  - Location: attachment rows in the client quotation detail Attachments card.
+  - Evidence: browser connection returned no available surface.
+  - Impact: exact pixel balance at desktop and mobile widths cannot be signed off from code alone.
+  - Fix: capture the authenticated attachment row at desktop and mobile widths when a browser surface is connected.
+
+### Comparison history
+
+- Source-guided implementation pass: replaced uniform `0.5rem` padding with `0.75rem` horizontal and `0.5rem` vertical padding.
+- Post-fix rendered comparison: blocked because no browser surface is available.
+
+final result: blocked
+
+
+## Public service availability ? corrected available-times reference
+
+Source: user-supplied available-times mockup (265 x 375 pixels). Target: `/services/:slug`, expanded availability with a selected slot. The earlier empty-state reference is superseded.
+
+Implemented the compact date/time controls, bordered picker, pale next-slot and selected-time summaries, and rectangular lime Continue action. Preserved authoritative times and existing booking flow. Five focused tests pass.
+
+Browser setup succeeded but in-app selection was unavailable and discovery returned an empty list. No fresh rendered screenshot or responsive comparison was possible. Typography, spacing, colors, and selection-state fidelity require browser review.
+
+final result: blocked
+
+
+## Desktop service detail density
+
+Desktop now surfaces all existing tab sections, pairs inclusions/exclusions in two columns, and retains the availability rail. Mobile keeps tab switching. Six focused tests pass, including desktop content visibility and compact tab switching. Browser geometry and visual comparison remain unavailable; no screenshot-backed fidelity claim.
+
+final result: blocked

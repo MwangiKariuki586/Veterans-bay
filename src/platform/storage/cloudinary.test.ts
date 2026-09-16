@@ -85,4 +85,25 @@ describe("cloudinary storage provider", () => {
     expect(authorization.uploadUrl).toContain("/image/upload");
     expect(authorization.signature).toHaveLength(40);
   });
+
+  it("signs the public upload type that the browser submits", async () => {
+    const provider = new CloudinaryStorageProvider({
+      cloudName: "demo",
+      apiKey: "123",
+      apiSecret: "abcd",
+    });
+
+    const authorization = await provider.createSignedUpload({
+      folder: "veterans-bay/logos",
+      publicId: "asset-1",
+      resourceType: "image",
+      type: "upload",
+      timestamp: 1_700_000_000,
+    });
+
+    expect(authorization.type).toBe("upload");
+    expect(authorization.signature).toBe(
+      "1e44584fe5730060455555b120a811c3531f8cc5",
+    );
+  });
 });

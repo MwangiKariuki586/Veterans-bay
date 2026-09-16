@@ -9,6 +9,7 @@ export interface DomainEventsQueueBinding {
 }
 
 export interface ApiBindings {
+  ADDITIONAL_WEB_ORIGINS?: string;
   APP_ENV: string;
   API_RATE_LIMITER: ApiRateLimiter;
   BETTER_AUTH_SECRET: string;
@@ -18,6 +19,7 @@ export interface ApiBindings {
   CLOUDINARY_CLOUD_NAME?: string;
   DATABASE_URL: string;
   DOMAIN_EVENTS_QUEUE?: DomainEventsQueueBinding;
+  PUBLIC_REGISTRATION_ENABLED: "true" | "false";
   PUBLIC_SUBMISSION_RATE_LIMITER?: ApiRateLimiter;
   WEB_ORIGIN: string;
 }

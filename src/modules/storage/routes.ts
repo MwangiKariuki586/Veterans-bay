@@ -192,6 +192,47 @@ export function createStorageRoutes() {
     },
   );
 
+  routes.get(
+    "/v1/admin/professionals/:organisationId/evidence/:assetId",
+    requireSessionMiddleware,
+    async (context) => {
+      const environment = context.get("environment");
+      const account = context.get("account");
+      if (!account) {
+        throw new Error("Authenticated account is required.");
+      }
+      const organisationId = context.req.param("organisationId");
+      const assetId = context.req.param("assetId");
+      const uuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuid.test(organisationId) || !uuid.test(assetId)) {
+        throw new AppError({
+          code: "VALIDATION_ERROR",
+          message: "The evidence identifier is invalid.",
+          status: 422,
+        });
+      }
+
+      const cloudinary = requireStorageService(environment);
+      const client = createDatabaseClient(environment.DATABASE_URL);
+      try {
+        const service = createStorageService(client.db, cloudinary);
+        const data = await service.getAdminEvidenceDeliveryUrl({
+          authUserId: account.authUserId,
+          organisationId,
+          assetId,
+          correlationId: context.get("requestId"),
+        });
+        return context.json({
+          data,
+          requestId: context.get("requestId"),
+        });
+      } finally {
+        await client.close();
+      }
+    },
+  );
+
   routes.post(
     "/v1/storage/assets/:assetId/link",
     requireSessionMiddleware,

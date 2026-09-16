@@ -13,6 +13,22 @@ import type { WorkspaceRepository } from "../workspace/repository";
 import type { FileAssetRecord, StorageRepository } from "./repository";
 
 const UPLOAD_AUTHORIZATION_TTL_MS = 60 * 60 * 1000;
+const rawFileExtensionByMimeType: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+};
+
+function canonicalCloudinaryPublicId(
+  publicId: string,
+  resourceType: "image" | "raw",
+  mimeType: string,
+): string {
+  if (resourceType !== "raw") return publicId;
+  const extension = rawFileExtensionByMimeType[mimeType];
+  if (!extension || publicId.toLowerCase().endsWith(`.${extension}`)) return publicId;
+  return `${publicId}.${extension}`;
+}
 
 export interface UploadIntentResult {
   asset: FileAssetRecord;
@@ -26,7 +42,9 @@ export class StorageService {
     private readonly provider: StorageProvider,
     private readonly workspaceStore?: Pick<
       WorkspaceRepository,
-      "listActivePlatformAssignments" | "listPermissionKeysForRoleIds"
+      | "findActiveMembership"
+      | "listActivePlatformAssignments"
+      | "listPermissionKeysForRoleIds"
     >,
   ) {}
 
@@ -67,11 +85,7 @@ export class StorageService {
       });
     }
 
-    if (
-      organisationId &&
-      input.workspaceOrganisationId &&
-      organisationId !== input.workspaceOrganisationId
-    ) {
+    if (organisationId && organisationId !== input.workspaceOrganisationId) {
       throw new AppError({
         code: "WORKSPACE_UNAVAILABLE",
         message: "The requested organisation is outside the active workspace.",
@@ -79,11 +93,30 @@ export class StorageService {
       });
     }
 
+    if (organisationId) {
+      const membership = await this.workspaceStore?.findActiveMembership(
+        profile.id,
+        organisationId,
+      );
+      if (!membership) {
+        throw new AppError({
+          code: "WORKSPACE_UNAVAILABLE",
+          message: "The requested organisation is outside the active workspace.",
+          status: 403,
+        });
+      }
+    }
+
     const assetId = crypto.randomUUID();
-    const publicId = `${policy.folder}/${assetId}`;
+    const providerAssetId = canonicalCloudinaryPublicId(
+      assetId,
+      policy.resourceType,
+      input.mimeType,
+    );
+    const publicId = `${policy.folder}/${providerAssetId}`;
     const authorization = await this.provider.createSignedUpload({
       folder: policy.folder,
-      publicId: assetId,
+      publicId: providerAssetId,
       resourceType: policy.resourceType,
       type: deliveryTypeForVisibility(policy.visibility),
     });
@@ -126,10 +159,19 @@ export class StorageService {
       });
     }
 
-    if (
-      input.publicId !== asset.cloudinaryPublicId &&
-      input.publicId !== asset.id
-    ) {
+    const policy = getStoragePurposePolicy(asset.purpose as StoragePurpose);
+    const canonicalPublicId = canonicalCloudinaryPublicId(
+      asset.cloudinaryPublicId,
+      policy.resourceType,
+      asset.mimeType,
+    );
+    const canonicalAssetId = canonicalCloudinaryPublicId(
+      asset.id,
+      policy.resourceType,
+      asset.mimeType,
+    );
+
+    if (input.publicId !== canonicalPublicId && input.publicId !== canonicalAssetId) {
       throw new AppError({
         code: "TAMPERED_UPLOAD",
         message: "The upload completion does not match the authorized asset.",
@@ -137,9 +179,8 @@ export class StorageService {
       });
     }
 
-    const policy = getStoragePurposePolicy(asset.purpose as StoragePurpose);
     const resource = await this.provider.getResource({
-      publicId: asset.cloudinaryPublicId,
+      publicId: canonicalPublicId,
       resourceType: policy.resourceType,
       type: deliveryTypeForVisibility(asset.visibility as "public" | "private"),
     });
@@ -161,8 +202,8 @@ export class StorageService {
     }
 
     if (
-      resource.publicId !== asset.cloudinaryPublicId &&
-      resource.publicId !== asset.id
+      resource.publicId !== canonicalPublicId &&
+      resource.publicId !== canonicalAssetId
     ) {
       throw new AppError({
         code: "TAMPERED_UPLOAD",
@@ -171,7 +212,7 @@ export class StorageService {
       });
     }
 
-    return this.repository.markReady(asset.id, resource.bytes);
+    return this.repository.markReady(asset.id, resource.bytes, canonicalPublicId);
   }
 
   async getDeliveryUrl(input: {
@@ -189,7 +230,42 @@ export class StorageService {
       });
     }
 
-    if (asset.visibility === "private" && asset.ownerAccountId !== profile.id) {
+    const linkedJobAccess =
+      asset.purpose === "JOB_EVIDENCE" &&
+      asset.linkedEntityType === "job" &&
+      asset.linkedEntityId
+        ? await this.repository.canAccessJobEvidence(
+            profile.id,
+            asset.linkedEntityId,
+          )
+        : false;
+    const linkedPaymentAccess =
+      asset.purpose === "PAYMENT_EVIDENCE" &&
+      asset.linkedEntityType &&
+      asset.linkedEntityId
+        ? await this.repository.canAccessPaymentEvidence(
+            profile.id,
+            asset.linkedEntityType,
+            asset.linkedEntityId,
+          )
+        : false;
+    const linkedWarrantyAccess =
+      asset.purpose === "WARRANTY_EVIDENCE" &&
+      asset.linkedEntityType === "warranty_claim" &&
+      asset.linkedEntityId
+        ? await this.repository.canAccessWarrantyEvidence(
+            profile.id,
+            asset.linkedEntityId,
+          )
+        : false;
+
+    if (
+      asset.visibility === "private" &&
+      asset.ownerAccountId !== profile.id &&
+      !linkedJobAccess &&
+      !linkedPaymentAccess &&
+      !linkedWarrantyAccess
+    ) {
       throw new AppError({
         code: "PERMISSION_DENIED",
         message: "You do not have permission to access this asset.",
@@ -216,6 +292,54 @@ export class StorageService {
       url,
       visibility: asset.visibility as "public" | "private",
     };
+  }
+
+  async getAdminEvidenceDeliveryUrl(input: {
+    authUserId: string;
+    organisationId: string;
+    assetId: string;
+    correlationId?: string;
+  }): Promise<{ url: string; visibility: "private" }> {
+    const profile = await this.requirePlatformAdmin(input.authUserId);
+    const asset = await this.repository.findById(input.assetId);
+    if (
+      !asset ||
+      asset.organisationId !== input.organisationId ||
+      asset.purpose !== "VERIFICATION_DOCUMENT" ||
+      asset.visibility !== "private" ||
+      asset.linkedEntityType !== "professional_profile" ||
+      asset.status === "deleted"
+    ) {
+      throw new AppError({
+        code: "NOT_FOUND",
+        message: "The requested evidence was not found.",
+        status: 404,
+      });
+    }
+    if (asset.status !== "ready" && asset.status !== "replaced") {
+      throw new AppError({
+        code: "INVALID_ASSET_STATE",
+        message: "The evidence is not available for delivery.",
+        status: 409,
+      });
+    }
+
+    const policy = getStoragePurposePolicy(asset.purpose as StoragePurpose);
+    const url = await this.provider.createDeliveryUrl({
+      publicId: asset.cloudinaryPublicId,
+      resourceType: policy.resourceType,
+      visibility: "private",
+    });
+    await this.identityStore.recordAuditEvent({
+      actorAccountId: profile.id,
+      action: "professional.verification_evidence_viewed",
+      entityType: "file_asset",
+      entityId: asset.id,
+      correlationId: input.correlationId,
+      metadata: { organisationId: input.organisationId },
+    });
+
+    return { url, visibility: "private" };
   }
 
   async linkAsset(input: {
@@ -337,7 +461,11 @@ export class StorageService {
 
     try {
       await this.provider.destroyResource({
-        publicId: asset.cloudinaryPublicId,
+        publicId: canonicalCloudinaryPublicId(
+          asset.cloudinaryPublicId,
+          policy.resourceType,
+          asset.mimeType,
+        ),
         resourceType: policy.resourceType,
         type: deliveryTypeForVisibility(asset.visibility as "public" | "private"),
       });
@@ -362,7 +490,11 @@ export class StorageService {
       const policy = getStoragePurposePolicy(orphan.purpose as StoragePurpose);
       try {
         await this.provider.destroyResource({
-          publicId: orphan.cloudinaryPublicId,
+          publicId: canonicalCloudinaryPublicId(
+            orphan.cloudinaryPublicId,
+            policy.resourceType,
+            orphan.mimeType,
+          ),
           resourceType: policy.resourceType,
           type: deliveryTypeForVisibility(
             orphan.visibility as "public" | "private",

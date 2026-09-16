@@ -1,18 +1,27 @@
 "use client";
 
 import { Menu } from "lucide-react";
-import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-
+import { usePathname, useRouter } from "next/navigation";
 import {
-  pageBackdropClass,
-  pageFrameClass,
-} from "@/components/public/design";
+  Fragment,
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+
+import { pageBackdropSurfaceClass } from "@/components/public/design";
 import { SiteHeader } from "@/components/public/site-header";
 import { AuthenticatedFooter } from "@/components/workspace/authenticated-footer";
+import {
+  WorkspaceChromeProvider,
+  useWorkspaceChrome,
+} from "@/components/workspace/workspace-chrome";
 import type { AuthenticatedShellKind } from "@/components/workspace/workspace-nav";
 import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
+import { ClientDashboardProvider } from "@/components/workspace/client-dashboard-context";
+import { ProfessionalDashboardProvider } from "@/components/workspace/professional-dashboard-context";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import {
@@ -22,46 +31,109 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { StatePanel } from "@/components/ui/state-panel";
-import { Surface } from "@/components/ui/surface";
+import { useQueryClient } from "@tanstack/react-query";
+
 import { authClient } from "@/lib/auth-client";
-import type { WorkspaceSummary } from "@/modules/workspace/types";
+
+function useOptionalQueryClient() {
+  try {
+    return useQueryClient();
+  } catch {
+    return null;
+  }
+}
+import { loginHrefFor, pathWithSearch } from "@/lib/auth-redirect";
+import {
+  clearAllClientResourceCaches,
+  getCachedResource,
+  setCachedResource,
+} from "@/lib/client-resource-cache";
+import {
+  getCurrentWorkspace,
+  listAvailableWorkspaces,
+  selectWorkspace,
+  WorkspaceEntryError,
+} from "@/lib/workspace-entry";
 
 export type { AuthenticatedShellKind };
 
-async function fetchWorkspaces() {
-  const response = await fetch("/api/v1/workspaces", { credentials: "include" });
-  const body = (await response.json()) as {
-    data?: { workspaces: WorkspaceSummary[]; defaultWorkspaceId: string | null };
-    error?: { code?: string };
-  };
+import { WorkspaceShellContext } from "./workspace-shell-context";
+export { useWorkspaceShell } from "./workspace-shell-context";
 
-  if (!response.ok || !body.data) {
-    throw new Error(body.error?.code ?? "WORKSPACES_UNAVAILABLE");
-  }
+const WORKSPACE_CACHE_NS = "workspace-shell";
+const WORKSPACE_CACHE_TTL_MS = 5 * 60_000;
 
-  return body.data;
+function cachedLabelFor(kind: AuthenticatedShellKind) {
+  return getCachedResource<string>(WORKSPACE_CACHE_NS, kind, WORKSPACE_CACHE_TTL_MS);
+}
+
+function matchesShellKind(
+  kind: AuthenticatedShellKind,
+  workspace: { kind: "client" | "organisation" | "platform" },
+) {
+  if (kind === "client") return workspace.kind === "client";
+  if (kind === "professional") return workspace.kind === "organisation";
+  return workspace.kind === "platform";
 }
 
 export function AuthenticatedShell({
   kind,
-  title,
-  description,
+  title = "Workspace",
+  description = "",
   children,
   hideIntro = false,
 }: {
   kind: AuthenticatedShellKind;
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   children: ReactNode;
   hideIntro?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const queryClient = useOptionalQueryClient();
+  const scrollContainerRef = useRef<HTMLElement>(null);
+  const previousPathnameRef = useRef(pathname);
   const { data: session, isPending } = authClient.useSession();
-  const [workspaceLabel, setWorkspaceLabel] = useState<string>("Workspace");
-  const [ready, setReady] = useState(false);
+  const cachedLabel = cachedLabelFor(kind);
+  const [workspaceLabel, setWorkspaceLabel] = useState<string>(
+    cachedLabel ?? "Workspace",
+  );
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [workspaceRevision, setWorkspaceRevision] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const sessionUserId = session?.user.id;
+  const previousUserIdRef = useRef<string | null>(null);
+  const previousWorkspaceIdRef = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const previousRootOverflow = root.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+
+    root.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    root.scrollTop = 0;
+    body.scrollTop = 0;
+
+    return () => {
+      root.style.overflow = previousRootOverflow;
+      body.style.overflow = previousBodyOverflow;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (previousPathnameRef.current === pathname) return;
+
+    previousPathnameRef.current = pathname;
+    if (!window.location.hash && scrollContainerRef.current) {
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (isPending) {
@@ -69,133 +141,244 @@ export function AuthenticatedShell({
     }
 
     if (!session) {
-      router.replace("/login");
+      void queryClient?.cancelQueries();
+      queryClient?.clear();
+      clearAllClientResourceCaches();
+      previousUserIdRef.current = null;
+      previousWorkspaceIdRef.current = null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear workspace scope on sign-out
+      setWorkspaceId(null);
+      router.replace(
+        loginHrefFor(pathWithSearch(pathname, window.location.search)),
+      );
       return;
     }
 
-    void fetchWorkspaces()
-      .then(async (data) => {
-        const matching = data.workspaces.find((item) => {
-          if (kind === "client") {
-            return item.kind === "client";
-          }
-          if (kind === "professional") {
-            return item.kind === "organisation";
-          }
-          return item.kind === "platform";
-        });
+    if (session?.user.id && previousUserIdRef.current && previousUserIdRef.current !== session.user.id) {
+      void queryClient?.cancelQueries();
+      queryClient?.clear();
+      clearAllClientResourceCaches();
+      previousWorkspaceIdRef.current = null;
+      setWorkspaceId(null);
+    }
+    previousUserIdRef.current = session?.user.id ?? null;
+  }, [isPending, pathname, queryClient, router, session]);
 
-        if (!matching && kind !== "client") {
-          router.replace("/workspace/select");
+  useEffect(() => {
+    if (isPending || !sessionUserId) return;
+
+    const controller = new AbortController();
+
+    async function recoverWorkspace() {
+      const workspaces = await listAvailableWorkspaces(controller.signal);
+      const matching = workspaces.find((item) => matchesShellKind(kind, item));
+
+      if (!matching) {
+        if (kind === "professional") {
+          router.replace("/professional/onboarding");
           return;
         }
 
-        if (matching) {
-          setWorkspaceLabel(matching.label);
-          await fetch("/api/v1/workspaces/select", {
-            method: "POST",
-            credentials: "include",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ workspaceId: matching.id }),
-          });
-        } else if (data.workspaces[0]) {
-          setWorkspaceLabel(data.workspaces[0].label);
+        setError(
+          kind === "admin"
+            ? "You do not have administrator access."
+            : "A client workspace is not available for this account.",
+        );
+        return;
+      }
+
+      const selected = await selectWorkspace(matching.id, controller.signal);
+      if (controller.signal.aborted) return;
+      if (previousWorkspaceIdRef.current && previousWorkspaceIdRef.current !== selected.id) {
+        void queryClient?.cancelQueries();
+        queryClient?.clear();
+        clearAllClientResourceCaches();
+      }
+      previousWorkspaceIdRef.current = selected.id;
+      setWorkspaceId(selected.id);
+      setWorkspaceLabel(selected.label);
+      setCachedResource(WORKSPACE_CACHE_NS, kind, selected.label);
+      setError(null);
+      setWorkspaceRevision((revision) => revision + 1);
+    }
+
+    async function bootstrapWorkspace() {
+      try {
+        const current = await getCurrentWorkspace(controller.signal);
+        if (!matchesShellKind(kind, current)) {
+          await recoverWorkspace();
+          return;
         }
 
-        setReady(true);
-      })
-      .catch(() => {
-        setError("Unable to resolve workspace access.");
-        setReady(true);
-      });
-  }, [isPending, kind, router, session]);
+        if (controller.signal.aborted) return;
+        if (previousWorkspaceIdRef.current && previousWorkspaceIdRef.current !== current.id) {
+          void queryClient?.cancelQueries();
+          queryClient?.clear();
+          clearAllClientResourceCaches();
+        }
+        previousWorkspaceIdRef.current = current.id;
+        setWorkspaceId(current.id);
+        setWorkspaceLabel(current.label);
+        setCachedResource(WORKSPACE_CACHE_NS, kind, current.label);
+        setError(null);
+      } catch (cause) {
+        if (cause instanceof DOMException && cause.name === "AbortError") return;
+        if (cause instanceof WorkspaceEntryError && cause.status === 401) {
+          router.replace(
+            loginHrefFor(
+              pathWithSearch(window.location.pathname, window.location.search),
+            ),
+          );
+          return;
+        }
+
+        try {
+          await recoverWorkspace();
+        } catch (recoveryCause) {
+          if (
+            recoveryCause instanceof DOMException &&
+            recoveryCause.name === "AbortError"
+          ) {
+            return;
+          }
+          setError("Unable to resolve workspace access.");
+        }
+      }
+    }
+
+    void bootstrapWorkspace();
+    return () => controller.abort();
+  }, [isPending, kind, queryClient, router, sessionUserId]);
+
+  const shell = (
+    <>
+      <div className="shrink-0 border-b border-black/8 px-4 py-3 sm:px-6 lg:h-[92px] lg:px-8 lg:py-[18px]">
+        <SiteHeader
+          variant="workspace"
+          workspaceContext={{ kind, label: workspaceLabel }}
+        />
+      </div>
+      <div className="flex shrink-0 items-center justify-end border-b border-black/8 bg-white px-4 py-2 sm:px-6 lg:hidden lg:px-8">
+        <WorkspaceMenu
+          kind={kind}
+          workspaceLabel={workspaceLabel}
+          open={mobileOpen}
+          onOpenChange={setMobileOpen}
+        />
+      </div>
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[228px_minmax(0,1fr)]">
+        <WorkspaceSidebar
+          kind={kind}
+          workspaceLabel={workspaceLabel}
+          className="hidden min-h-0 overflow-hidden rounded-none border-y-0 border-l-0 shadow-none lg:flex"
+        />
+        <main
+          ref={scrollContainerRef}
+          className="min-h-0 min-w-0 overflow-x-clip overflow-y-auto bg-[#f8fafb] p-4 sm:p-6 lg:p-8"
+        >
+          {error ? (
+            <InlineAlert
+              variant="error"
+              title="Workspace unavailable"
+              description={error}
+            />
+          ) : (
+            <WorkspaceChromeProvider key={workspaceRevision}>
+              <div className="flex min-h-full flex-col gap-6">
+                <div>
+                  {!hideIntro ? (
+                    <div className="mb-6">
+                      <p className="inline-flex items-center gap-2 rounded-full border border-black/7 bg-white px-4 py-2 type-caption text-[#626b75]">
+                        Authenticated workspace
+                      </p>
+                      <h1 className="mt-5 type-public-title">{title}</h1>
+                      {description ? (
+                        <p className="mt-4 max-w-2xl text-base leading-7 text-[#68717b]">
+                          {description}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {children}
+                </div>
+                <WorkspaceFooter />
+              </div>
+            </WorkspaceChromeProvider>
+          )}
+        </main>
+      </div>
+    </>
+  );
+
+  const content = kind === "professional" ? (
+    <ProfessionalDashboardProvider key={workspaceRevision} enabled={!isPending && Boolean(sessionUserId)}>
+      {shell}
+    </ProfessionalDashboardProvider>
+  ) : kind === "client" ? (
+    <ClientDashboardProvider key={workspaceRevision} enabled={!isPending && Boolean(sessionUserId)}>
+      {shell}
+    </ClientDashboardProvider>
+  ) : (
+    <Fragment key={workspaceRevision}>{shell}</Fragment>
+  );
 
   return (
-    <div className={pageBackdropClass}>
-      <div className={pageFrameClass()}>
-        <SiteHeader />
-
-        <div className="mt-4 mb-4 flex items-center justify-end gap-3 lg:hidden">
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-11 rounded-full border-black/8 px-4"
-                aria-label="Open workspace menu"
-              >
-                <Menu className="size-5" aria-hidden="true" />
-                Workspace menu
-              </Button>
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="w-[min(100%,20rem)] border-r border-black/8 bg-[#f7f9fa] p-0"
-              aria-describedby="workspace-menu-description"
-            >
-              <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
-              <SheetDescription id="workspace-menu-description" className="sr-only">
-                Switch workspace and open app destinations.
-              </SheetDescription>
-              <WorkspaceSidebar
-                kind={kind}
-                workspaceLabel={workspaceLabel}
-                className="h-full rounded-none border-0"
-              />
-            </SheetContent>
-          </Sheet>
-        </div>
-
-        <div className="grid gap-5 lg:mt-5 lg:grid-cols-[272px_minmax(0,1fr)] lg:items-start">
-          <WorkspaceSidebar
-            kind={kind}
-            workspaceLabel={workspaceLabel}
-            className="sticky top-6 hidden max-h-[calc(100vh-3rem)] lg:flex"
-          />
-
-          <main className="min-w-0">
-            <Surface
-              className={
-                hideIntro
-                  ? "overflow-hidden p-5 sm:p-7"
-                  : "overflow-hidden p-7 sm:p-9"
-              }
-            >
-              {!hideIntro ? (
-                <>
-                  <p className="inline-flex items-center gap-2 rounded-full border border-black/7 bg-[#f7f9fa] px-4 py-2 text-[0.78rem] text-[#626b75]">
-                    Authenticated workspace
-                  </p>
-                  <h1 className="mt-5 text-3xl font-bold tracking-[-0.045em] sm:text-4xl">
-                    {title}
-                  </h1>
-                  <p className="mt-4 max-w-2xl text-base leading-7 text-[#68717b]">
-                    {description}
-                  </p>
-                </>
-              ) : null}
-              <div className={hideIntro ? undefined : "mt-8"}>
-                {!ready ? (
-                  <StatePanel
-                    variant="loading"
-                    title="Loading workspace"
-                    description="Resolving your session and eligible workspace access."
-                  />
-                ) : error ? (
-                  <InlineAlert
-                    variant="error"
-                    title="Workspace unavailable"
-                    description={error}
-                  />
-                ) : (
-                  children
-                )}
-              </div>
-            </Surface>
-          </main>
-        </div>
-
-        <AuthenticatedFooter kind={kind} />
+    <div className={`${pageBackdropSurfaceClass} fixed inset-0 overflow-hidden`}>
+      <div className="flex h-full w-full min-w-0 flex-col overflow-hidden bg-white">
+        <WorkspaceShellContext.Provider value={{ workspaceLabel, workspaceId, userId: sessionUserId ?? null }}>
+          {content}
+        </WorkspaceShellContext.Provider>
       </div>
     </div>
+  );
+}
+
+function WorkspaceFooter() {
+  const { contentReady } = useWorkspaceChrome();
+  if (!contentReady) {
+    return null;
+  }
+  return <AuthenticatedFooter className="mt-auto" />;
+}
+
+function WorkspaceMenu({
+  kind,
+  workspaceLabel,
+  open,
+  onOpenChange,
+}: {
+  kind: AuthenticatedShellKind;
+  workspaceLabel: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetTrigger asChild>
+        <Button
+          variant="outline"
+          className="h-11 rounded-xl border-black/8 px-4"
+          aria-label="Open workspace menu"
+        >
+          <Menu className="size-5" aria-hidden="true" />
+          Menu
+        </Button>
+      </SheetTrigger>
+      <SheetContent
+        side="left"
+        className="w-[min(100%,20rem)] border-r border-black/8 bg-[#f7f9fa] p-0"
+        aria-describedby="workspace-menu-description"
+      >
+        <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
+        <SheetDescription id="workspace-menu-description" className="sr-only">
+          Switch workspace and open app destinations.
+        </SheetDescription>
+        <WorkspaceSidebar
+          kind={kind}
+          workspaceLabel={workspaceLabel}
+          className="h-full rounded-none border-0"
+        />
+      </SheetContent>
+    </Sheet>
   );
 }

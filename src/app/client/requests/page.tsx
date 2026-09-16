@@ -1,11 +1,12 @@
-import { WorkspaceUnavailablePage } from "@/components/workspace/workspace-unavailable-page";
+import { Suspense } from "react";
+
+import { ClientRequestsPage as ClientRequestsWorkspace } from "@/components/service-requests/client-requests-page";
+import { ListPageSkeleton } from "@/components/ui/workspace-skeletons";
 
 export default function ClientRequestsPage() {
   return (
-    <WorkspaceUnavailablePage
-      kind="client"
-      title="Your requests"
-      description="Client request tracking will arrive with the request workflow."
-    />
+    <Suspense fallback={<ListPageSkeleton title="Your service requests" summaryLabels={["Total requests", "Active requests", "Needs action", "Drafts"]} />}>
+      <ClientRequestsWorkspace />
+    </Suspense>
   );
 }

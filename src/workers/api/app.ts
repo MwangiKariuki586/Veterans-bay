@@ -5,14 +5,34 @@ import {
   AppError,
   type ValidationIssue,
 } from "../../platform/errors/app-error";
+import { createBookingRoutes } from "../../modules/bookings/routes";
+import { createAdministrationRoutes } from "../../modules/administration/routes";
+import { createDashboardRoutes } from "../../modules/dashboards/routes";
+import { createNotificationRoutes } from "../../modules/notifications/routes";
 import type { ApiErrorBody } from "../../platform/http/contracts";
 import { logError } from "../../platform/logging/logger";
 import { createIdentityRoutes } from "../../modules/identity/routes";
+import { createConversationRoutes } from "../../modules/conversations/routes";
+import { createMarketplaceRoutes } from "../../modules/marketplace/routes";
+import { createJobRoutes } from "../../modules/jobs/routes";
+import { createInvoiceRoutes } from "../../modules/invoices/routes";
+import { createMarketplaceModerationRoutes } from "../../modules/marketplace-moderation/routes";
 import { createOutboxRoutes } from "../../modules/outbox/routes";
+import { createQuotationRoutes } from "../../modules/quotations/routes";
+import { createProfessionalOnboardingRoutes } from "../../modules/professional-onboarding/routes";
+import { createProfessionalServicesRoutes } from "../../modules/professional-services/routes";
+import { createProfessionalTeamRoutes } from "../../modules/professional-team/routes";
+import { createSavedProfessionalsRoutes } from "../../modules/saved-professionals/routes";
+import { createServiceRequestRoutes } from "../../modules/service-requests/routes";
 import { createStorageRoutes } from "../../modules/storage/routes";
 import type { SystemRepository } from "../../modules/system/repository";
 import { createSystemRoutes } from "../../modules/system/routes";
 import { createWorkspaceRoutes } from "../../modules/workspace/routes";
+import { createWarrantyRoutes } from "../../modules/warranties/routes";
+import { createReviewRoutes } from "../../modules/reviews/routes";
+import { createCustomerRoutes } from "../../modules/customers/routes";
+import { createClientContextRoutes } from "../../modules/client-context/routes";
+import { createServiceReminderRoutes } from "../../modules/service-reminders/routes";
 import { createAuth } from "../../platform/auth/create-auth";
 import { rateLimitMiddleware } from "./middleware/rate-limit";
 import { requestContextMiddleware } from "./middleware/request-context";
@@ -66,15 +86,51 @@ export function createApiApp(dependencies: ApiAppDependencies = {}) {
   api.use("/api/*", rateLimitMiddleware);
 
   api.on(["GET", "POST"], "/api/auth/*", (context) => {
-    const auth = createAuth(context.get("environment"));
+    const environment = context.get("environment");
+    if (
+      environment.PUBLIC_REGISTRATION_ENABLED !== "true" &&
+      context.req.method === "POST" &&
+      context.req.path === "/api/auth/sign-up/email"
+    ) {
+      return context.json<ApiErrorBody>(
+        errorBody(
+          "PUBLIC_REGISTRATION_DISABLED",
+          "Public registration is currently disabled.",
+          context.get("requestId"),
+        ),
+        403,
+      );
+    }
+
+    const auth = createAuth(environment);
     return auth.handler(context.req.raw);
   });
 
   api.route("/api", createSystemRoutes(dependencies.systemRepository));
+  api.route("/api", createAdministrationRoutes());
+  api.route("/api", createDashboardRoutes());
   api.route("/api", createIdentityRoutes());
+  api.route("/api", createMarketplaceRoutes());
+  api.route("/api", createMarketplaceModerationRoutes());
+  api.route("/api", createSavedProfessionalsRoutes());
+  api.route("/api", createServiceRequestRoutes());
+  api.route("/api", createConversationRoutes());
+  api.route("/api", createQuotationRoutes());
+  api.route("/api", createBookingRoutes());
+  api.route("/api", createJobRoutes());
+  api.route("/api", createInvoiceRoutes());
+  api.route("/api", createNotificationRoutes());
   api.route("/api", createWorkspaceRoutes());
+  api.route("/api", createWarrantyRoutes());
+  api.route("/api", createReviewRoutes());
+  api.route("/api", createCustomerRoutes());
+  api.route("/api", createClientContextRoutes());
+  api.route("/api", createServiceReminderRoutes());
   api.route("/api", createStorageRoutes());
   api.route("/api", createOutboxRoutes());
+  api.route("/api", createProfessionalOnboardingRoutes());
+  api.route("/api", createProfessionalServicesRoutes());
+  api.route("/api", createProfessionalTeamRoutes());
 
   api.notFound((context) =>
     context.json<ApiErrorBody>(

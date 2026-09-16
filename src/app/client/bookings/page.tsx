@@ -1,15 +1,12 @@
-import { AuthenticatedShell } from "@/components/workspace/authenticated-shell";
-import { ClientBookingsPage } from "@/components/workspace/client-bookings-page";
+import { Suspense } from "react";
+
+import { BookingList } from "@/components/bookings/booking-list";
+import { ListPageSkeleton } from "@/components/ui/workspace-skeletons";
 
 export default function ClientBookingsRoute() {
   return (
-    <AuthenticatedShell
-      kind="client"
-      title="Your bookings"
-      description="Client bookings will arrive with the fulfilment phase."
-      hideIntro
-    >
-      <ClientBookingsPage />
-    </AuthenticatedShell>
+    <Suspense fallback={<ListPageSkeleton title="Your bookings" summaryLabels={["Total bookings", "Pending", "Upcoming", "In service"]} />}>
+      <BookingList audience="client" />
+    </Suspense>
   );
 }

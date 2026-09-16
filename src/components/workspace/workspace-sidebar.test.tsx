@@ -15,30 +15,39 @@ describe("workspace sidebar", () => {
 
     expect(screen.getByRole("navigation", { name: "Workspace navigation" })).toBeInTheDocument();
     expect(screen.getByText("Alex's Plumbing")).toBeInTheDocument();
-    expect(screen.getByText("Verified Pro")).toBeInTheDocument();
-
     const dashboard = screen.getByRole("link", { name: "Dashboard" });
     expect(dashboard).toHaveAttribute("href", "/professional");
     expect(dashboard).toHaveAttribute("aria-current", "page");
 
-    expect(screen.getByRole("link", { name: "Requests" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Enquiries" })).toHaveAttribute(
       "href",
-      "/professional/requests",
+      "/professional/enquiries",
     );
-    expect(screen.getByRole("link", { name: "Open help center" })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: "Finance" }),
+    ).toHaveAttribute("href", "/professional/invoices");
+    expect(
+      screen.getByRole("link", { name: "Services" }),
+    ).toHaveAttribute("href", "/professional/services");
+    expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
       "href",
-      "/help",
+      "/support",
     );
   });
 
-  it("renders a lighter client navigation set", () => {
+  it("renders a lighter client navigation set with shared chrome", () => {
     render(<WorkspaceSidebar kind="client" workspaceLabel="Personal" />);
 
     expect(screen.getByRole("link", { name: "Invoices" })).toHaveAttribute(
       "href",
       "/client/invoices",
     );
-    expect(screen.queryByText("Verified Pro")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Quotations" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Quotations" }),
+    ).toHaveAttribute("href", "/client/quotations");
+    expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
+      "href",
+      "/support",
+    );
   });
 });

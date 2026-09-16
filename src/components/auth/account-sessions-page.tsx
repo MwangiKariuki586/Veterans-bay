@@ -11,6 +11,7 @@ import { InlineAlert } from "@/components/ui/inline-alert";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
 import { authClient } from "@/lib/auth-client";
+import { loginHrefFor } from "@/lib/auth-redirect";
 import { cn } from "@/lib/utils";
 import type { PublicSession } from "@/modules/identity/types";
 
@@ -43,7 +44,7 @@ export function AccountSessionsPage() {
     }
 
     if (!session) {
-      router.replace("/login");
+      router.replace(loginHrefFor("/account/sessions"));
       return;
     }
 

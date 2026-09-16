@@ -1,3 +1,5 @@
+"use client";
+
 import {
   AlertCircle,
   Ban,
@@ -9,8 +11,9 @@ import {
   RefreshCw,
   ShieldAlert,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
+import { useWorkspaceChrome } from "@/components/workspace/workspace-chrome";
 import { cn } from "@/lib/utils";
 
 import { Button } from "./button";
@@ -103,6 +106,7 @@ interface StatePanelProps {
   icon?: ReactNode;
   className?: string;
   children?: ReactNode;
+  headingLevel?: 1 | 2 | 3;
 }
 
 export function StatePanel({
@@ -111,6 +115,7 @@ export function StatePanel({
   className,
   description,
   icon,
+  headingLevel = 3,
   onAction,
   title,
   variant = "empty",
@@ -121,7 +126,16 @@ export function StatePanel({
       : (variant as FeedbackStateVariant);
   const config = variantConfig[resolvedVariant] ?? variantConfig.empty;
   const Icon = config.Icon;
+  const Heading = headingLevel === 1 ? "h1" : headingLevel === 2 ? "h2" : "h3";
   const showSpinner = resolvedVariant === "loading" || resolvedVariant === "processing";
+  const { setContentReady } = useWorkspaceChrome();
+  useEffect(() => {
+    if (!showSpinner) {
+      return;
+    }
+    setContentReady(false);
+    return () => setContentReady(true);
+  }, [setContentReady, showSpinner]);
 
   return (
     <section
@@ -146,8 +160,8 @@ export function StatePanel({
           ))}
       </span>
       <div className="grid max-w-sm gap-1">
-        <h3 className="font-bold">{title}</h3>
-        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+        <Heading className="type-section-title">{title}</Heading>
+        <p className="type-body text-muted-foreground">{description}</p>
       </div>
       {children}
       {actionLabel ? (
