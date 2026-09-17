@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/utils";
@@ -1673,14 +1674,127 @@ export function PublicServicePage({ slug }: { slug: string }) {
     );
   if (!service)
     return (
-      <div className="flex flex-1 flex-col py-4">
-        <StatePanel
-          variant="loading"
-          headingLevel={1}
-          title="Loading service"
-          description="Retrieving the latest published service."
-          className="flex flex-1 min-h-[420px] flex-col items-center justify-center rounded-[22px] sm:min-h-[480px]"
-        />
+      <div
+        className="w-full space-y-4"
+        role="status"
+        aria-label="Loading service"
+        aria-busy="true"
+      >
+        {/* Breadcrumb skeleton */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Skeleton className="h-3 w-8 rounded-full" />
+          <Skeleton className="h-3 w-3 rounded-full bg-black/10" />
+          <Skeleton className="h-3 w-16 rounded-full" />
+          <Skeleton className="h-3 w-3 rounded-full bg-black/10" />
+          <Skeleton className="h-3 w-28 rounded-full" />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
+          {/* LEFT COLUMN */}
+          <div className="space-y-4">
+            {/* Hero skeleton */}
+            <div className="overflow-hidden rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(18,32,44,0.07)]">
+              <div className="grid gap-0 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-stretch">
+                <Skeleton className="aspect-[4/3] min-h-[240px] rounded-none lg:aspect-auto lg:h-full lg:min-h-0" />
+                <div className="flex flex-col gap-3 p-5 sm:p-6">
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                  <Skeleton className="h-7 w-3/4 rounded-lg" />
+                  <Skeleton className="h-4 w-full rounded-full" />
+                  <Skeleton className="h-4 w-5/6 rounded-full" />
+                  <div className="mt-2 grid grid-cols-2 gap-3 py-3 sm:grid-cols-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Skeleton className="size-7 shrink-0 rounded-full" />
+                        <Skeleton className="h-3 w-20 rounded-full" />
+                      </div>
+                    ))}
+                  </div>
+                  <Skeleton className="mt-1 h-3 w-full rounded-full" />
+                  <Skeleton className="h-3 w-4/5 rounded-full" />
+                  <div className="mt-6 space-y-2">
+                    <Skeleton className="h-3 w-20 rounded-full" />
+                    <Skeleton className="h-6 w-32 rounded-lg" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Thumbnails skeleton - desktop */}
+            <div className="hidden lg:flex gap-3 overflow-hidden pt-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="size-[88px] shrink-0 rounded-xl" />
+              ))}
+            </div>
+            {/* Thumbnails skeleton - mobile */}
+            <div className="flex gap-3 overflow-x-hidden pb-1 lg:hidden">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="size-20 shrink-0 rounded-xl" />
+              ))}
+            </div>
+
+            {/* Details tabs skeleton */}
+            <div className="overflow-hidden rounded-[16px] border border-black/8 bg-white p-5 sm:p-6">
+              <div className="flex gap-2 border-b border-black/8 pb-4 lg:hidden">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-24 shrink-0 rounded-full" />
+                ))}
+              </div>
+              <div className="mt-4 grid gap-6 lg:mt-0 lg:grid-cols-[1.15fr_0.95fr_0.95fr]">
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-32 rounded-full" />
+                  <Skeleton className="h-3 w-full rounded-full" />
+                  <Skeleton className="h-3 w-5/6 rounded-full" />
+                  <div className="mt-4 space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Skeleton className="size-8 shrink-0 rounded-full" />
+                        <Skeleton className="h-3 w-24 rounded-full" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3 border-t border-black/5 pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                  <Skeleton className="h-4 w-24 rounded-full" />
+                  <div className="mt-3 space-y-2.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton key={i} className="h-3 w-full rounded-full" />
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3 border-t border-black/5 pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                  <Skeleton className="h-4 w-32 rounded-full" />
+                  <div className="mt-3 space-y-2.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton key={i} className="h-3 w-full rounded-full" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 grid gap-2">
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-12 w-full rounded-xl hidden sm:block" />
+              </div>
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-40 rounded-full" />
+                  <Skeleton className="h-4 w-24 rounded-full" />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-28 rounded-xl" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT RAIL skeleton */}
+          <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+            <Skeleton className="h-[340px] rounded-[16px]" />
+            <Skeleton className="h-[220px] rounded-[16px]" />
+            <Skeleton className="h-[140px] rounded-[16px]" />
+          </aside>
+        </div>
       </div>
     );
 
@@ -1750,10 +1864,10 @@ export function PublicServicePage({ slug }: { slug: string }) {
         <div className="space-y-4">
           {/* Hero */}
           <div className="overflow-hidden rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(18,32,44,0.07)]">
-            <div className="grid gap-0 lg:grid-cols-[380px_minmax(0,1fr)]">
+            <div className="grid gap-0 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-stretch">
               {/* Image */}
-              <div className="relative flex flex-col">
-                <div className="relative aspect-[4/3] overflow-hidden bg-[#eef2f4] lg:aspect-auto lg:min-h-[340px]">
+              <div className="relative flex flex-col self-stretch">
+                <div className="relative flex-1 overflow-hidden bg-[#eef2f4] aspect-[4/3] lg:aspect-auto lg:h-full">
                   <Image
                     src={heroImage}
                     alt={service.name}
@@ -1772,45 +1886,6 @@ export function PublicServicePage({ slug }: { slug: string }) {
                     </span>
                   ) : null}
                 </div>
-                {thumbnails.length > 1 ? (
-                  <div className="hidden grid-cols-5 gap-2 p-3 lg:grid">
-                    {thumbnails.map((src, idx) => (
-                      <button
-                        key={src + idx}
-                        type="button"
-                        onClick={() => setActiveImage(src)}
-                        className={cn(
-                          "relative aspect-square overflow-hidden rounded-xl border",
-                          activeImage === src
-                            ? "border-[#5f8d11]"
-                            : "border-black/8",
-                        )}
-                      >
-                        <Image
-                          src={src}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          sizes="60px"
-                        />
-                      </button>
-                    ))}
-                    {extraPhotos > 0 && thumbnails.length < 5 ? (
-                      <div className="relative aspect-square overflow-hidden rounded-xl border border-black/8">
-                        <Image
-                          src={gallery[5] ?? heroImage}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          sizes="60px"
-                        />
-                        <span className="absolute inset-0 grid place-items-center bg-black/45 text-xs font-semibold text-white">
-                          +{extraPhotos}
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
 
               {/* Details */}
@@ -1848,7 +1923,7 @@ export function PublicServicePage({ slug }: { slug: string }) {
                   expert workmanship.
                 </p>
 
-                <div className="mt-auto pt-5">
+                <div className="mt-6">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a9aa8]">
                     Starting price
                   </p>
@@ -1860,39 +1935,99 @@ export function PublicServicePage({ slug }: { slug: string }) {
             </div>
           </div>
 
+          {/* Thumbnails - below hero (desktop) */}
+          {thumbnails.length > 1 ? (
+            <div className="hidden lg:flex gap-3 overflow-x-auto pt-1">
+              {thumbnails.map((src, idx) => (
+                <button
+                  key={src + idx}
+                  type="button"
+                  onClick={() => setActiveImage(src)}
+                  aria-label={`View image ${idx + 1}`}
+                  aria-pressed={activeImage === src}
+                  className={cn(
+                    "relative size-[88px] shrink-0 overflow-hidden rounded-xl border-2 bg-white p-1 transition-all",
+                    activeImage === src
+                      ? "border-[#5f8d11] shadow-[0_0_0_3px_rgba(95,141,17,0.18)]"
+                      : "border-black/10 hover:border-black/20",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "relative block size-full overflow-hidden rounded-lg",
+                      activeImage === src ? "ring-1 ring-[#5f8d11]/10" : "",
+                    )}
+                  >
+                    <Image
+                      src={src}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="88px"
+                    />
+                  </span>
+                </button>
+              ))}
+              {extraPhotos > 0 ? (
+                <div className="relative size-[88px] shrink-0 overflow-hidden rounded-xl border-2 border-black/10 bg-white p-1">
+                  <span className="relative block size-full overflow-hidden rounded-lg">
+                    <Image
+                      src={gallery[5] ?? heroImage}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="88px"
+                    />
+                    <span className="absolute inset-0 grid place-items-center rounded-lg bg-black/45 text-xs font-semibold text-white">
+                      +{extraPhotos}
+                    </span>
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Mobile thumbnails strip */}
           {thumbnails.length > 1 ? (
-            <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
+            <div className="flex gap-3 overflow-x-auto pb-1 lg:hidden">
               {gallery.slice(0, 5).map((src, idx) => (
                 <button
                   key={src + idx}
                   type="button"
                   onClick={() => setActiveImage(src)}
+                  aria-label={`View image ${idx + 1}`}
+                  aria-pressed={activeImage === src}
                   className={cn(
-                    "relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border",
-                    activeImage === src ? "border-[#5f8d11]" : "border-black/8",
+                    "relative size-20 shrink-0 overflow-hidden rounded-xl border-2 bg-white p-1 transition-all",
+                    activeImage === src
+                      ? "border-[#5f8d11] shadow-[0_0_0_3px_rgba(95,141,17,0.18)]"
+                      : "border-black/10 hover:border-black/20",
                   )}
                 >
-                  <Image
-                    src={src}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="64px"
-                  />
+                  <span className="relative block size-full overflow-hidden rounded-lg">
+                    <Image
+                      src={src}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                  </span>
                 </button>
               ))}
               {extraPhotos > 0 ? (
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-black/8">
-                  <Image
-                    src={gallery[5] ?? heroImage}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="64px"
-                  />
-                  <span className="absolute inset-0 grid place-items-center bg-black/45 text-xs font-semibold text-white">
-                    +{extraPhotos}
+                <div className="relative size-20 shrink-0 overflow-hidden rounded-xl border-2 border-black/10 bg-white p-1">
+                  <span className="relative block size-full overflow-hidden rounded-lg">
+                    <Image
+                      src={gallery[5] ?? heroImage}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                    <span className="absolute inset-0 grid place-items-center rounded-lg bg-black/45 text-xs font-semibold text-white">
+                      +{extraPhotos}
+                    </span>
                   </span>
                 </div>
               ) : null}
@@ -2673,7 +2808,6 @@ function AvailabilityCard({
       <div className="rounded-[16px] border border-black/8 bg-white p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[#0a1724]">Availability</h2>
-          <ChevronDown className="size-4 rotate-180 text-[#6b7782]" />
         </div>
         <p className="mt-2 text-xs text-[#6b7782]">Selected time</p>
         <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#f3f9e5] px-3 py-2.5 text-sm font-semibold text-[#5f8d11]">
@@ -2717,20 +2851,6 @@ function AvailabilityCard({
     <div className="rounded-[16px] border border-black/8 bg-white p-5">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-[#0a1724]">Availability</h2>
-        <button
-          type="button"
-          onClick={onCheckAvailability}
-          aria-expanded={isExpanded}
-          aria-label="Toggle availability"
-          className="grid size-7 place-items-center rounded-full hover:bg-[#f7f9fa]"
-        >
-          <ChevronDown
-            className={cn(
-              "size-4 text-[#6b7782] transition-transform",
-              isExpanded ? "rotate-180" : "",
-            )}
-          />
-        </button>
       </div>
 
       <p className="mt-2 text-xs text-[#6b7782]">Next slot available</p>
