@@ -2808,7 +2808,6 @@ function AvailabilityCard({
       <div className="rounded-[16px] border border-black/8 bg-white p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[#0a1724]">Availability</h2>
-          <ChevronDown className="size-4 rotate-180 text-[#6b7782]" />
         </div>
         <p className="mt-2 text-xs text-[#6b7782]">Selected time</p>
         <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#f3f9e5] px-3 py-2.5 text-sm font-semibold text-[#5f8d11]">
@@ -2852,20 +2851,6 @@ function AvailabilityCard({
     <div className="rounded-[16px] border border-black/8 bg-white p-5">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-[#0a1724]">Availability</h2>
-        <button
-          type="button"
-          onClick={onCheckAvailability}
-          aria-expanded={isExpanded}
-          aria-label="Toggle availability"
-          className="grid size-7 place-items-center rounded-full hover:bg-[#f7f9fa]"
-        >
-          <ChevronDown
-            className={cn(
-              "size-4 text-[#6b7782] transition-transform",
-              isExpanded ? "rotate-180" : "",
-            )}
-          />
-        </button>
       </div>
 
       <p className="mt-2 text-xs text-[#6b7782]">Next slot available</p>
