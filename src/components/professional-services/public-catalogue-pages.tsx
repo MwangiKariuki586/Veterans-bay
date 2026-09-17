@@ -1968,7 +1968,7 @@ export function PublicServicePage({ slug }: { slug: string }) {
                   </span>
                 </button>
               ))}
-              {extraPhotos > 0 && thumbnails.length < 5 ? (
+              {extraPhotos > 0 ? (
                 <div className="relative size-[88px] shrink-0 overflow-hidden rounded-xl border-2 border-black/10 bg-white p-1">
                   <span className="relative block size-full overflow-hidden rounded-lg">
                     <Image
