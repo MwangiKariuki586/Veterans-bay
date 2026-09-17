@@ -1750,10 +1750,10 @@ export function PublicServicePage({ slug }: { slug: string }) {
         <div className="space-y-4">
           {/* Hero */}
           <div className="overflow-hidden rounded-[20px] border border-black/8 bg-white shadow-[0_12px_36px_rgba(18,32,44,0.07)]">
-            <div className="grid gap-0 lg:grid-cols-[380px_minmax(0,1fr)]">
+            <div className="grid gap-0 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-stretch">
               {/* Image */}
-              <div className="relative flex flex-col">
-                <div className="relative aspect-[4/3] overflow-hidden bg-[#eef2f4] lg:aspect-auto lg:min-h-[340px]">
+              <div className="relative flex flex-col self-stretch">
+                <div className="relative flex-1 overflow-hidden bg-[#eef2f4] aspect-[4/3] lg:aspect-auto lg:h-full">
                   <Image
                     src={heroImage}
                     alt={service.name}
@@ -1772,45 +1772,6 @@ export function PublicServicePage({ slug }: { slug: string }) {
                     </span>
                   ) : null}
                 </div>
-                {thumbnails.length > 1 ? (
-                  <div className="hidden grid-cols-5 gap-2 p-3 lg:grid">
-                    {thumbnails.map((src, idx) => (
-                      <button
-                        key={src + idx}
-                        type="button"
-                        onClick={() => setActiveImage(src)}
-                        className={cn(
-                          "relative aspect-square overflow-hidden rounded-xl border",
-                          activeImage === src
-                            ? "border-[#5f8d11]"
-                            : "border-black/8",
-                        )}
-                      >
-                        <Image
-                          src={src}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          sizes="60px"
-                        />
-                      </button>
-                    ))}
-                    {extraPhotos > 0 && thumbnails.length < 5 ? (
-                      <div className="relative aspect-square overflow-hidden rounded-xl border border-black/8">
-                        <Image
-                          src={gallery[5] ?? heroImage}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          sizes="60px"
-                        />
-                        <span className="absolute inset-0 grid place-items-center bg-black/45 text-xs font-semibold text-white">
-                          +{extraPhotos}
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
 
               {/* Details */}
@@ -1848,7 +1809,7 @@ export function PublicServicePage({ slug }: { slug: string }) {
                   expert workmanship.
                 </p>
 
-                <div className="mt-auto pt-5">
+                <div className="mt-6">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a9aa8]">
                     Starting price
                   </p>
@@ -1860,39 +1821,99 @@ export function PublicServicePage({ slug }: { slug: string }) {
             </div>
           </div>
 
+          {/* Thumbnails - below hero (desktop) */}
+          {thumbnails.length > 1 ? (
+            <div className="hidden lg:flex gap-3 overflow-x-auto pt-1">
+              {thumbnails.map((src, idx) => (
+                <button
+                  key={src + idx}
+                  type="button"
+                  onClick={() => setActiveImage(src)}
+                  aria-label={`View image ${idx + 1}`}
+                  aria-pressed={activeImage === src}
+                  className={cn(
+                    "relative size-[88px] shrink-0 overflow-hidden rounded-xl border-2 bg-white p-1 transition-all",
+                    activeImage === src
+                      ? "border-[#5f8d11] shadow-[0_0_0_3px_rgba(95,141,17,0.18)]"
+                      : "border-black/10 hover:border-black/20",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "relative block size-full overflow-hidden rounded-lg",
+                      activeImage === src ? "ring-1 ring-[#5f8d11]/10" : "",
+                    )}
+                  >
+                    <Image
+                      src={src}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="88px"
+                    />
+                  </span>
+                </button>
+              ))}
+              {extraPhotos > 0 && thumbnails.length < 5 ? (
+                <div className="relative size-[88px] shrink-0 overflow-hidden rounded-xl border-2 border-black/10 bg-white p-1">
+                  <span className="relative block size-full overflow-hidden rounded-lg">
+                    <Image
+                      src={gallery[5] ?? heroImage}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="88px"
+                    />
+                    <span className="absolute inset-0 grid place-items-center rounded-lg bg-black/45 text-xs font-semibold text-white">
+                      +{extraPhotos}
+                    </span>
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Mobile thumbnails strip */}
           {thumbnails.length > 1 ? (
-            <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
+            <div className="flex gap-3 overflow-x-auto pb-1 lg:hidden">
               {gallery.slice(0, 5).map((src, idx) => (
                 <button
                   key={src + idx}
                   type="button"
                   onClick={() => setActiveImage(src)}
+                  aria-label={`View image ${idx + 1}`}
+                  aria-pressed={activeImage === src}
                   className={cn(
-                    "relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border",
-                    activeImage === src ? "border-[#5f8d11]" : "border-black/8",
+                    "relative size-20 shrink-0 overflow-hidden rounded-xl border-2 bg-white p-1 transition-all",
+                    activeImage === src
+                      ? "border-[#5f8d11] shadow-[0_0_0_3px_rgba(95,141,17,0.18)]"
+                      : "border-black/10 hover:border-black/20",
                   )}
                 >
-                  <Image
-                    src={src}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="64px"
-                  />
+                  <span className="relative block size-full overflow-hidden rounded-lg">
+                    <Image
+                      src={src}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                  </span>
                 </button>
               ))}
               {extraPhotos > 0 ? (
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-black/8">
-                  <Image
-                    src={gallery[5] ?? heroImage}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="64px"
-                  />
-                  <span className="absolute inset-0 grid place-items-center bg-black/45 text-xs font-semibold text-white">
-                    +{extraPhotos}
+                <div className="relative size-20 shrink-0 overflow-hidden rounded-xl border-2 border-black/10 bg-white p-1">
+                  <span className="relative block size-full overflow-hidden rounded-lg">
+                    <Image
+                      src={gallery[5] ?? heroImage}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                    <span className="absolute inset-0 grid place-items-center rounded-lg bg-black/45 text-xs font-semibold text-white">
+                      +{extraPhotos}
+                    </span>
                   </span>
                 </div>
               ) : null}

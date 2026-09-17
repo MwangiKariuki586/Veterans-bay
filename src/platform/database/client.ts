@@ -1,8 +1,25 @@
-import { Pool } from "@neondatabase/serverless";
+import { neonConfig, Pool } from "@neondatabase/serverless";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
 import * as schema from "./schema";
+
+// Cloudflare Workers cannot reliably maintain persistent WebSockets to Neon.
+// Use HTTP fetch for pooled queries. In Vitest we keep the dedicated
+// WebSocket path (ws package) for isolated transactional tests, otherwise
+// prefer fetch for both Workers and Node dev to avoid the "hung" detection
+// seen in miniflare when the WS handshake never completes.
+function shouldUseFetchTransport(): boolean {
+  if (typeof process !== "undefined" && (process.env.VITEST === "true" || process.env.NODE_ENV === "test")) {
+    return false;
+  }
+  return true;
+}
+
+if (shouldUseFetchTransport()) {
+  neonConfig.poolQueryViaFetch = true;
+  neonConfig.fetchEndpoint = (host) => `https://${host}/sql`;
+}
 
 export type DatabaseSchema = typeof schema;
 export type Database = NeonDatabase<DatabaseSchema>;
