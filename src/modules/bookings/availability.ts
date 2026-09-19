@@ -59,7 +59,6 @@ export function buildAvailableSlots(input: {
       startMs + durationMs <= input.to.getTime();
       startMs += intervalMs
     ) {
-      if (slots.length >= limit) break;
       const startsAt = new Date(startMs);
       const endsAt = new Date(startMs + durationMs);
       if (startsAt <= now) continue;
@@ -83,11 +82,12 @@ export function buildAvailableSlots(input: {
     }
   }
 
-  return slots.sort(
+  const sorted = slots.sort(
     (left, right) =>
       left.startsAt.localeCompare(right.startsAt) ||
       left.memberName.localeCompare(right.memberName),
   );
+  return sorted.slice(0, limit);
 }
 
 export function overlaps(
