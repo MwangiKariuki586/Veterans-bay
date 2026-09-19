@@ -189,10 +189,12 @@ export class CloudinaryStorageProvider implements StorageProvider {
     visibility: "public" | "private";
   }): Promise<string> {
     if (input.visibility === "public") {
+      if (input.resourceType === "raw") {
+        return `https://res.cloudinary.com/${this.config.cloudName}/${input.resourceType}/upload/${input.publicId}`;
+      }
       // Perf: cap public deliveries to w_768 with auto format/quality; originals can be 10 MB.
       // `c_limit` preserves aspect; `dpr_auto` handles retina without oversizing.
-      const transforms = input.resourceType === "image" ? "f_auto,q_auto,c_limit,w_768,dpr_auto" : "f_auto,q_auto";
-      return `https://res.cloudinary.com/${this.config.cloudName}/${input.resourceType}/upload/${transforms}/${input.publicId}`;
+      return `https://res.cloudinary.com/${this.config.cloudName}/${input.resourceType}/upload/f_auto,q_auto,c_limit,w_768,dpr_auto/${input.publicId}`;
     }
 
     const signature = await createDeliverySignature(

@@ -48,7 +48,17 @@ describe("cloudinary storage provider", () => {
         visibility: "public",
       }),
     ).resolves.toBe(
-      "https://res.cloudinary.com/demo/image/upload/veterans-bay/avatars/asset-1",
+      "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto,c_limit,w_768,dpr_auto/veterans-bay/avatars/asset-1",
+    );
+
+    await expect(
+      provider.createDeliveryUrl({
+        publicId: "veterans-bay/docs/asset-1",
+        resourceType: "raw",
+        visibility: "public",
+      }),
+    ).resolves.toBe(
+      "https://res.cloudinary.com/demo/raw/upload/veterans-bay/docs/asset-1",
     );
 
     const signature = await createDeliverySignature(
