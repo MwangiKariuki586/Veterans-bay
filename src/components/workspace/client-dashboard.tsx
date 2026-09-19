@@ -246,6 +246,7 @@ function relativeNext(iso: string | null) {
   });
 }
 
+/** Summarizes warranty, payment, and saved-professional protection signals. */
 function ServiceProtectionCard({
   data,
 }: {
@@ -445,6 +446,7 @@ function SpendingContentSkeleton() {
   );
 }
 
+/** Renders the client spending metrics and their daily trend chart. */
 function SpendingContent({ s }: { s: ClientDashboardData["spending"] }) {
   const currentVsPrev =
     s.previousMonthMinor === 0

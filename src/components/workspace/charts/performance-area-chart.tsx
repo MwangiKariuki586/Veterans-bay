@@ -2,6 +2,7 @@
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+/** Formats a KES minor-unit value for compact chart tooltips. */
 function formatMoney(value: number) {
   return new Intl.NumberFormat("en-KE", {
     style: "currency",
@@ -14,6 +15,7 @@ function formatMoney(value: number) {
 
 type PerformanceKey = "revenue" | "jobsCompleted" | "enquiries" | "quoteConversion";
 
+/** Plots the selected professional performance metric over time. */
 export function PerformanceAreaChart({
   series,
   active,

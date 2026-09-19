@@ -42,6 +42,7 @@ import type {
   CalendarEntry,
 } from "./types";
 
+/** Builds booking services around a request client or an independently owned client. */
 function createService(databaseUrl: string, existingClient?: ReturnType<typeof createDatabaseClient>) {
   const client = existingClient ?? createDatabaseClient(databaseUrl);
   const ownsClient = !existingClient;
@@ -85,6 +86,7 @@ function id(value: string) {
   return parseWithSchema(bookingIdSchema, value);
 }
 
+/** Registers authenticated client and professional booking endpoints. */
 export function createBookingRoutes() {
   const routes = new Hono<ApiAppEnvironment>();
   const professionalRead = [

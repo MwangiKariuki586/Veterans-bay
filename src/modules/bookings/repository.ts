@@ -694,6 +694,7 @@ export class BookingsRepository {
       : null;
   }
 
+  /** Lists at most 500 bookings that overlap the requested organisation calendar window. */
   async listCalendar(input: {
     organisationId: string;
     from: Date;

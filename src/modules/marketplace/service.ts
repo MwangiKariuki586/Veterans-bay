@@ -8,6 +8,7 @@ import type {
   MarketplaceSearchResult,
 } from "./types";
 
+/** Builds an optimized public Cloudinary URL for a marketplace image. */
 function publicImageUrl(
   cloudName: string | undefined,
   publicId: string | null,
@@ -32,6 +33,7 @@ export class MarketplaceService {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
+  /** Searches marketplace listings and enriches them with their next available slot. */
   async search(input: MarketplaceSearchQuery): Promise<MarketplaceSearchResult> {
     const result = await this.store.search(input);
     const now = this.now();

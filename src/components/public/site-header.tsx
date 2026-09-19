@@ -63,6 +63,7 @@ function isCurrentDestination(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Displays the notification link and refreshes its unread count for signed-in users. */
 function NotificationBell({ authoritativeCount }: { authoritativeCount?: number }) {
   const { data: session } = authClient.useSession();
   const [unreadCount, setUnreadCount] = useState<number | null>(null);

@@ -115,9 +115,10 @@ export function useClientDashboard() {
   return ctx;
 }
 
-// Duration changes belong to the spending card, not the dashboard-wide observer.
-// Perf: default range reuses parent dashboard data (no duplicate GET /client/dashboard).
-// Non-default ranges fetch once via shared dashboard key.
+/**
+ * Provides spending data for a selectable range while reusing the parent dashboard's
+ * default-range query to avoid a duplicate request.
+ */
 export function useClientSpending() {
   const [range, setRange] = useState<ClientDashboardRangeKey>("month");
   const { workspaceId, userId } = useWorkspaceShell();

@@ -1212,6 +1212,7 @@ export class ServiceRequestsRepository implements ServiceRequestsStore {
     return records.map((item) => item.name);
   }
 
+  /** Lists a bounded set of active professionals and their published service categories. */
   async listRequestProfessionals(): Promise<
     ServiceRequestProfessionalOption[]
   > {

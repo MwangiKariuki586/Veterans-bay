@@ -2,6 +2,7 @@
 
 import { PolarAngleAxis, RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
 
+/** Renders a percentage score as a configurable radial progress chart. */
 export function RadialScore({
   score,
   fill = "#2f7d18",

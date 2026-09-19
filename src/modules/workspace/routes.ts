@@ -33,6 +33,7 @@ function workspaceCookie(workspaceId: string, secure: boolean) {
   return attributes.join("; ");
 }
 
+/** Registers workspace listing, selection, entry, and current-workspace endpoints. */
 export function createWorkspaceRoutes() {
   const routes = new Hono<ApiAppEnvironment>();
 
