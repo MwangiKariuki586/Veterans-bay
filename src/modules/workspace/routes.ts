@@ -38,12 +38,13 @@ export function createWorkspaceRoutes() {
 
   routes.get("/v1/workspaces", requireSessionMiddleware, async (context) => {
     void workspacePermissions.list;
-    const environment = context.get("environment");
     const account = context.get("account");
     if (!account) {
       throw new Error("Authenticated account is required.");
     }
-    const client = createDatabaseClient(environment.DATABASE_URL);
+    const existingClient = context.get("databaseClient");
+    const client = existingClient ?? createDatabaseClient(context.get("environment").DATABASE_URL);
+    const ownsClient = !existingClient;
 
     try {
       const service = new WorkspaceService(
@@ -65,7 +66,7 @@ export function createWorkspaceRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 
@@ -76,7 +77,9 @@ export function createWorkspaceRoutes() {
     if (!account) {
       throw new Error("Authenticated account is required.");
     }
-    const client = createDatabaseClient(environment.DATABASE_URL);
+    const existingClient = context.get("databaseClient");
+    const client = existingClient ?? createDatabaseClient(environment.DATABASE_URL);
+    const ownsClient = !existingClient;
 
     try {
       const service = new WorkspaceService(
@@ -112,7 +115,7 @@ export function createWorkspaceRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 
@@ -124,7 +127,9 @@ export function createWorkspaceRoutes() {
       throw new Error("Authenticated account is required.");
     }
     const input = await parseJsonBody(selectWorkspaceBodySchema, context.req.raw);
-    const client = createDatabaseClient(environment.DATABASE_URL);
+    const existingClient = context.get("databaseClient");
+    const client = existingClient ?? createDatabaseClient(environment.DATABASE_URL);
+    const ownsClient = !existingClient;
 
     try {
       const service = new WorkspaceService(
@@ -149,7 +154,7 @@ export function createWorkspaceRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 

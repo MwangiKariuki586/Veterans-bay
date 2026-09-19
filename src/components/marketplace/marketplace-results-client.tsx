@@ -147,6 +147,14 @@ export function MarketplaceResultsClient({
 
   useEffect(() => {
     if (request.key === requestKey) return;
+    // Perf: rely on server RSC streaming (unstable_cache) for marketplace search.
+    // Client fetch is only for retry after server error or when server didn't provide data.
+    // This eliminates duplicate fetch on navigation that bypasses 30s cache.
+    if (initialSearchKey !== undefined && request.error == null && retryAttempt === 0) {
+      if (initialSearchKey === searchKey) return;
+      // During navigation, let RSC stream new result (show pending) instead of client fetch.
+      return;
+    }
     if (initialSearchKey !== undefined && initialSearchKey === searchKey && retryAttempt === 0 && initialResult !== undefined) {
       return;
     }
@@ -169,7 +177,7 @@ export function MarketplaceResultsClient({
         setRequest({ key: requestKey, result: null, error: cause instanceof Error ? cause.message : "Marketplace results could not be loaded." });
       });
     return () => controller.abort();
-  }, [currentSearchParams, filters, requestKey, request.key, initialSearchKey, initialResult, searchKey, retryAttempt]);
+  }, [currentSearchParams, filters, requestKey, request.key, request.error, initialSearchKey, initialResult, searchKey, retryAttempt]);
 
   const { data: session } = authClient.useSession();
   useEffect(() => {

@@ -15,7 +15,10 @@ import type {
 function publicImageUrl(cloudName: string | undefined, publicId: string | null): string | null {
   if (!cloudName || !publicId) return null;
   const encodedPublicId = publicId.split("/").map(encodeURIComponent).join("/");
-  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/${encodedPublicId}`;
+  // Perf: cap to w_768 with f_auto/q_auto/dpr_auto to avoid 5-10 MB originals (policy allows 10 MB).
+  // Cards (≈384px) and hero (≈440px) both benefit; w_768 + dpr_auto covers retina while
+  // avoiding original-resolution downloads. Use c_limit to preserve aspect for portfolio.
+  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/f_auto,q_auto,c_limit,w_768,dpr_auto/${encodedPublicId}`;
 }
 
 function availabilitySummary(workingHours: PublicProfessionalRecord["workingHours"]): string | null {
@@ -353,7 +356,7 @@ export class PublicCatalogueService {
           to,
           now,
           durationMinutes,
-          limit: Number.MAX_SAFE_INTEGER,
+          limit: 1,
         }),
       )
       .sort((left, right) => left.startsAt.localeCompare(right.startsAt))[0];

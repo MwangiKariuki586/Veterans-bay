@@ -42,10 +42,12 @@ import type {
   CalendarEntry,
 } from "./types";
 
-function createService(databaseUrl: string) {
-  const client = createDatabaseClient(databaseUrl);
+function createService(databaseUrl: string, existingClient?: ReturnType<typeof createDatabaseClient>) {
+  const client = existingClient ?? createDatabaseClient(databaseUrl);
+  const ownsClient = !existingClient;
   return {
     client,
+    ownsClient,
     service: new BookingsService(
       new BookingsRepository(client.db),
       new IdentityRepository(client.db),
@@ -100,8 +102,10 @@ export function createBookingRoutes() {
     const selection = organisationSelection(context);
     const query = { ...parseQuery(bookingListQuerySchema, context.req.url) };
     delete query.stage;
-    const { client, service } = createService(
+    const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
       context.get("environment").DATABASE_URL,
+      existingClient,
     );
     try {
       const data = await service.listProfessional({
@@ -113,7 +117,7 @@ export function createBookingRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 
@@ -126,9 +130,11 @@ export function createBookingRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.createProfessional({
           ...selection,
@@ -140,8 +146,8 @@ export function createBookingRoutes() {
           201,
         );
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -150,9 +156,11 @@ export function createBookingRoutes() {
     ...professionalRead,
     async (context) => {
       const selection = organisationSelection(context);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.getProfessional(
           selection.organisationId,
@@ -163,8 +171,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -174,9 +182,11 @@ export function createBookingRoutes() {
     async (context) => {
       const selection = organisationSelection(context);
       const query = parseQuery(slotQuerySchema, context.req.url);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.listSlotsForProfessional({
           organisationId: selection.organisationId,
@@ -188,8 +198,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -204,9 +214,11 @@ export function createBookingRoutes() {
             : bookingScheduleBodySchema;
         const values = await parseJsonBody(schema, context.req.raw);
         const selection = organisationSelection(context);
-        const { client, service } = createService(
-          context.get("environment").DATABASE_URL,
-        );
+        const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
         try {
           const data = await service.confirm({
             ...selection,
@@ -223,8 +235,8 @@ export function createBookingRoutes() {
             requestId: context.get("requestId"),
           });
         } finally {
-          await client.close();
-        }
+      if (ownsClient) await client.close();
+    }
       },
     );
   }
@@ -238,9 +250,11 @@ export function createBookingRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.cancelProfessional({
           ...selection,
@@ -254,8 +268,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -283,9 +297,11 @@ export function createBookingRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.terminalTransition({
           ...selection,
@@ -300,8 +316,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -311,9 +327,11 @@ export function createBookingRoutes() {
     async (context) => {
       const selection = organisationSelection(context);
       const query = parseQuery(calendarQuerySchema, context.req.url);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.listCalendar({
           organisationId: selection.organisationId,
@@ -324,8 +342,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -334,9 +352,11 @@ export function createBookingRoutes() {
     ...professionalRead,
     async (context) => {
       const selection = organisationSelection(context);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.listAvailability(selection.organisationId);
         return context.json<ApiSuccessBody<AvailabilityConfiguration>>({
@@ -344,8 +364,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -358,9 +378,11 @@ export function createBookingRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.replaceAvailability({
           ...selection,
@@ -371,8 +393,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -385,9 +407,11 @@ export function createBookingRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.createAvailabilityBlock({
           ...selection,
@@ -398,8 +422,8 @@ export function createBookingRoutes() {
           201,
         );
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -408,9 +432,11 @@ export function createBookingRoutes() {
     ...professionalManage,
     async (context) => {
       const selection = organisationSelection(context);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.deleteAvailabilityBlock(
           selection.organisationId,
@@ -421,8 +447,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -435,9 +461,11 @@ export function createBookingRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.updateAvailabilityBlock({
           organisationId: selection.organisationId,
@@ -450,8 +478,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -464,9 +492,11 @@ export function createBookingRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.updateBookingTask({
           organisationId: selection.organisationId,
@@ -479,8 +509,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -492,9 +522,11 @@ export function createBookingRoutes() {
     "/v1/client/services/:professionalSlug/:serviceSlug/booking-slots",
     async (context) => {
       const query = parseQuery(slotQuerySchema, context.req.url);
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.listDirectServiceSlots({
           authUserId: authUserId(context),
@@ -507,15 +539,17 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
   routes.get("/v1/client/bookings", async (context) => {
     const query = parseQuery(bookingListQuerySchema, context.req.url);
-    const { client, service } = createService(
+    const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
       context.get("environment").DATABASE_URL,
+      existingClient,
     );
     try {
       const data = await service.listClient({
@@ -527,7 +561,7 @@ export function createBookingRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 
@@ -536,8 +570,10 @@ export function createBookingRoutes() {
       clientCreateBookingBodySchema,
       context.req.raw,
     );
-    const { client, service } = createService(
+    const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
       context.get("environment").DATABASE_URL,
+      existingClient,
     );
     try {
       const data = await service.createClient({
@@ -550,13 +586,15 @@ export function createBookingRoutes() {
         201,
       );
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 
   routes.get("/v1/client/bookings/:bookingId", async (context) => {
-    const { client, service } = createService(
+    const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
       context.get("environment").DATABASE_URL,
+      existingClient,
     );
     try {
       const data = await service.getClient(
@@ -568,14 +606,16 @@ export function createBookingRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 
   routes.get("/v1/client/bookings/:bookingId/slots", async (context) => {
     const query = parseQuery(slotQuerySchema, context.req.url);
-    const { client, service } = createService(
+    const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
       context.get("environment").DATABASE_URL,
+      existingClient,
     );
     try {
       const data = await service.listSlotsForClient({
@@ -588,7 +628,7 @@ export function createBookingRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 
@@ -599,9 +639,11 @@ export function createBookingRoutes() {
         bookingScheduleBodySchema,
         context.req.raw,
       );
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.requestSchedule({
           authUserId: authUserId(context),
@@ -616,8 +658,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -628,9 +670,11 @@ export function createBookingRoutes() {
         bookingRescheduleRequestBodySchema,
         context.req.raw,
       );
-      const { client, service } = createService(
-        context.get("environment").DATABASE_URL,
-      );
+      const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
+      context.get("environment").DATABASE_URL,
+      existingClient,
+    );
       try {
         const data = await service.requestReschedule({
           authUserId: authUserId(context),
@@ -646,8 +690,8 @@ export function createBookingRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
-      }
+      if (ownsClient) await client.close();
+    }
     },
   );
 
@@ -656,8 +700,10 @@ export function createBookingRoutes() {
       bookingCancelBodySchema,
       context.req.raw,
     );
-    const { client, service } = createService(
+    const existingClient = context.get("databaseClient");
+    const { client, service, ownsClient } = createService(
       context.get("environment").DATABASE_URL,
+      existingClient,
     );
     try {
       const data = await service.cancelClient({
@@ -672,7 +718,7 @@ export function createBookingRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
+      if (ownsClient) await client.close();
     }
   });
 

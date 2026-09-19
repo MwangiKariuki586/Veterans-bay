@@ -1238,7 +1238,8 @@ export class ServiceRequestsRepository implements ServiceRequestsStore {
         asc(organisations.name),
         asc(professionalServices.category),
         asc(professionalServices.id),
-      );
+      )
+      .limit(500);
 
     const professionals = new Map<string, ServiceRequestProfessionalOption>();
     for (const row of rows) {

@@ -14,7 +14,8 @@ function publicImageUrl(
 ): string | null {
   if (!cloudName || !publicId) return null;
   const encodedPublicId = publicId.split("/").map(encodeURIComponent).join("/");
-  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/f_auto,q_auto,c_fill,w_600,h_400/${encodedPublicId}`;
+  // Perf: w_600 covers 384px card + retina; add dpr_auto to avoid oversizing on 1x.
+  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/f_auto,q_auto,c_fill,w_600,h_400,dpr_auto/${encodedPublicId}`;
 }
 
 export class MarketplaceService {
@@ -97,7 +98,7 @@ export class MarketplaceService {
         to,
         now,
         durationMinutes: item.estimatedDurationMinutes,
-        limit: Number.MAX_SAFE_INTEGER,
+        limit: 1,
       });
       if (!slot) continue;
       listing.provider.nextAvailableSlot = {

@@ -19,19 +19,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useState } from "react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  PolarAngleAxis,
-  RadialBar,
-  RadialBarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 import { Badge } from "@/components/ui/badge";
 import { StatePanel } from "@/components/ui/state-panel";
@@ -41,6 +30,18 @@ import { useWorkspaceShell } from "@/components/workspace/authenticated-shell";
 import { useProfessionalDashboard } from "@/components/workspace/professional-dashboard-context";
 import { cn } from "@/lib/utils";
 import type { ProfessionalDashboardData } from "@/modules/dashboards/types";
+
+const RadialScore = dynamic(() => import("./charts/radial-score").then((m) => m.RadialScore), {
+  ssr: false,
+  loading: () => <div className="size-[72px] animate-pulse rounded-full bg-muted" />,
+});
+const PerformanceAreaChart = dynamic(
+  () => import("./charts/performance-area-chart").then((m) => m.PerformanceAreaChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-[180px] animate-pulse rounded-xl bg-muted" />,
+  },
+);
 
 type PerformanceKey =
   | "revenue"
@@ -380,23 +381,7 @@ function ProfileVisibility({
           role="img"
           aria-label={`Profile completeness ${data.score} percent`}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <RadialBarChart
-              data={[{ value: data.score, fill: "#347b1e" }]}
-              innerRadius="82%"
-              outerRadius="100%"
-              startAngle={90}
-              endAngle={-270}
-              margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-            >
-              <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-              <RadialBar
-                dataKey="value"
-                background={{ fill: "#e4ebdf" }}
-                cornerRadius={8}
-              />
-            </RadialBarChart>
-          </ResponsiveContainer>
+          <RadialScore score={data.score} fill="#347b1e" backgroundFill="#e4ebdf" innerRadius="82%" cornerRadius={8} />
           <span className="pointer-events-none absolute inset-[20%] grid place-items-center text-[1.1rem] font-semibold numeric-tabular leading-none">
             {data.score}%
           </span>
@@ -574,15 +559,6 @@ function PerformanceCard({
           }
         : { detail: "No overdue invoices", tone: "success" as const };
 
-  const formatAxisTick = (value: number) => {
-    if (active === "quoteConversion") return `${value}%`;
-    const display = active === "revenue" ? value / 100 : value;
-    if (Math.abs(display) >= 1000) {
-      return `${Math.round(display / 1000)}K`;
-    }
-    return String(Math.round(display));
-  };
-
   return (
     <SectionCard className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-3">
@@ -649,73 +625,7 @@ function PerformanceCard({
         role="img"
         aria-label={`${selected.label} daily chart for the selected range`}
       >
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart
-            data={series}
-            margin={{ top: 12, right: 8, left: 0, bottom: 0 }}
-          >
-            <CartesianGrid stroke="#e7ecef" vertical={false} />
-            <XAxis
-              dataKey="day"
-              tickFormatter={(value) =>
-                new Date(`${value}T00:00:00`).toLocaleDateString("en-KE", {
-                  day: "numeric",
-                  month: "short",
-                })
-              }
-              tick={{ fontSize: 11, fill: "#68717b" }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              width={40}
-              tickFormatter={formatAxisTick}
-              tick={{ fontSize: 11, fill: "#68717b" }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <Tooltip
-              formatter={(value) =>
-                active === "revenue"
-                  ? formatMoney(Number(value))
-                  : active === "quoteConversion"
-                    ? `${value}%`
-                    : Number(value).toLocaleString()
-              }
-              labelFormatter={(value) =>
-                new Date(`${value}T00:00:00`).toLocaleDateString("en-KE", {
-                  dateStyle: "medium",
-                })
-              }
-            />
-            <Area
-              type="monotone"
-              dataKey={active}
-              stroke="#347b1e"
-              fill="#e7f1df"
-              strokeWidth={2.5}
-              connectNulls
-              dot={(props) => {
-                const { cx, cy, index } = props;
-                if (cx == null || cy == null || index !== series.length - 1) {
-                  return <g key={`dot-${index}`} />;
-                }
-                return (
-                  <circle
-                    key={`dot-${index}`}
-                    cx={cx}
-                    cy={cy}
-                    r={5}
-                    fill="#347b1e"
-                    stroke="#ffffff"
-                    strokeWidth={2}
-                  />
-                );
-              }}
-              activeDot={{ r: 5, fill: "#347b1e" }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        <PerformanceAreaChart series={series} active={active} />
       </div>
 
       <div

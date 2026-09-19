@@ -35,10 +35,12 @@ import type {
 } from "./types";
 import type { PageResult } from "../../platform/http/pagination";
 
-function createService(databaseUrl: string) {
-  const client = createDatabaseClient(databaseUrl);
+function createService(databaseUrl: string, existingClient?: ReturnType<typeof createDatabaseClient>) {
+  const client = existingClient ?? createDatabaseClient(databaseUrl);
+  const ownsClient = !existingClient;
   return {
     client,
+    ownsClient,
     service: new QuotationsService(
       new QuotationsRepository(client.db),
       new IdentityRepository(client.db),
@@ -96,8 +98,10 @@ export function createQuotationRoutes() {
       const { professionalQuotationListQuerySchema } = await import("./schemas");
       const query = parseQuery(professionalQuotationListQuerySchema, context.req.url);
       const selection = organisationSelection(context);
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const data = await service.listProfessional({
@@ -109,7 +113,7 @@ export function createQuotationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -123,8 +127,10 @@ export function createQuotationRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const data = await service.createDraft({
@@ -137,7 +143,7 @@ export function createQuotationRoutes() {
           201,
         );
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -147,8 +153,10 @@ export function createQuotationRoutes() {
     ...professionalRead,
     async (context) => {
       const selection = organisationSelection(context);
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const data = await service.getProfessional(
@@ -160,7 +168,7 @@ export function createQuotationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -174,8 +182,10 @@ export function createQuotationRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const data = await service.updateDraft({
@@ -189,7 +199,7 @@ export function createQuotationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -203,8 +213,10 @@ export function createQuotationRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const data = await service.submit({
@@ -218,7 +230,7 @@ export function createQuotationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -232,8 +244,10 @@ export function createQuotationRoutes() {
         context.req.raw,
       );
       const selection = organisationSelection(context);
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const data = await service.createRevision({
@@ -247,7 +261,7 @@ export function createQuotationRoutes() {
           201,
         );
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -261,8 +275,10 @@ export function createQuotationRoutes() {
         quotationComparisonQuerySchema,
         context.req.url,
       );
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const data = await service.compareProfessional({
@@ -275,7 +291,7 @@ export function createQuotationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -286,8 +302,10 @@ export function createQuotationRoutes() {
     async (context) => {
       const selection = organisationSelection(context);
       const id = quotationId(context.req.param("quotationId"));
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const quotation = await service.getProfessional(
@@ -296,7 +314,7 @@ export function createQuotationRoutes() {
         );
         return downloadableQuotation(context, quotation);
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -306,9 +324,11 @@ export function createQuotationRoutes() {
 
   routes.get("/v1/client/quotations", async (context) => {
     const query = parseQuery(quotationListQuerySchema, context.req.url);
-    const { client, service } = createService(
-      context.get("environment").DATABASE_URL,
-    );
+    const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
+        context.get("environment").DATABASE_URL,
+        existingClient,
+      );
     try {
       const data = await service.listClient({
         authUserId: authUserId(context),
@@ -322,14 +342,16 @@ export function createQuotationRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
-    }
+        if (ownsClient) await client.close();
+      }
   });
 
   routes.get("/v1/client/quotations/:quotationId", async (context) => {
-    const { client, service } = createService(
-      context.get("environment").DATABASE_URL,
-    );
+    const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
+        context.get("environment").DATABASE_URL,
+        existingClient,
+      );
     try {
       const data = await service.getClient({
         authUserId: authUserId(context),
@@ -341,8 +363,8 @@ export function createQuotationRoutes() {
         requestId: context.get("requestId"),
       });
     } finally {
-      await client.close();
-    }
+        if (ownsClient) await client.close();
+      }
   });
 
   for (const action of ["decline", "request-revision"] as const) {
@@ -353,9 +375,11 @@ export function createQuotationRoutes() {
           quotationResponseBodySchema,
           context.req.raw,
         );
-        const { client, service } = createService(
-          context.get("environment").DATABASE_URL,
-        );
+        const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
+        context.get("environment").DATABASE_URL,
+        existingClient,
+      );
         try {
           const data = await service.clientRespond({
             authUserId: authUserId(context),
@@ -371,8 +395,8 @@ export function createQuotationRoutes() {
             requestId: context.get("requestId"),
           });
         } finally {
-          await client.close();
-        }
+        if (ownsClient) await client.close();
+      }
       },
     );
   }
@@ -384,8 +408,10 @@ export function createQuotationRoutes() {
         quotationActionBodySchema,
         context.req.raw,
       );
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const data = await service.accept({
@@ -399,7 +425,7 @@ export function createQuotationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -411,8 +437,10 @@ export function createQuotationRoutes() {
         quotationComparisonQuerySchema,
         context.req.url,
       );
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const data = await service.compareClient({
@@ -425,7 +453,7 @@ export function createQuotationRoutes() {
           requestId: context.get("requestId"),
         });
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );
@@ -434,8 +462,10 @@ export function createQuotationRoutes() {
     "/v1/client/quotations/:quotationId/download",
     async (context) => {
       const id = quotationId(context.req.param("quotationId"));
-      const { client, service } = createService(
+      const existingClient = context.get("databaseClient");
+      const { client, service, ownsClient } = createService(
         context.get("environment").DATABASE_URL,
+        existingClient,
       );
       try {
         const quotation = await service.getClient({
@@ -445,7 +475,7 @@ export function createQuotationRoutes() {
         });
         return downloadableQuotation(context, quotation);
       } finally {
-        await client.close();
+        if (ownsClient) await client.close();
       }
     },
   );

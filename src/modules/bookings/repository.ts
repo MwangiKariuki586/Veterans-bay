@@ -751,6 +751,7 @@ export class BookingsRepository {
           ),
         )
         .orderBy(asc(bookings.startsAt), asc(bookings.id))
+        .limit(500)
     ).map((row) => ({
       ...row,
       status: row.status as BookingStatus,

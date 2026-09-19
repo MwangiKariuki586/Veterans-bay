@@ -417,10 +417,9 @@ function publicImageUrl(
   publicId: string | null,
 ): string | null {
   if (!cloudName || !publicId) return null;
-  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/${publicId
-    .split("/")
-    .map(encodeURIComponent)
-    .join("/")}`;
+  const encoded = publicId.split("/").map(encodeURIComponent).join("/");
+  // Perf: limit to w_768 with auto format/quality to avoid 10 MB originals.
+  return `https://res.cloudinary.com/${encodeURIComponent(cloudName)}/image/upload/f_auto,q_auto,c_limit,w_768,dpr_auto/${encoded}`;
 }
 
 function availabilitySummary(
