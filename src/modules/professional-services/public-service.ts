@@ -12,6 +12,7 @@ import type {
   PublicServiceDetail,
 } from "./types";
 
+/** Builds a bounded, format-aware Cloudinary URL for a public catalogue image. */
 function publicImageUrl(cloudName: string | undefined, publicId: string | null): string | null {
   if (!cloudName || !publicId) return null;
   const encodedPublicId = publicId.split("/").map(encodeURIComponent).join("/");
@@ -294,6 +295,7 @@ export class PublicCatalogueService {
     };
   }
 
+  /** Finds the earliest slot across eligible service durations in the next 14 days. */
   private async findNextAvailableSlot(
     organisationId: string,
     workingHours: PublicProfessionalRecord["workingHours"],

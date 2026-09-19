@@ -35,6 +35,7 @@ import type {
 } from "./types";
 import type { PageResult } from "../../platform/http/pagination";
 
+/** Builds quotation services around a request client or an independently owned client. */
 function createService(databaseUrl: string, existingClient?: ReturnType<typeof createDatabaseClient>) {
   const client = existingClient ?? createDatabaseClient(databaseUrl);
   const ownsClient = !existingClient;
@@ -78,6 +79,7 @@ function organisationSelection(context: {
   };
 }
 
+/** Registers authenticated client and professional quotation endpoints. */
 export function createQuotationRoutes() {
   const routes = new Hono<ApiAppEnvironment>();
   const professionalRead = [

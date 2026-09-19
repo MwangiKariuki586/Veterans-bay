@@ -412,6 +412,7 @@ export class ProfessionalServicesService {
   }
 }
 
+/** Builds a bounded, format-aware Cloudinary URL for a managed catalogue image. */
 function publicImageUrl(
   cloudName: string | undefined,
   publicId: string | null,

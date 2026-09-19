@@ -98,6 +98,7 @@ function fallbackImage(category: string) {
   return "/images/category-plumbing.png";
 }
 
+/** Renders marketplace results while coordinating streamed searches, retries, and saved providers. */
 export function MarketplaceResultsClient({
   initialResult,
   initialError,

@@ -35,6 +35,7 @@ const nextConfig: NextConfig = {
       "@radix-ui/react-tooltip",
     ],
   },
+  /** Adds cache directives for public API responses served through Next.js. */
   async headers() {
     return [
       {

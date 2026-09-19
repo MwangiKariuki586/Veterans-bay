@@ -182,6 +182,7 @@ export class CloudinaryStorageProvider implements StorageProvider {
     };
   }
 
+  /** Creates an optimized public or signed private Cloudinary delivery URL. */
   async createDeliveryUrl(input: {
     publicId: string;
     resourceType: "image" | "raw";

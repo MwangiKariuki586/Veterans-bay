@@ -2,6 +2,7 @@
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+/** Formats an ISO calendar date for a compact chart-axis label. */
 function formatChartTick(value: string) {
   try {
     const d = new Date(`${value}T00:00:00`);
@@ -11,6 +12,7 @@ function formatChartTick(value: string) {
   }
 }
 
+/** Formats a KES minor-unit value for a spending tooltip. */
 function formatMoney(minor: number) {
   return new Intl.NumberFormat("en-KE", {
     style: "currency",
@@ -21,6 +23,7 @@ function formatMoney(minor: number) {
     .replace("KES", "KSh");
 }
 
+/** Plots daily client spending or an empty state when the range has no activity. */
 export function SpendingAreaChart({ series }: { series: Array<{ day: string; value: number }> }) {
   if (!series.length) {
     return <div className="grid h-full place-items-center type-caption text-muted-foreground">No spending in range</div>;

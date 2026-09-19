@@ -351,6 +351,7 @@ function MetricCard({
   );
 }
 
+/** Summarizes the professional profile's marketplace visibility and completion. */
 function ProfileVisibility({
   data,
 }: {
@@ -507,6 +508,7 @@ function ScheduleCard({
   );
 }
 
+/** Renders selectable professional performance metrics and their trend series. */
 function PerformanceCard({
   data,
   active,
