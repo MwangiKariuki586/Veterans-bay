@@ -150,7 +150,11 @@ export function MarketplaceResultsClient({
     // Perf: rely on server RSC streaming (unstable_cache) for marketplace search.
     // Client fetch is only for retry after server error or when server didn't provide data.
     // This eliminates duplicate fetch on navigation that bypasses 30s cache.
-    if (initialSearchKey !== undefined && request.error == null && retryAttempt === 0) {
+    if (
+      initialSearchKey !== undefined &&
+      retryAttempt === 0 &&
+      (request.error == null || request.key !== requestKey)
+    ) {
       if (initialSearchKey === searchKey) return;
       // During navigation, let RSC stream new result (show pending) instead of client fetch.
       return;
