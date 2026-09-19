@@ -112,4 +112,67 @@ describe("booking availability", () => {
       }),
     ).toThrow("INVALID_SLOT_RANGE");
   });
+
+  it("returns earliest slot when rule generation order differs from chronological order", () => {
+    const tuesdayRule = {
+      ...mondayRule,
+      membershipId: "member-2",
+      memberName: "B Technician",
+      weekday: 2,
+    };
+    // Window covers Monday 2026-07-27 and Tuesday 2026-07-28.
+    // Rules are ordered [Tuesday, Monday] so generation order is reverse chronological.
+    const from = new Date("2026-07-27T00:00:00.000Z");
+    const to = new Date("2026-07-29T00:00:00.000Z");
+    const now = new Date("2026-07-26T00:00:00.000Z");
+
+    const single = buildAvailableSlots({
+      from,
+      to,
+      durationMinutes: 60,
+      rules: [tuesdayRule, mondayRule],
+      blocks: [],
+      reservations: [],
+      now,
+      limit: 1,
+    });
+    // Before fix, generation-time limit would return Tuesday 2026-07-28T05:00:00.000Z
+    expect(single).toHaveLength(1);
+    expect(single[0]?.startsAt).toBe("2026-07-27T05:00:00.000Z");
+    expect(single[0]?.membershipId).toBe("member-1");
+
+    const two = buildAvailableSlots({
+      from,
+      to,
+      durationMinutes: 60,
+      rules: [tuesdayRule, mondayRule],
+      blocks: [],
+      reservations: [],
+      now,
+      limit: 2,
+    });
+    expect(two.map((slot) => slot.startsAt)).toEqual([
+      "2026-07-27T05:00:00.000Z",
+      "2026-07-27T05:30:00.000Z",
+    ]);
+
+    const all = buildAvailableSlots({
+      from,
+      to,
+      durationMinutes: 60,
+      rules: [tuesdayRule, mondayRule],
+      blocks: [],
+      reservations: [],
+      now,
+    });
+    // Sorted chronologically regardless of input rule order
+    expect(all.map((slot) => slot.startsAt)).toEqual([
+      "2026-07-27T05:00:00.000Z",
+      "2026-07-27T05:30:00.000Z",
+      "2026-07-27T06:00:00.000Z",
+      "2026-07-28T05:00:00.000Z",
+      "2026-07-28T05:30:00.000Z",
+      "2026-07-28T06:00:00.000Z",
+    ]);
+  });
 });

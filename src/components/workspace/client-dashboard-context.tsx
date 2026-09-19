@@ -115,20 +115,39 @@ export function useClientDashboard() {
   return ctx;
 }
 
-// Duration changes belong to the spending card, not the dashboard-wide observer.
+/**
+ * Provides spending data for a selectable range while reusing the parent dashboard's
+ * default-range query to avoid a duplicate request.
+ */
 export function useClientSpending() {
   const [range, setRange] = useState<ClientDashboardRangeKey>("month");
   const { workspaceId, userId } = useWorkspaceShell();
   const scope = userId && workspaceId ? { userId, workspaceId } : null;
+  const parent = useContext(ClientDashboardContext);
+  const isDefaultRange = range === "month";
+
   const query = useQuery({
     queryKey: scope ? clientOverviewKeys.dashboard(scope, range) : ["client-overview", "spending", range],
     queryFn: ({ signal }) => fetchDashboard(range, signal),
     select: (data) => data.spending,
-    enabled: Boolean(scope),
+    enabled: Boolean(scope) && !isDefaultRange,
     staleTime: CLIENT_OVERVIEW_STALE_MS,
     gcTime: CLIENT_OVERVIEW_GC_MS,
     retry: 2,
   });
+
+  if (isDefaultRange) {
+    // Reuse parent dashboard payload; avoids second identical fetch on mount.
+    return {
+      data: parent?.data?.spending ?? query.data ?? undefined,
+      loading: parent ? parent.loading : query.isPending,
+      error: parent?.error ?? (query.error?.message ?? null),
+      range,
+      setRange,
+      refresh: parent ? parent.refresh : () => { void query.refetch(); },
+    };
+  }
+
   return {
     data: query.data,
     loading: query.isPending,

@@ -21,18 +21,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  PolarAngleAxis,
-  RadialBar,
-  RadialBarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +33,15 @@ import { useClientDashboard, useClientSpending } from "@/components/workspace/cl
 import { WorkspaceMetricCard } from "@/components/workspace/workspace-metric-card";
 import { cn } from "@/lib/utils";
 import type { ClientDashboardData } from "@/modules/dashboards/types";
+
+const RadialScore = dynamic(() => import("./charts/radial-score").then((m) => m.RadialScore), {
+  ssr: false,
+  loading: () => <div className="size-[72px] animate-pulse rounded-full bg-muted" />,
+});
+const SpendingAreaChart = dynamic(() => import("./charts/spending-area-chart").then((m) => m.SpendingAreaChart), {
+  ssr: false,
+  loading: () => <div className="h-[118px] animate-pulse rounded-xl bg-muted" />,
+});
 
 function greeting() {
   const hour = new Date().getHours();
@@ -80,15 +78,6 @@ function formatDateTime(iso: string) {
     minute: "2-digit",
     hour12: true,
   });
-}
-
-function formatChartTick(value: string) {
-  try {
-    const d = new Date(`${value}T00:00:00`);
-    return d.toLocaleDateString("en-KE", { day: "numeric", month: "short" });
-  } catch {
-    return value;
-  }
 }
 
 export function ClientDashboard() {
@@ -257,6 +246,7 @@ function relativeNext(iso: string | null) {
   });
 }
 
+/** Summarizes warranty, payment, and saved-professional protection signals. */
 function ServiceProtectionCard({
   data,
 }: {
@@ -279,23 +269,7 @@ function ServiceProtectionCard({
           role="img"
           aria-label={`Service protection ${data.score} percent`}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <RadialBarChart
-              data={[{ value: data.score, fill: "#2f7d18" }]}
-              innerRadius="72%"
-              outerRadius="100%"
-              startAngle={90}
-              endAngle={-270}
-              margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-            >
-              <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-              <RadialBar
-                dataKey="value"
-                background={{ fill: "#e8efdf" }}
-                cornerRadius={10}
-              />
-            </RadialBarChart>
-          </ResponsiveContainer>
+          <RadialScore score={data.score} fill="#2f7d18" backgroundFill="#e8efdf" innerRadius="72%" cornerRadius={10} />
           <span className="pointer-events-none absolute inset-0 grid place-items-center text-[1.1rem] font-semibold tracking-title">
             {data.score}%
           </span>
@@ -472,6 +446,7 @@ function SpendingContentSkeleton() {
   );
 }
 
+/** Renders the client spending metrics and their daily trend chart. */
 function SpendingContent({ s }: { s: ClientDashboardData["spending"] }) {
   const currentVsPrev =
     s.previousMonthMinor === 0
@@ -534,74 +509,7 @@ function SpendingContent({ s }: { s: ClientDashboardData["spending"] }) {
         role="img"
         aria-label="Spending daily trend"
       >
-        {s.series.length ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={s.series}
-              margin={{ left: 0, right: 6, top: 8, bottom: 0 }}
-            >
-              <CartesianGrid
-                stroke="#eef2f3"
-                vertical={false}
-                strokeDasharray="3 3"
-              />
-              <XAxis
-                dataKey="day"
-                tickFormatter={formatChartTick}
-                tick={{ fontSize: 11, fill: "#68717b" }}
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-                minTickGap={16}
-              />
-              <YAxis
-                width={36}
-                tickFormatter={(v) =>
-                  v >= 1000 ? `${Math.round(v / 1000)}K` : String(v / 100)
-                }
-                tick={{ fontSize: 11, fill: "#68717b" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                formatter={(value: unknown) =>
-                  [formatMoney(Number(value) * 100), "Spend"] as [
-                    string,
-                    string,
-                  ]
-                }
-                labelFormatter={(label: unknown) =>
-                  new Date(`${String(label)}T00:00:00`).toLocaleDateString(
-                    "en-KE",
-                    { dateStyle: "medium" },
-                  )
-                }
-                contentStyle={{
-                  borderRadius: 12,
-                  border: "1px solid rgba(0,0,0,0.08)",
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="#2f7d18"
-                fill="#eaf5e5"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{
-                  r: 4,
-                  fill: "#2f7d18",
-                  stroke: "#fff",
-                  strokeWidth: 2,
-                }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="grid h-full place-items-center type-caption text-muted-foreground">
-            No spending in range
-          </div>
-        )}
+        <SpendingAreaChart series={s.series} />
       </div>
     </>
   );

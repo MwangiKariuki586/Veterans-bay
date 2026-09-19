@@ -1212,6 +1212,7 @@ export class ServiceRequestsRepository implements ServiceRequestsStore {
     return records.map((item) => item.name);
   }
 
+  /** Lists a bounded set of active professionals and their published service categories. */
   async listRequestProfessionals(): Promise<
     ServiceRequestProfessionalOption[]
   > {
@@ -1238,7 +1239,8 @@ export class ServiceRequestsRepository implements ServiceRequestsStore {
         asc(organisations.name),
         asc(professionalServices.category),
         asc(professionalServices.id),
-      );
+      )
+      .limit(500);
 
     const professionals = new Map<string, ServiceRequestProfessionalOption>();
     for (const row of rows) {

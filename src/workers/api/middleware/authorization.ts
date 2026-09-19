@@ -32,6 +32,7 @@ declare module "hono" {
     workspaceSelection: WorkspaceSelection;
     databaseClient: ReturnType<typeof createDatabaseClient>;
     activeAccountProfile: AccountProfileRecord;
+    session: Awaited<ReturnType<ReturnType<typeof createAuth>["api"]["getSession"]>>;
   }
 }
 
@@ -54,10 +55,12 @@ export function readWorkspaceId(cookieHeader: string | undefined, headerValue: s
   return null;
 }
 
+/** Resolves an active professional workspace and its effective permissions for dashboard requests. */
 export const requireProfessionalDashboardMiddleware = createMiddleware<ApiAppEnvironment>(async (context, next) => {
-  const auth = createAuth(context.get("environment"));
-  const session = await auth.api.getSession({ headers: context.req.raw.headers });
+  const cached = context.get("session");
+  const session = cached ?? await createAuth(context.get("environment")).api.getSession({ headers: context.req.raw.headers });
   if (!session) throw new UnauthorizedError();
+  if (!cached) context.set("session", session);
   const workspaceId = readWorkspaceId(context.req.header("cookie"), context.req.header(WORKSPACE_HEADER));
   const parsed = workspaceId ? parseWorkspaceId(workspaceId) : null;
   if (!parsed || parsed.kind !== "organisation") throw new WorkspaceUnavailableError();
@@ -98,14 +101,16 @@ export const requireProfessionalDashboardMiddleware = createMiddleware<ApiAppEnv
   }
 });
 
+/** Requires an active account and shares its session and database client with downstream handlers. */
 export const requireSessionMiddleware = createMiddleware<ApiAppEnvironment>(
   async (context, next) => {
-    const auth = createAuth(context.get("environment"));
-    const session = await auth.api.getSession({ headers: context.req.raw.headers });
+    const cached = context.get("session");
+    const session = cached ?? await createAuth(context.get("environment")).api.getSession({ headers: context.req.raw.headers });
 
     if (!session) {
       throw new UnauthorizedError();
     }
+    if (!cached) context.set("session", session);
 
     const client = createDatabaseClient(
       context.get("environment").DATABASE_URL,

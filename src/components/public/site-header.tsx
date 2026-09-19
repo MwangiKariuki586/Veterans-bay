@@ -63,11 +63,18 @@ function isCurrentDestination(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Displays the notification link and refreshes its unread count for signed-in users. */
 function NotificationBell({ authoritativeCount }: { authoritativeCount?: number }) {
+  const { data: session } = authClient.useSession();
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (authoritativeCount !== undefined) return;
+    if (!session?.user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale count on sign-out
+      setUnreadCount(null);
+      return;
+    }
     let active = true;
     const refresh = () =>
       void getUnreadNotificationCount()
@@ -83,8 +90,9 @@ function NotificationBell({ authoritativeCount }: { authoritativeCount?: number 
       active = false;
       window.clearInterval(interval);
     };
-  }, [authoritativeCount]);
+  }, [authoritativeCount, session?.user]);
   const count = authoritativeCount ?? unreadCount;
+  if (authoritativeCount === undefined && !session?.user) return null;
 
   return (
     <Link

@@ -248,6 +248,7 @@ Run checks appropriate to the feature, including as relevant:
 - Responsive checks
 - Accessibility checks
 - Browser review when the phase explicitly requires it
+- After substantial code changes, run `coderabbit review --agent` (alias `cr review --agent`) for local AI review when CLI is authenticated
 
 Never report a command as passing unless it was actually executed successfully.
 

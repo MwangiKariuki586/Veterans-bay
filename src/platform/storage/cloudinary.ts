@@ -182,13 +182,19 @@ export class CloudinaryStorageProvider implements StorageProvider {
     };
   }
 
+  /** Creates an optimized public or signed private Cloudinary delivery URL. */
   async createDeliveryUrl(input: {
     publicId: string;
     resourceType: "image" | "raw";
     visibility: "public" | "private";
   }): Promise<string> {
     if (input.visibility === "public") {
-      return `https://res.cloudinary.com/${this.config.cloudName}/${input.resourceType}/upload/${input.publicId}`;
+      if (input.resourceType === "raw") {
+        return `https://res.cloudinary.com/${this.config.cloudName}/${input.resourceType}/upload/${input.publicId}`;
+      }
+      // Perf: cap public deliveries to w_768 with auto format/quality; originals can be 10 MB.
+      // `c_limit` preserves aspect; `dpr_auto` handles retina without oversizing.
+      return `https://res.cloudinary.com/${this.config.cloudName}/${input.resourceType}/upload/f_auto,q_auto,c_limit,w_768,dpr_auto/${input.publicId}`;
     }
 
     const signature = await createDeliverySignature(
