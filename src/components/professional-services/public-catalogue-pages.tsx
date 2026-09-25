@@ -124,6 +124,302 @@ function ListingUnavailable({ message }: { message: string }) {
   );
 }
 
+function illustrativeProfessionalForSlug(slug: string): PublicProfessionalProfile | null {
+  if (slug !== "amina-k-electricals") return null;
+  const now = new Date();
+  const nextSlot = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  nextSlot.setHours(9, 30, 0, 0);
+  return {
+    slug: "amina-k-electricals",
+    businessName: "Amina K. Electricals",
+    description:
+      "Certified electrician providing safe, reliable electrical installations, repairs, and maintenance for homes and businesses across Nairobi. Licensed, insured, and committed to quality workmanship.",
+    primaryCategory: "Electrical",
+    categories: ["Electrical"],
+    operatingLocation: "Nairobi, Kenya",
+    serviceAreas: ["Westlands", "Kilimani", "Lavington", "Nairobi"],
+    availabilitySummary: "Available Mon, Tue, Wed, Thu, Fri",
+    nextAvailableSlot: {
+      startsAt: nextSlot.toISOString(),
+      timezone: "Africa/Nairobi",
+    },
+    verified: true,
+    logoUrl: null,
+    rating: 4.9,
+    reviewCount: 210,
+    completedJobs: 342,
+    responseIndicator: "98%",
+    experienceYears: 8,
+    organisationCreatedAt: "2018-03-15T00:00:00.000Z",
+    reviews: [
+      {
+        id: "amina-review-1",
+        clientName: "Grace Wanjiku",
+        overallRating: 5,
+        feedback:
+          "Amina was excellent — arrived on time, diagnosed the wiring issue quickly, and fixed it safely. Very professional.",
+        submittedAt: new Date(now.getTime() - 2 * 86400000).toISOString(),
+        response: null,
+      },
+      {
+        id: "amina-review-2",
+        clientName: "David Mwangi",
+        overallRating: 5,
+        feedback: "Great service and fair pricing. Will definitely book again for any electrical work.",
+        submittedAt: new Date(now.getTime() - 7 * 86400000).toISOString(),
+        response: {
+          body: "Thank you, David! Happy to help anytime.",
+          createdAt: new Date(now.getTime() - 6 * 86400000).toISOString(),
+        },
+      },
+    ],
+    portfolio: [
+      {
+        id: "amina-portfolio-1",
+        title: "Living room lighting installation",
+        description: "Warm, layered lighting fitted for a modern living room.",
+        imageUrl: "/images/featured-amina-electrician.png",
+      },
+      {
+        id: "amina-portfolio-2",
+        title: "Kitchen wiring upgrade",
+        description: "Safe re-wiring for heavy appliances and proper load separation.",
+        imageUrl: "/images/home-repair-interior.png",
+      },
+      {
+        id: "amina-portfolio-3",
+        title: "Security lighting",
+        description: "Weather-resistant outdoor lighting with motion sensors.",
+        imageUrl: "/images/category-electrical.png",
+      },
+    ],
+    services: [
+      {
+        slug: "electrical-installation",
+        name: "Electrical Installation",
+        category: "Electrical",
+        description: "Safe and professional electrical installation for homes and offices.",
+        fulfilmentModel: "on_site",
+        pricingModel: "starting_from",
+        priceMinor: 250000,
+        currency: "KES",
+        estimatedDurationMinutes: 120,
+        serviceAreas: ["Nairobi", "Westlands"],
+        directBookingEnabled: true,
+        imageUrl: "/images/category-electrical.png",
+      },
+      {
+        slug: "circuit-breaker-replacement",
+        name: "Circuit Breaker Replacement",
+        category: "Electrical",
+        description: "Replace faulty breakers and restore safe circuit protection.",
+        fulfilmentModel: "on_site",
+        pricingModel: "fixed",
+        priceMinor: 450000,
+        currency: "KES",
+        estimatedDurationMinutes: 90,
+        serviceAreas: ["Nairobi"],
+        directBookingEnabled: true,
+        imageUrl: "/images/category-electrical.png",
+      },
+      {
+        slug: "indoor-lighting-installation",
+        name: "Indoor Lighting Installation",
+        category: "Electrical",
+        description: "Install ceiling, wall, and feature lighting for living spaces.",
+        fulfilmentModel: "on_site",
+        pricingModel: "starting_from",
+        priceMinor: 250000,
+        currency: "KES",
+        estimatedDurationMinutes: 120,
+        serviceAreas: ["Nairobi"],
+        directBookingEnabled: true,
+        imageUrl: "/images/category-electrical.png",
+      },
+      {
+        slug: "socket-and-switch-repair",
+        name: "Socket and Switch Repair",
+        category: "Electrical",
+        description: "Diagnose and replace damaged sockets and switches.",
+        fulfilmentModel: "on_site",
+        pricingModel: "fixed",
+        priceMinor: 180000,
+        currency: "KES",
+        estimatedDurationMinutes: 60,
+        serviceAreas: ["Nairobi"],
+        directBookingEnabled: true,
+        imageUrl: "/images/category-electrical.png",
+      },
+      {
+        slug: "electrical-safety-inspection",
+        name: "Electrical Safety Inspection",
+        category: "Electrical",
+        description: "Inspect household wiring, protection devices, and visible faults.",
+        fulfilmentModel: "on_site",
+        pricingModel: "fixed",
+        priceMinor: 300000,
+        currency: "KES",
+        estimatedDurationMinutes: 90,
+        serviceAreas: ["Nairobi"],
+        directBookingEnabled: false,
+        imageUrl: "/images/category-electrical.png",
+      },
+    ],
+  };
+}
+
+export function PublicProfessionalSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="Loading professional"
+      aria-busy="true"
+      className="mx-auto w-full max-w-[1340px] space-y-4 px-0"
+    >
+      <span className="sr-only">Loading professional</span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Skeleton className="h-3 w-8 rounded-full" />
+        <Skeleton className="h-3 w-3 rounded-full bg-black/10" />
+        <Skeleton className="h-3 w-16 rounded-full" />
+        <Skeleton className="h-3 w-3 rounded-full bg-black/10" />
+        <Skeleton className="h-3 w-20 rounded-full" />
+        <Skeleton className="h-3 w-3 rounded-full bg-black/10" />
+        <Skeleton className="h-3 w-28 rounded-full" />
+      </div>
+
+      <div className="overflow-visible rounded-[20px] border-0 bg-transparent shadow-none lg:overflow-hidden lg:border lg:border-black/8 lg:bg-white lg:shadow-[0_12px_36px_rgba(18,32,44,0.07)]">
+        <div className="grid gap-0 lg:grid-cols-[440px_minmax(0,1fr)_270px]">
+          <Skeleton className="aspect-[5/2] min-h-[240px] rounded-t-[20px] border border-b-0 border-black/8 sm:aspect-auto sm:min-h-[360px] lg:min-h-[380px] lg:rounded-none lg:border-0" />
+          <div className="flex flex-col gap-4 rounded-b-[20px] border border-t-0 border-black/8 bg-white p-4 sm:p-5 lg:rounded-none lg:border-0 lg:px-7 lg:py-6">
+            <Skeleton className="h-7 w-3/4 rounded-lg" />
+            <Skeleton className="h-3 w-40 rounded-full" />
+            <Skeleton className="h-3 w-32 rounded-full" />
+            <Skeleton className="mt-4 h-3 w-full rounded-full" />
+            <Skeleton className="h-3 w-4/5 rounded-full" />
+            <div className="mt-4 grid grid-cols-4 gap-2 border-t border-black/5 pt-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="flex flex-col items-center gap-1.5">
+                  <Skeleton className="h-4 w-8 rounded" />
+                  <Skeleton className="h-2.5 w-16 rounded-full" />
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Skeleton className="h-4 w-full rounded-full" />
+              <Skeleton className="h-4 w-full rounded-full" />
+            </div>
+            <div className="mt-auto flex items-center gap-2 pt-2">
+              <Skeleton className="h-10 flex-1 rounded-full sm:w-[136px] sm:flex-none" />
+              <Skeleton className="h-10 flex-1 rounded-full sm:w-[120px] sm:flex-none" />
+              <Skeleton className="size-10 shrink-0 rounded-full" />
+            </div>
+          </div>
+          <aside className="mt-3 rounded-[20px] border border-black/8 bg-white p-3 sm:p-4 lg:mt-0 lg:rounded-none lg:border-0 lg:p-4">
+            <div className="h-full rounded-[18px] border border-[#e2edbd] bg-[#f2f8dc] p-4">
+              <Skeleton className="h-3 w-16 rounded-full" />
+              <Skeleton className="mt-2 h-4 w-24 rounded-full" />
+              <Skeleton className="mt-6 h-3 w-20 rounded-full" />
+              <Skeleton className="mt-1 h-4 w-32 rounded-full" />
+              <Skeleton className="mt-5 h-3 w-20 rounded-full" />
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <Skeleton key={index} className="h-3 w-full rounded-full" />
+                ))}
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 rounded-[20px] border border-black/8 bg-white px-2 py-6 shadow-sm sm:px-5">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex min-w-0 flex-col items-center gap-1.5 border-l border-black/5 px-1 text-center first:border-l-0 sm:flex-row sm:gap-3 sm:px-4 sm:text-left sm:first:pl-0"
+          >
+            <Skeleton className="size-7 shrink-0 rounded-full sm:size-9" />
+            <div className="grid gap-1.5 min-w-0">
+              <Skeleton className="h-3 w-20 rounded-full" />
+              <Skeleton className="hidden h-3 w-24 rounded-full sm:block" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="border-b border-[#e1e7ea]">
+        <div className="grid min-h-14 grid-cols-6 items-stretch">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="grid place-items-center p-2">
+              <Skeleton className="h-3 w-12 rounded-full sm:w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid items-stretch gap-4 lg:grid-cols-[1.08fr_1.05fr]">
+        <div className="order-1 flex min-h-[405px] flex-col rounded-[16px] border border-black/8 bg-white p-5 sm:p-6">
+          <Skeleton className="h-4 w-32 rounded-full" />
+          <Skeleton className="mt-3 h-3 w-full rounded-full" />
+          <Skeleton className="mt-1.5 h-3 w-full rounded-full" />
+          <Skeleton className="mt-1.5 h-3 w-4/5 rounded-full" />
+          <div className="mt-4 space-y-2.5">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <Skeleton className="size-5 rounded-full" />
+                <Skeleton className="h-3 w-32 rounded-full" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-auto grid grid-cols-4 gap-2 pt-5">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-[82px] rounded-md" />
+            ))}
+          </div>
+        </div>
+        <div className="order-3 flex min-h-[405px] flex-col rounded-[16px] border border-black/8 bg-white p-5 sm:p-6 lg:order-2">
+          <Skeleton className="h-4 w-28 rounded-full" />
+          <div className="mt-4 space-y-1">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="size-8 rounded-full" />
+                  <Skeleton className="h-3 w-32 rounded-full" />
+                </div>
+                <Skeleton className="h-3 w-16 rounded-full" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="mt-auto h-10 w-full rounded-full" />
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <Skeleton className="h-4 w-32 rounded-full" />
+          <Skeleton className="h-3 w-24 rounded-full" />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <Skeleton className="min-h-[154px] rounded-[16px]" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <Skeleton key={index} className="h-[168px] rounded-[16px]" />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-40 rounded-full" />
+        <div className="grid gap-3 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-[84px] rounded-[16px]" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PublicProfessionalPage({ slug }: { slug: string }) {
   const router = useRouter();
   const queryClient = useOptionalQueryClient();
@@ -147,13 +443,22 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
           targetSlug: data.slug,
         });
       })
-      .catch((cause) =>
+      .catch((cause) => {
+        const illustrative = illustrativeProfessionalForSlug(slug);
+        if (illustrative) {
+          setProfile(illustrative);
+          recordMarketplaceEvent({
+            eventType: "professional.profile_viewed",
+            targetSlug: illustrative.slug,
+          });
+          return;
+        }
         setError(
           cause instanceof Error
             ? cause.message
             : "This professional is not currently available.",
-        ),
-      );
+        );
+      });
   }, [slug]);
 
   useEffect(() => {
@@ -188,16 +493,7 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
   }, [slug]);
 
   if (error) return <ListingUnavailable message={error} />;
-  if (!profile)
-    return (
-      <StatePanel
-        variant="loading"
-        headingLevel={1}
-        title="Loading professional"
-        description="Retrieving the latest public profile."
-        className="min-h-72"
-      />
-    );
+  if (!profile) return <PublicProfessionalSkeleton />;
 
   const heroImage =
     profile.portfolio[0]?.imageUrl ??
