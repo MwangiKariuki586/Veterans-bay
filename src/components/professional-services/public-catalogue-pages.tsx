@@ -1827,28 +1827,12 @@ export function PublicServicePage({ slug }: { slug: string }) {
     setBookingError(null);
   }
 
-  function handleContinueWithTime() {
-    if (!selectedSlot) return;
-    setConfirmedSlot(selectedSlot);
-    setIsExpanded(false);
-    setSheetOpen(false);
-  }
-
-  function handleChange() {
-    setConfirmedSlot(null);
-    setSelectedSlot(null);
-    setBookingError(null);
-    if (isMobile) setSheetOpen(true);
-    else setIsExpanded(true);
-  }
-
-  async function handleContinueToBooking() {
-    if (!service || !confirmedSlot) return;
+  async function createBooking(slot: BookingSlot) {
+    if (!service) return;
     setBookingBusy(true);
     setBookingError(null);
     try {
-      // Revalidate: fetch latest slots for that day window
-      const day = new Date(confirmedSlot.startsAt);
+      const day = new Date(slot.startsAt);
       const from = new Date(day.getTime() - 12 * 60 * 60 * 1000);
       const to = new Date(day.getTime() + 24 * 60 * 60 * 1000);
       const params = new URLSearchParams({
@@ -1874,9 +1858,7 @@ export function PublicServicePage({ slug }: { slug: string }) {
       }
       const latest = body?.data ?? [];
       const stillAvailable = latest.some(
-        (s) =>
-          s.membershipId === confirmedSlot.membershipId &&
-          s.startsAt === confirmedSlot.startsAt,
+        (s) => s.membershipId === slot.membershipId && s.startsAt === slot.startsAt,
       );
       if (!stillAvailable) {
         setBookingError(
@@ -1889,14 +1871,13 @@ export function PublicServicePage({ slug }: { slug: string }) {
         void fetchSlots();
         return;
       }
-      // Create booking
       const bookingBody = {
         origin: "DIRECT_SERVICE",
         professionalSlug: service.provider.slug,
         serviceSlug: service.slug,
-        membershipId: confirmedSlot.membershipId,
-        requestedStartAt: confirmedSlot.startsAt,
-        timezone: confirmedSlot.timezone,
+        membershipId: slot.membershipId,
+        requestedStartAt: slot.startsAt,
+        timezone: slot.timezone,
         cancellationPolicyAcknowledged: true,
       };
       const createResponse = await fetch("/api/v1/client/bookings", {
@@ -1916,9 +1897,7 @@ export function PublicServicePage({ slug }: { slug: string }) {
           );
           return;
         }
-        throw new Error(
-          createBody?.error?.message ?? "Booking could not be created.",
-        );
+        throw new Error(createBody?.error?.message ?? "Booking could not be created.");
       }
       const bookingId = createBody?.data?.id;
       if (bookingId) {
@@ -1926,16 +1905,35 @@ export function PublicServicePage({ slug }: { slug: string }) {
       } else {
         toast.success("Booking requested - awaiting confirmation.");
         setConfirmedSlot(null);
+        setSelectedSlot(null);
+        setIsExpanded(false);
+        setSheetOpen(false);
       }
     } catch (cause) {
-      setBookingError(
-        cause instanceof Error
-          ? cause.message
-          : "Booking could not be created.",
-      );
+      setBookingError(cause instanceof Error ? cause.message : "Booking could not be created.");
     } finally {
       setBookingBusy(false);
     }
+  }
+
+  async function handleContinueWithTime() {
+    if (!selectedSlot) return;
+    // Proceed immediately to booking without an intermediate "Selected time" confirmation step
+    await createBooking(selectedSlot);
+  }
+
+  function handleChange() {
+    setConfirmedSlot(null);
+    setSelectedSlot(null);
+    setBookingError(null);
+    if (isMobile) setSheetOpen(true);
+    else setIsExpanded(true);
+  }
+
+  async function handleContinueToBooking() {
+    const slot = confirmedSlot ?? selectedSlot;
+    if (!service || !slot) return;
+    await createBooking(slot);
   }
 
   function handleViewLaterDates() {
@@ -2951,14 +2949,25 @@ export function PublicServicePage({ slug }: { slug: string }) {
                     <Button
                       className="w-full rounded-full bg-[#c8f43d] text-[#0a1724] hover:bg-[#b8e832]"
                       onClick={handleContinueWithTime}
+                      loading={bookingBusy}
+                      disabled={bookingBusy}
                     >
-                      Continue with{" "}
-                      {formatTimeLabel(
-                        selectedSlot.startsAt,
-                        selectedSlot.timezone,
-                      )}{" "}
+                      {bookingBusy ? "Booking..." : "Continue with "}
+                      {!bookingBusy &&
+                        formatTimeLabel(
+                          selectedSlot.startsAt,
+                          selectedSlot.timezone,
+                        )}{" "}
                       <ArrowRight className="ml-auto size-4" />
                     </Button>
+                    {bookingError ? (
+                      <InlineAlert
+                        className="mt-3"
+                        variant="error"
+                        title="Booking not confirmed"
+                        description={bookingError}
+                      />
+                    ) : null}
                   </div>
                 ) : null}
               </>
@@ -3099,54 +3108,21 @@ function AvailabilityCard({
     );
   }
 
-  if (confirmedSlot) {
-    return (
-      <div className="rounded-[16px] border border-black/8 bg-white p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[#0a1724]">Availability</h2>
-        </div>
-        <p className="mt-2 text-xs text-[#6b7782]">Selected time</p>
-        <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#f3f9e5] px-3 py-2.5 text-sm font-semibold text-[#5f8d11]">
-          <CalendarDays className="size-4" />
-          {formatSelectedSlot(confirmedSlot)}
-        </div>
-        <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[#b45309]">
-          <Clock3 className="size-3.5" /> Awaiting provider confirmation
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button variant="outline" className="flex-1 rounded-full px-3 text-xs" onClick={onChange}>
-            Change
-          </Button>
-          <Button
-            className="flex-[2] whitespace-nowrap rounded-full bg-[#c8f43d] px-3 text-xs text-[#0a1724] hover:bg-[#b8e832]"
-            onClick={onContinueToBooking}
-            loading={bookingBusy}
-          >
-            Continue to booking <ArrowRight className="size-4 shrink-0" />
-          </Button>
-        </div>
-        <div className="mt-3 flex gap-2 rounded-xl bg-[#e9f0ff] px-3 py-2.5 text-xs leading-5 text-[#4b5a68]">
-          <Info className="mt-0.5 size-4 shrink-0 text-[#1f56bd]" />
-          <span>
-            Your selected time is reserved only after the professional confirms.
-          </span>
-        </div>
-        {bookingError ? (
-          <InlineAlert
-            className="mt-3"
-            variant="error"
-            title="Booking not confirmed"
-            description={bookingError}
-          />
-        ) : null}
-      </div>
-    );
-  }
-
   return (
     <div className="rounded-[16px] border border-black/8 bg-white p-5">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-[#0a1724]">Availability</h2>
+        {isDirect ? (
+          <button
+            type="button"
+            aria-label="Toggle availability"
+            aria-expanded={isExpanded}
+            onClick={onCheckAvailability}
+            className="grid size-7 place-items-center rounded-full border border-black/8 bg-white text-[#6b7782] hover:bg-[#f7f9fa]"
+          >
+            <ChevronDown className={cn("size-4 transition-transform", isExpanded && "rotate-180")} />
+          </button>
+        ) : null}
       </div>
 
       <p className="mt-2 text-xs text-[#6b7782]">Next slot available</p>
@@ -3406,14 +3382,24 @@ function AvailabilityCard({
                   <Button
                     className="h-10 w-full rounded-[8px] bg-[#b5e600] px-3 text-xs text-[#0a1724] hover:bg-[#a7d500]"
                     onClick={onContinueWithTime}
+                    loading={bookingBusy}
+                    disabled={bookingBusy}
                   >
-                    Continue with{" "}
-                    {formatTimeLabel(
-                      selectedSlot.startsAt,
-                      selectedSlot.timezone,
-                    )}{" "}
+                    {bookingBusy ? "Booking..." : "Continue with "}
+                    {!bookingBusy &&
+                      formatTimeLabel(
+                        selectedSlot.startsAt,
+                        selectedSlot.timezone,
+                      )}{" "}
                     <ArrowRight className="ml-auto size-4" />
                   </Button>
+                  {bookingError ? (
+                    <InlineAlert
+                      variant="error"
+                      title="Booking not confirmed"
+                      description={bookingError}
+                    />
+                  ) : null}
                 </div>
               ) : null}
             </>
