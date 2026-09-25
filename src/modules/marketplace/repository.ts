@@ -67,10 +67,38 @@ function searchVector() {
   )`;
 }
 
+const marketplaceSearchCache = new Map<
+  string,
+  { expires: number; value: { items: MarketplaceSearchRecord[]; totalItems: number } }
+>();
+const MARKETPLACE_CACHE_TTL_MS = 15_000;
+
+function marketplaceCacheKey(input: MarketplaceSearchQuery): string {
+  return JSON.stringify({
+    q: input.q ?? "",
+    category: input.category ?? "",
+    location: input.location ?? "",
+    fulfilmentModel: input.fulfilmentModel ?? "",
+    pricingModel: input.pricingModel ?? "",
+    availability: input.availability ?? "",
+    verified: input.verified ?? "",
+    topRated: input.topRated ?? "",
+    instantBooking: input.instantBooking ?? "",
+    sort: input.sort,
+    page: input.page,
+    pageSize: input.pageSize,
+  });
+}
+
 export class MarketplaceRepository implements MarketplaceStore {
   constructor(private readonly db: Database) {}
 
   async search(input: MarketplaceSearchQuery) {
+    const cacheKey = marketplaceCacheKey(input);
+    const cached = marketplaceSearchCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      return cached.value;
+    }
     const conditions: SQL[] = [
       eq(professionalServices.status, "published"),
       eq(professionalServices.moderationStatus, "clear"),
@@ -190,32 +218,31 @@ export class MarketplaceRepository implements MarketplaceStore {
       )
       .where(where);
 
-    const [itemsWithoutImages, [total]] = await Promise.all([
-      base
-        .orderBy(
-          ...(input.sort === "relevance" && input.q ? [desc(relevance)] : []),
-          desc(professionalServices.publishedAt),
-          asc(professionalServices.id),
-        )
-        .limit(input.pageSize)
-        .offset((input.page - 1) * input.pageSize),
-      this.db
-        .select({ value: count() })
-        .from(professionalServices)
-        .innerJoin(
-          organisations,
-          eq(organisations.id, professionalServices.organisationId),
-        )
-        .innerJoin(
-          professionalProfiles,
-          eq(professionalProfiles.organisationId, organisations.id),
-        )
-        .leftJoin(
-          professionalReputation,
-          eq(professionalReputation.organisationId, organisations.id),
-        )
-        .where(where),
-    ]);
+    const itemsWithoutImages = await base
+      .orderBy(
+        ...(input.sort === "relevance" && input.q ? [desc(relevance)] : []),
+        desc(professionalServices.publishedAt),
+        asc(professionalServices.id),
+      )
+      .limit(input.pageSize)
+      .offset((input.page - 1) * input.pageSize);
+
+    const [total] = await this.db
+      .select({ value: count() })
+      .from(professionalServices)
+      .innerJoin(
+        organisations,
+        eq(organisations.id, professionalServices.organisationId),
+      )
+      .innerJoin(
+        professionalProfiles,
+        eq(professionalProfiles.organisationId, organisations.id),
+      )
+      .leftJoin(
+        professionalReputation,
+        eq(professionalReputation.organisationId, organisations.id),
+      )
+      .where(where);
 
     // Batch fetch images in single query instead of 9 correlated subqueries (cuts 9 index lookups)
     const imageMap = new Map<string, string | null>();
@@ -249,10 +276,21 @@ export class MarketplaceRepository implements MarketplaceStore {
       imagePublicId: imageMap.get(serviceId) ?? null,
     }));
 
-    return {
+    const result = {
       items: items as unknown as MarketplaceSearchRecord[],
       totalItems: total?.value ?? 0,
     };
+    // Cache successful results for 15s to reduce Neon fetch pressure
+    // when preview shares the dev DB and receives burst traffic.
+    if (marketplaceSearchCache.size > 100) {
+      const firstKey = marketplaceSearchCache.keys().next().value as string | undefined;
+      if (firstKey) marketplaceSearchCache.delete(firstKey);
+    }
+    marketplaceSearchCache.set(cacheKey, {
+      expires: Date.now() + MARKETPLACE_CACHE_TTL_MS,
+      value: result,
+    });
+    return result;
   }
 
   async listPopular(input: { location?: string; limit?: number } = {}): Promise<MarketplaceSearchRecord[]> {

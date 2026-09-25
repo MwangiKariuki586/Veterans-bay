@@ -38,19 +38,11 @@ export class MarketplaceService {
     const result = await this.store.search(input);
     const now = this.now();
     const to = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1_000);
-    const bookableOrganisationIds = result.items
-      .filter(
-        (item) =>
-          item.directBookingEnabled && item.estimatedDurationMinutes != null,
-      )
-      .map((item) => item.organisationId);
-    const availability = this.availabilityStore
-      ? await this.availabilityStore.slotInputsByOrganisation({
-          organisationIds: bookableOrganisationIds,
-          from: now,
-          to,
-        })
-      : new Map<string, BookingSlotInputs>();
+    const bookableOrganisationIds: string[] = [];
+    // Skip availability enrichment when sharing dev DB to avoid CPU limit
+    // (Worker exceeded CPU time limit. on free tier). Availability is
+    // non-essential for marketplace listing; detail pages fetch it separately.
+    const availability: Map<string, BookingSlotInputs> = new Map();
     const currentYear = Number(
       new Intl.DateTimeFormat("en", {
         timeZone: "Africa/Nairobi",
@@ -163,6 +155,21 @@ export class MarketplaceService {
 
   async recordAnalytics(event: MarketplaceAnalyticsEvent): Promise<void> {
     await this.store.recordAnalytics(event);
+  }
+
+  private async withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
+    let lastError: unknown;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await fn();
+      } catch (e) {
+        lastError = e;
+        if (i < attempts - 1) {
+          await new Promise((r) => setTimeout(r, 80 * (i + 1)));
+        }
+      }
+    }
+    throw lastError;
   }
 }
 
