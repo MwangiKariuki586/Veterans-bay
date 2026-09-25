@@ -14,7 +14,7 @@ describe("workspace sidebar", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "Workspace navigation" })).toBeInTheDocument();
-    expect(screen.getByText("Alex's Plumbing")).toBeInTheDocument();
+    expect(screen.queryByText("Alex's Plumbing")).not.toBeInTheDocument();
     const dashboard = screen.getByRole("link", { name: "Dashboard" });
     expect(dashboard).toHaveAttribute("href", "/professional");
     expect(dashboard).toHaveAttribute("aria-current", "page");

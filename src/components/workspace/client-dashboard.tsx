@@ -213,11 +213,10 @@ export function ClientDashboard() {
         {data ? <ServiceProtectionCard data={data.serviceProtection} /> : <DashboardSectionSkeleton title="Service protection" variant="protection" />}
       </section>
 
-      {/* Second row: Action centre + Spending + Professionals */}
-      <div className="grid items-stretch gap-3 xl:grid-cols-[360px_minmax(0,1fr)_340px]">
+      {/* Second row: Action centre + Spending */}
+      <div className="grid items-stretch gap-3 xl:grid-cols-[360px_minmax(0,1fr)]">
         {data ? <ActionCentreCard items={data.actionCentre} /> : <DashboardSectionSkeleton title="Action centre" href="/client/bookings?stage=active" />}
         {data ? <SpendingCard /> : <DashboardSectionSkeleton title="Spending & service activity" variant="chart" />}
-        {data ? <ProfessionalsCard professionals={data.professionals} /> : <DashboardSectionSkeleton title="Your professionals" href="/client/saved" />}
       </div>
 
       {/* Third row: Upcoming bookings + Protection & payments */}

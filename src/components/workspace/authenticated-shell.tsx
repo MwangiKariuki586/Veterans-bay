@@ -1,6 +1,5 @@
 "use client";
 
-import { Menu } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Fragment,
@@ -22,15 +21,7 @@ import type { AuthenticatedShellKind } from "@/components/workspace/workspace-na
 import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
 import { ClientDashboardProvider } from "@/components/workspace/client-dashboard-context";
 import { ProfessionalDashboardProvider } from "@/components/workspace/professional-dashboard-context";
-import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { authClient } from "@/lib/auth-client";
@@ -102,7 +93,6 @@ export function AuthenticatedShell({
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [workspaceRevision, setWorkspaceRevision] = useState(0);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const sessionUserId = session?.user.id;
   const previousUserIdRef = useRef<string | null>(null);
   const previousWorkspaceIdRef = useRef<string | null>(null);
@@ -258,14 +248,6 @@ export function AuthenticatedShell({
           workspaceContext={{ kind, label: workspaceLabel }}
         />
       </div>
-      <div className="flex shrink-0 items-center justify-end border-b border-black/8 bg-white px-4 py-2 sm:px-6 lg:hidden lg:px-8">
-        <WorkspaceMenu
-          kind={kind}
-          workspaceLabel={workspaceLabel}
-          open={mobileOpen}
-          onOpenChange={setMobileOpen}
-        />
-      </div>
       <div className="grid min-h-0 flex-1 lg:grid-cols-[228px_minmax(0,1fr)]">
         <WorkspaceSidebar
           kind={kind}
@@ -339,46 +321,4 @@ function WorkspaceFooter() {
     return null;
   }
   return <AuthenticatedFooter className="mt-auto" />;
-}
-
-function WorkspaceMenu({
-  kind,
-  workspaceLabel,
-  open,
-  onOpenChange,
-}: {
-  kind: AuthenticatedShellKind;
-  workspaceLabel: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetTrigger asChild>
-        <Button
-          variant="outline"
-          className="h-11 rounded-xl border-black/8 px-4"
-          aria-label="Open workspace menu"
-        >
-          <Menu className="size-5" aria-hidden="true" />
-          Menu
-        </Button>
-      </SheetTrigger>
-      <SheetContent
-        side="left"
-        className="w-[min(100%,20rem)] border-r border-black/8 bg-[#f7f9fa] p-0"
-        aria-describedby="workspace-menu-description"
-      >
-        <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
-        <SheetDescription id="workspace-menu-description" className="sr-only">
-          Switch workspace and open app destinations.
-        </SheetDescription>
-        <WorkspaceSidebar
-          kind={kind}
-          workspaceLabel={workspaceLabel}
-          className="h-full rounded-none border-0"
-        />
-      </SheetContent>
-    </Sheet>
-  );
 }

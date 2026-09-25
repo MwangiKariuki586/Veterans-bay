@@ -1,13 +1,11 @@
 "use client";
 
-import { ArrowRight, ChevronDown, Store } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
   getWorkspaceNav,
-  shellHomeHref,
-  shellKindShortLabel,
   type AuthenticatedShellKind,
 } from "@/components/workspace/workspace-nav";
 import { cn } from "@/lib/utils";
@@ -43,23 +41,6 @@ export function WorkspaceSidebar({
       )}
       aria-label="Workspace"
     >
-      <Link
-        href={shellHomeHref[kind]}
-        className="mb-3 flex items-center gap-3 rounded-xl border border-black/8 bg-[#f8fafb] p-3 lg:hidden"
-      >
-        <span className="grid size-10 place-items-center rounded-xl bg-[#eef7e8] text-[#287313]">
-          <Store className="size-5" aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold">
-            {workspaceLabel}
-          </span>
-          <span className="block type-caption text-muted-foreground">
-            {shellKindShortLabel[kind]}
-          </span>
-        </span>
-      </Link>
-
       <nav
         className="min-h-0 flex-1 overflow-y-auto pr-1"
         aria-label="Workspace navigation"

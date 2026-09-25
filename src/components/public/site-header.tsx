@@ -3,6 +3,7 @@
 import {
   Bell,
   ArrowLeftRight,
+  ArrowRight,
   CalendarDays,
   ChevronDown,
   Heart,
@@ -36,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { getUnreadNotificationCount } from "@/components/notifications/notification-api";
 import { useProfessionalDashboard } from "@/components/workspace/professional-dashboard-context";
 import {
+  getWorkspaceNav,
   shellHomeHref,
   type AuthenticatedShellKind,
 } from "@/components/workspace/workspace-nav";
@@ -349,8 +351,10 @@ function MobileNavLink({
 
 function MobileSignedInNavigation({
   workspaceKind,
+  hideWorkspaceDuplicates = false,
 }: {
   workspaceKind?: AuthenticatedShellKind;
+  hideWorkspaceDuplicates?: boolean;
 }) {
   const dashboardHref = workspaceKind
     ? shellHomeHref[workspaceKind]
@@ -361,15 +365,11 @@ function MobileSignedInNavigation({
       {workspaceKind === "client" || workspaceKind === "professional" ? (
         <MobileNavLink href="/messages">Messages</MobileNavLink>
       ) : null}
-      {workspaceKind === "client" ? (
-        <MobileNavLink href="/client/saved">Saved professionals</MobileNavLink>
-      ) : null}
-      {workspaceKind === "professional" ? (
-        <MobileNavLink href="/professional/calendar">Calendar</MobileNavLink>
-      ) : null}
       <MobileNavLink href="/notifications">Notifications</MobileNavLink>
       <MobileNavLink href="/account/profile">Account</MobileNavLink>
-      <MobileNavLink href={dashboardHref}>Dashboard</MobileNavLink>
+      {!hideWorkspaceDuplicates ? (
+        <MobileNavLink href={dashboardHref}>Dashboard</MobileNavLink>
+      ) : null}
     </>
   );
 }
@@ -400,6 +400,97 @@ function MobileGuestNavigation({
           Find Services
         </MobileNavLink>
       ) : null}
+    </>
+  );
+}
+
+function isWorkspaceNavActive(pathname: string, href: string) {
+  if (href === "/professional" || href === "/client" || href === "/admin") {
+    return pathname === href;
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function badgeForWorkspaceHref(
+  href: string,
+  badges?: {
+    enquiries: number;
+    quotations: number;
+    invoices: number;
+    reviews: number;
+  },
+) {
+  if (!badges) return 0;
+  if (href.includes("/enquiries")) return badges.enquiries;
+  if (href.includes("/quotations")) return badges.quotations;
+  if (href.includes("/invoices")) return badges.invoices;
+  if (href.includes("/reviews")) return badges.reviews;
+  return 0;
+}
+
+function MobileWorkspaceNavigation({
+  kind,
+}: {
+  kind: AuthenticatedShellKind;
+}) {
+  const pathname = usePathname();
+  const groups = getWorkspaceNav(kind);
+  const dashboard = useProfessionalDashboard();
+  const navigationBadges =
+    kind === "professional" ? dashboard?.data?.navigationBadges : undefined;
+
+  return (
+    <>
+      {groups.map((group, groupIndex) => (
+        <div key={group.id}>
+          {groupIndex > 0 ? (
+            <div className="my-2 border-t border-black/8" />
+          ) : null}
+          <ul className="space-y-0.5">
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const active = isWorkspaceNavActive(pathname, item.href);
+              const badge = badgeForWorkspaceHref(item.href, navigationBadges);
+              return (
+                <li key={item.href}>
+                  <SheetClose asChild>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "group flex min-h-11 items-center gap-3 rounded-xl px-3 type-control transition-colors",
+                        active
+                          ? "bg-[#edf5e7] text-[#245f14]"
+                          : "text-[#27313a] hover:bg-[#f7f9fa] hover:text-foreground",
+                      )}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <Icon
+                        className={cn(
+                          "size-[1.05rem] shrink-0",
+                          active ? "text-[#2e7d18]" : "text-[#59636c] group-hover:text-foreground",
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      {badge > 0 ? (
+                        <span className="grid min-h-5 min-w-5 place-items-center rounded-full bg-[#2f7d18] px-1 type-caption font-semibold leading-none text-white">
+                          {badge > 99 ? "99+" : badge}
+                        </span>
+                      ) : null}
+                      {item.label === "Tools & Resources" ? (
+                        <ChevronDown
+                          className="size-3.5 -rotate-90 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                    </Link>
+                  </SheetClose>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
     </>
   );
 }
@@ -522,7 +613,10 @@ function AdaptiveSiteHeader({
               <Menu className="size-5" aria-hidden="true" />
             </Button>
           </SheetTrigger>
-          <SheetContent aria-describedby="site-menu-description">
+          <SheetContent
+            aria-describedby="site-menu-description"
+            className="flex max-h-[100dvh] flex-col"
+          >
             <SheetTitle className="pr-10 text-xl font-semibold tracking-title">
               Veterans Bay
             </SheetTitle>
@@ -533,26 +627,67 @@ function AdaptiveSiteHeader({
               Search services or jump to your destination.
             </SheetDescription>
             <HeaderSearch className="mt-7" />
-            <nav
-              className="mt-7 grid gap-2"
-              aria-busy={isPending}
-              aria-label="Mobile navigation"
-            >
-              {isPending ? (
-                <p className="px-4 py-3 text-sm text-[#68717b]">
-                  Loading account navigation…
-                </p>
-              ) : signedIn ? (
-                <MobileSignedInNavigation
-                  workspaceKind={workspaceContext?.kind}
-                />
+            <div className="mt-7 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
+              {workspaceContext ? (
+                <nav
+                  aria-label="Mobile navigation"
+                  className="grid gap-2"
+                  aria-busy={isPending}
+                >
+                  {isPending ? (
+                    <p className="px-4 py-3 text-sm text-[#68717b]">
+                      Loading navigation…
+                    </p>
+                  ) : signedIn ? (
+                    <>
+                      <MobileWorkspaceNavigation kind={workspaceContext.kind} />
+                      <MobileSignedInNavigation
+                        workspaceKind={workspaceContext.kind}
+                        hideWorkspaceDuplicates={Boolean(workspaceContext)}
+                      />
+                    </>
+                  ) : (
+                    <MobileGuestNavigation
+                      marketplace={marketplace}
+                      pathname={pathname}
+                    />
+                  )}
+                </nav>
               ) : (
-                <MobileGuestNavigation
-                  marketplace={marketplace}
-                  pathname={pathname}
-                />
+                <nav
+                  className="grid gap-2"
+                  aria-busy={isPending}
+                  aria-label="Mobile navigation"
+                >
+                  {isPending ? (
+                    <p className="px-4 py-3 text-sm text-[#68717b]">
+                      Loading account navigation…
+                    </p>
+                  ) : signedIn ? (
+                    <MobileSignedInNavigation
+                      workspaceKind={undefined}
+                      hideWorkspaceDuplicates={false}
+                    />
+                  ) : (
+                    <MobileGuestNavigation
+                      marketplace={marketplace}
+                      pathname={pathname}
+                    />
+                  )}
+                </nav>
               )}
-            </nav>
+              {workspaceContext && workspaceContext.kind !== "admin" ? (
+                <SheetClose asChild>
+                  <Link
+                    href="/support"
+                    className="flex min-h-10 items-center justify-between rounded-full bg-primary px-4 type-control text-primary-foreground"
+                  >
+                    Contact support
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                </SheetClose>
+              ) : null}
+            </div>
           </SheetContent>
         </Sheet>
       </div>

@@ -93,16 +93,10 @@ describe("site header", () => {
     });
 
     render(<SiteHeader />);
+    fireEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
 
-    const dashboardLink = screen.getByRole("link", { name: "Dashboard" });
+    const dashboardLink = screen.getAllByRole("link", { name: "Dashboard" })[0];
     expect(dashboardLink).toHaveAttribute("href", "/workspace/select");
-    expect(dashboardLink).toHaveClass(
-      "text-sm",
-      "font-semibold",
-      "transition-colors",
-      "hover:text-[#5f7f00]",
-    );
-    expect(dashboardLink).not.toHaveClass("rounded-full", "border-black/8");
     expect(screen.queryByRole("link", { name: "Messages" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Saved professionals" }),
@@ -165,10 +159,7 @@ describe("site header", () => {
       "href",
       "/messages",
     );
-    expect(screen.getByRole("link", { name: "Saved professionals" })).toHaveAttribute(
-      "href",
-      "/client/saved",
-    );
+    expect(screen.queryByRole("link", { name: "Saved professionals" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Calendar" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
       "href",
@@ -196,10 +187,7 @@ describe("site header", () => {
       "href",
       "/messages",
     );
-    expect(screen.getByRole("link", { name: "Calendar" })).toHaveAttribute(
-      "href",
-      "/professional/calendar",
-    );
+    expect(screen.queryByRole("link", { name: "Calendar" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Saved professionals" }),
     ).not.toBeInTheDocument();

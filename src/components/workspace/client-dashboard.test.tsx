@@ -140,7 +140,7 @@ describe("client dashboard", () => {
     expect(screen.getByRole("link", { name: "Post request" })).toBeInTheDocument();
     expect(screen.getByRole("status", { name: "Loading open requests" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Action centre" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Your professionals" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Your professionals" })).not.toBeInTheDocument();
     expect(screen.queryByText("No open requests")).not.toBeInTheDocument();
     expect(screen.queryByText("All paid")).not.toBeInTheDocument();
     expect(screen.queryByText("David Mwangi")).not.toBeInTheDocument();
@@ -181,16 +181,9 @@ describe("client dashboard", () => {
     // Spending
     expect(screen.getByText("Spending & service activity")).toBeInTheDocument();
     expect(screen.getByText(/45,380/)).toBeInTheDocument();
-    // Professionals
-    expect(screen.getByText("Your professionals")).toBeInTheDocument();
-    expect(screen.getAllByText("David Mwangi").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByRole("button", { name: "Message" })[0]).toHaveClass("text-muted-foreground");
-    expect(screen.getAllByRole("button", { name: "Message" })[0]).not.toHaveClass("bg-primary");
-    expect(screen.getAllByRole("link", { name: "Book again" })[0]).toHaveClass("bg-primary");
-    expect(screen.getAllByRole("link", { name: "Book again" })[0]).toHaveAttribute(
-      "href",
-      "/professionals/david-mwangi",
-    );
+    // Professionals removed per UX — no Your professionals card
+    expect(screen.queryByText("Your professionals")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Book again" })).not.toBeInTheDocument();
     // Upcoming bookings table row
     expect(screen.getAllByText("BK-4291").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Plumbing Repair").length).toBeGreaterThanOrEqual(1);
