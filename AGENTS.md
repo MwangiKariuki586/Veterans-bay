@@ -164,23 +164,24 @@ Prefer direct readable code over premature abstraction.
 1. Work only within the active feature and required prerequisites.
 2. Do not implement deferred or speculative capability.
 3. Do not make unrelated changes.
-4. Never trust client-provided identity, organisation scope, permissions, prices, balances, or workflow status.
-5. Resolve authenticated identity from Better Auth on the server.
-6. Validate current restrictions, workspace, membership, role, permission, ownership, participation, and assignment.
-7. Preserve organisation isolation.
-8. Hono is the authoritative application API.
-9. Keep routes thin; domain services own business decisions and transitions.
-10. Validate external input with Zod.
-11. Use Drizzle and Neon for relational data.
-12. Use transactions for dependent business changes.
-13. Preserve quotation versions, accepted terms, financial records, status history, warranties, disputes, and audit evidence.
-14. Insert transaction-dependent events into the PostgreSQL outbox before commit.
-15. Treat Queue delivery as at least once and make consumers idempotent.
-16. Store file content in Cloudinary and metadata in PostgreSQL.
-17. Keep secrets, sessions, private assets, internal errors, and sensitive logs out of the browser.
-18. Do not claim an integration works until it is configured and verified.
-19. Do not mark placeholders, incomplete workflows, or unverified work complete.
-20. Do not change the platform's established design language without explicit approval.
+4. Keep pages server-first — `src/app/**/page.tsx` stays a Server Component; only interactive islands are `"use client"`.
+5. Never trust client-provided identity, organisation scope, permissions, prices, balances, or workflow status.
+6. Resolve authenticated identity from Better Auth on the server.
+7. Validate current restrictions, workspace, membership, role, permission, ownership, participation, and assignment.
+8. Preserve organisation isolation.
+9. Hono is the authoritative application API.
+10. Keep routes thin; domain services own business decisions and transitions.
+11. Validate external input with Zod.
+12. Use Drizzle and Neon for relational data.
+13. Use transactions for dependent business changes.
+14. Preserve quotation versions, accepted terms, financial records, status history, warranties, disputes, and audit evidence.
+15. Insert transaction-dependent events into the PostgreSQL outbox before commit.
+16. Treat Queue delivery as at least once and make consumers idempotent.
+17. Store file content in Cloudinary and metadata in PostgreSQL.
+18. Keep secrets, sessions, private assets, internal errors, and sensitive logs out of the browser.
+19. Do not claim an integration works until it is configured and verified.
+20. Do not mark placeholders, incomplete workflows, or unverified work complete.
+21. Do not change the platform's established design language without explicit approval.
 
 ## Design Authority
 

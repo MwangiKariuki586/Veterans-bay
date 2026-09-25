@@ -13,8 +13,6 @@ async function notificationApi<T>(
   init?: RequestInit,
 ): Promise<T> {
   const response = await fetch(path, {
-    cache: "force-cache",
-    next: { revalidate: 30 } as never,
     credentials: "include",
     ...init,
   });
@@ -29,9 +27,23 @@ async function notificationApi<T>(
   return body.data;
 }
 
-export function listNotifications(filter: "all" | "unread") {
+export type NotificationListQuery = {
+  filter: "all" | "unread";
+  page: number;
+  pageSize: number;
+};
+
+export function listNotifications(
+  query: NotificationListQuery,
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams();
+  params.set("filter", query.filter);
+  params.set("page", String(query.page));
+  params.set("pageSize", String(query.pageSize));
   return notificationApi<NotificationListResult>(
-    `/api/v1/notifications?filter=${filter}`,
+    `/api/v1/notifications?${params.toString()}`,
+    { signal },
   );
 }
 
