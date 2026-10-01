@@ -290,4 +290,71 @@ describe("public catalogue pages", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("This service is not currently available.")).toBeInTheDocument();
   });
+
+  it("scrubs worker CPU failures on the listing to safe copy", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({
+        error: {
+          code: "API_UNAVAILABLE",
+          message:
+            "Preview API temporarily unavailable: Worker exceeded CPU time limit.",
+        },
+      }),
+    } as Response);
+
+    render(<PublicServicePage slug="electrical-installation" />);
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Listing unavailable",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("This service is not currently available."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Worker exceeded/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Preview API/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/CPU time/)).not.toBeInTheDocument();
+  });
+
+  it("scrubs worker CPU failures on availability slots to safe copy", async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("booking-slots")) {
+        return {
+          ok: false,
+          status: 503,
+          json: async () => ({
+            error: {
+              code: "API_UNAVAILABLE",
+              message:
+                "Preview API temporarily unavailable: Worker exceeded CPU time limit.",
+            },
+          }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: {
+            ...service,
+            pricingModel: "fixed",
+            priceMinor: 15000,
+            directBookingEnabled: true,
+          },
+        }),
+      } as Response;
+    });
+
+    render(<PublicServicePage slug={service.slug} />);
+    expect(await screen.findByText("Availability unavailable")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Availability is temporarily unavailable\./),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Worker exceeded/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Preview API/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/CPU time/)).not.toBeInTheDocument();
+  });
 });

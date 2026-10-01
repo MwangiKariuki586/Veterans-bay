@@ -16,11 +16,13 @@ export interface BusyWindow {
 }
 
 export function assertValidTimezone(timezone: string) {
+  if (knownValidTimezones.has(timezone)) return;
   try {
-    new Intl.DateTimeFormat("en-GB", { timeZone: timezone }).format(new Date());
+    formatterForTimezone(timezone).format(new Date());
   } catch {
     throw new Error("INVALID_TIMEZONE");
   }
+  knownValidTimezones.add(timezone);
 }
 
 export function buildAvailableSlots(input: {
@@ -99,6 +101,33 @@ export function overlaps(
   return leftStart < rightEnd && rightStart < leftEnd;
 }
 
+/**
+ * Cached `Intl.DateTimeFormat` instances per timezone. Constructing a
+ * formatter is expensive, and slot generation calls `zonedParts` thousands
+ * of times per request (every 30-minute candidate over a 14-day window) —
+ * on Workers that cost exceeds the CPU time limit. Timezone cardinality is
+ * tiny, so one cached formatter each is safe to share across requests.
+ */
+const timezoneFormatterCache = new Map<string, Intl.DateTimeFormat>();
+const knownValidTimezones = new Set<string>();
+
+function formatterForTimezone(timezone: string): Intl.DateTimeFormat {
+  const cached = timezoneFormatterCache.get(timezone);
+  if (cached) return cached;
+  // Throws RangeError for unknown timezones; callers map that to INVALID_TIMEZONE.
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  timezoneFormatterCache.set(timezone, formatter);
+  return formatter;
+}
+
 function withinRule(startsAt: Date, endsAt: Date, rule: SlotRule) {
   const start = zonedParts(startsAt, rule.timezone);
   const lastOccupiedMinute = zonedParts(
@@ -117,15 +146,7 @@ function withinRule(startsAt: Date, endsAt: Date, rule: SlotRule) {
 }
 
 function zonedParts(date: Date, timezone: string) {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
+  const parts = formatterForTimezone(timezone).formatToParts(date);
   const values = Object.fromEntries(
     parts
       .filter((part) => part.type !== "literal")

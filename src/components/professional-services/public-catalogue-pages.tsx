@@ -48,15 +48,33 @@ import type {
 } from "@/modules/professional-services/types";
 import type { BookingSlot } from "@/modules/bookings/types";
 
-async function getPublicData<T>(path: string): Promise<T> {
+import { toSafePublicErrorMessage } from "./public-error-copy";
+
+const LISTING_UNAVAILABLE_FALLBACK = "This listing is not currently available.";
+const AVAILABILITY_UNAVAILABLE_FALLBACK =
+  "Availability is temporarily unavailable. Please try again or send a request and the professional will respond with options.";
+const BOOKING_UNAVAILABLE_FALLBACK =
+  "Booking could not be created. Please try again.";
+
+async function getPublicData<T>(
+  path: string,
+  fallback: string = LISTING_UNAVAILABLE_FALLBACK,
+): Promise<T> {
   const response = await fetch(path);
   const body = (await response.json().catch(() => null)) as {
     data?: T;
-    error?: { message?: string };
+    error?: { code?: string; message?: string };
   } | null;
   if (!response.ok || !body?.data) {
     throw new Error(
-      body?.error?.message ?? "This listing is not currently available.",
+      toSafePublicErrorMessage(
+        {
+          code: body?.error?.code,
+          message: body?.error?.message,
+          status: response.status,
+        },
+        fallback,
+      ),
     );
   }
   return body.data;
@@ -435,6 +453,7 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
   useEffect(() => {
     void getPublicData<PublicProfessionalProfile>(
       `/api/v1/public/professionals/${encodeURIComponent(slug)}`,
+      "This professional is not currently available.",
     )
       .then((data) => {
         setProfile(data);
@@ -454,9 +473,10 @@ export function PublicProfessionalPage({ slug }: { slug: string }) {
           return;
         }
         setError(
-          cause instanceof Error
-            ? cause.message
-            : "This professional is not currently available.",
+          toSafePublicErrorMessage(
+            { message: cause instanceof Error ? cause.message : undefined },
+            "This professional is not currently available.",
+          ),
         );
       });
   }, [slug]);
@@ -1458,6 +1478,7 @@ export function PublicServicePage({ slug }: { slug: string }) {
   useEffect(() => {
     void getPublicData<PublicServiceDetail>(
       `/api/v1/public/services/${encodeURIComponent(slug)}`,
+      "This service is not currently available.",
     )
       .then((data) => {
         setService(data);
@@ -1469,9 +1490,10 @@ export function PublicServicePage({ slug }: { slug: string }) {
       })
       .catch((cause) =>
         setError(
-          cause instanceof Error
-            ? cause.message
-            : "This service is not currently available.",
+          toSafePublicErrorMessage(
+            { message: cause instanceof Error ? cause.message : undefined },
+            "This service is not currently available.",
+          ),
         ),
       );
   }, [slug]);
@@ -1519,7 +1541,7 @@ export function PublicServicePage({ slug }: { slug: string }) {
       );
       const body = (await response.json().catch(() => null)) as {
         data?: BookingSlot[];
-        error?: { message?: string };
+        error?: { code?: string; message?: string };
       } | null;
       if (!response.ok) {
         if (response.status === 401) {
@@ -1530,7 +1552,16 @@ export function PublicServicePage({ slug }: { slug: string }) {
           }
           return;
         }
-        throw new Error(body?.error?.message ?? "Availability unavailable.");
+        throw new Error(
+          toSafePublicErrorMessage(
+            {
+              code: body?.error?.code,
+              message: body?.error?.message,
+              status: response.status,
+            },
+            AVAILABILITY_UNAVAILABLE_FALLBACK,
+          ),
+        );
       }
       const data = body?.data ?? [];
       setSlots(data);
@@ -1545,7 +1576,10 @@ export function PublicServicePage({ slug }: { slug: string }) {
       }
     } catch (cause) {
       setSlotsError(
-        cause instanceof Error ? cause.message : "Availability unavailable.",
+        toSafePublicErrorMessage(
+          { message: cause instanceof Error ? cause.message : undefined },
+          AVAILABILITY_UNAVAILABLE_FALLBACK,
+        ),
       );
       setSlots([]);
     } finally {
@@ -1845,7 +1879,7 @@ export function PublicServicePage({ slug }: { slug: string }) {
       );
       const body = (await response.json().catch(() => null)) as {
         data?: BookingSlot[];
-        error?: { message?: string };
+        error?: { code?: string; message?: string };
       } | null;
       if (!response.ok) {
         if (response.status === 401) {
@@ -1854,7 +1888,16 @@ export function PublicServicePage({ slug }: { slug: string }) {
           );
           return;
         }
-        throw new Error(body?.error?.message ?? "Availability check failed.");
+        throw new Error(
+          toSafePublicErrorMessage(
+            {
+              code: body?.error?.code,
+              message: body?.error?.message,
+              status: response.status,
+            },
+            "Availability check failed. Please try again.",
+          ),
+        );
       }
       const latest = body?.data ?? [];
       const stillAvailable = latest.some(
@@ -1888,7 +1931,7 @@ export function PublicServicePage({ slug }: { slug: string }) {
       });
       const createBody = (await createResponse.json().catch(() => null)) as {
         data?: { id: string };
-        error?: { message?: string };
+        error?: { code?: string; message?: string };
       } | null;
       if (!createResponse.ok) {
         if (createResponse.status === 401) {
@@ -1897,7 +1940,16 @@ export function PublicServicePage({ slug }: { slug: string }) {
           );
           return;
         }
-        throw new Error(createBody?.error?.message ?? "Booking could not be created.");
+        throw new Error(
+          toSafePublicErrorMessage(
+            {
+              code: createBody?.error?.code,
+              message: createBody?.error?.message,
+              status: createResponse.status,
+            },
+            BOOKING_UNAVAILABLE_FALLBACK,
+          ),
+        );
       }
       const bookingId = createBody?.data?.id;
       if (bookingId) {
@@ -1910,7 +1962,12 @@ export function PublicServicePage({ slug }: { slug: string }) {
         setSheetOpen(false);
       }
     } catch (cause) {
-      setBookingError(cause instanceof Error ? cause.message : "Booking could not be created.");
+      setBookingError(
+        toSafePublicErrorMessage(
+          { message: cause instanceof Error ? cause.message : undefined },
+          BOOKING_UNAVAILABLE_FALLBACK,
+        ),
+      );
     } finally {
       setBookingBusy(false);
     }
