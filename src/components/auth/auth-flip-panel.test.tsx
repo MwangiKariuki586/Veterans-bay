@@ -459,7 +459,7 @@ describe("account journey sign in", () => {
     );
     expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
       "href",
-      "/contact",
+      "/support",
     );
     expect(screen.queryByRole("search")).not.toBeInTheDocument();
     expect(

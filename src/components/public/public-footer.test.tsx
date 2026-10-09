@@ -34,7 +34,7 @@ describe("public footer", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Contact Support" })).toHaveAttribute(
       "href",
-      "/contact",
+      "/support",
     );
     expect(screen.getByText("Background Verified")).toBeInTheDocument();
     expect(screen.getByText("Rated & Reviewed")).toBeInTheDocument();

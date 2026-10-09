@@ -1176,7 +1176,7 @@ function HelpCard({ className }: { className?: string }) {
         professional.
       </p>
       <Link
-        href="/contact"
+        href="/support"
         className={cn(
           buttonVariants(),
           "mt-4 h-10 w-full justify-between rounded-xl px-4 text-xs",

@@ -1,8 +1,5 @@
-import { createUnavailableRoute } from "@/components/public/create-unavailable-route";
+import { redirect } from "next/navigation";
 
-export default createUnavailableRoute({
-  eyebrow: "Contact",
-  title: "Contact Veterans Bay.",
-  description:
-    "Direct support channels will open when delivery integrations are verified.",
-});
+export default function ContactPage() {
+  redirect("/support");
+}

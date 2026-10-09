@@ -62,7 +62,7 @@ function HelpCardStatic({ className }: { className?: string }) {
       <span className="grid size-11 place-items-center rounded-full bg-[#eff8cf] text-[#648f12]">?</span>
       <h2 className="mt-3 text-base font-semibold">Need help choosing?</h2>
       <p className="mt-2 text-sm leading-6 text-[#425671]">Tell us what you need and we&apos;ll help you find the right professional.</p>
-      <Link href="/contact" prefetch={false} className="mt-4 flex h-10 w-full items-center justify-between rounded-xl bg-primary px-4 text-xs font-semibold">
+      <Link href="/support" prefetch={false} className="mt-4 flex h-10 w-full items-center justify-between rounded-xl bg-primary px-4 text-xs font-semibold">
         Get matched <ArrowRight className="size-4" />
       </Link>
     </aside>

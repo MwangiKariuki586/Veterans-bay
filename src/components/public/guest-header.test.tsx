@@ -9,7 +9,7 @@ describe("GuestHeader", () => {
 
     expect(screen.getByRole("link", { name: "Veterans Bay home" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "How It Works" })).toHaveAttribute("href", "/how-it-works");
-    expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute("href", "/contact");
+    expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute("href", "/support");
   });
 
   it("can provide a landing-page login action without duplicate support content", () => {

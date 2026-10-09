@@ -46,7 +46,7 @@ export const publicFooterColumns: ReadonlyArray<{
       { href: "/safety", label: "Safety & Trust" },
       { href: "/pricing", label: "Pricing & Fees" },
       { href: "/cancellation", label: "Cancellation Policy" },
-      { href: "/contact", label: "Contact Us" },
+      { href: "/support", label: "Contact Us" },
     ],
   },
   {
@@ -167,7 +167,7 @@ export function PublicFooter({ marketplace = false }: { marketplace?: boolean } 
             right.
           </p>
           <Link
-            href="/contact"
+            href="/support"
             prefetch={false}
             className={cn(
               buttonVariants({ variant: "outline" }),

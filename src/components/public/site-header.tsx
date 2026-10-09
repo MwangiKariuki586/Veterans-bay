@@ -532,7 +532,7 @@ function FocusedSiteHeader({
           <p className="hidden items-center gap-2 text-[#526580] sm:flex">
             <Headphones className="size-5 text-[#071733]" aria-hidden="true" />
             Need help?
-            <Link href="/contact" className="font-semibold text-[#0068e8]">
+            <Link href="/support" className="font-semibold text-[#0068e8]">
               Contact support
             </Link>
           </p>
