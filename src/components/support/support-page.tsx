@@ -375,8 +375,8 @@ export function SupportPage() {
           How can we help?
         </h1>
         <p className="max-w-[560px] text-sm leading-6 text-muted-foreground">
-          Send us an enquiry, or resolve trouble with a recent service from your
-          records below.
+          Send us an enquiry, or resolve trouble with a recent service from
+          your workspace records.
         </p>
       </section>
 
@@ -418,7 +418,7 @@ export function SupportPage() {
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-white/65">
                   Signed in? Message your professional, file a warranty claim,
-                  or open a dispute from the job section below.
+                  or raise a dispute from your workspace records.
                 </span>
               </span>
             </li>
@@ -449,6 +449,59 @@ export function SupportPage() {
             initialEmail={sessionUser?.email ?? ""}
           />
         </div>
+      </section>
+
+      {/* Policy strip: every destination below is a real published page. */}
+      <section aria-label="Helpful policies" className={`${cardSurfaceClass} p-5 sm:p-7`}>
+        <h2 className="text-base font-semibold tracking-title">
+          Good to know before you ask
+        </h2>
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+          <li>
+            <Link
+              href="/how-it-works"
+              className="block rounded-2xl border border-black/8 px-4 py-3 text-sm font-semibold hover:border-black/20"
+            >
+              How Veterans Bay works
+              <span className="mt-0.5 block text-xs font-normal leading-5 text-muted-foreground">
+                The full journey from request to repeat booking.
+              </span>
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/safety"
+              className="block rounded-2xl border border-black/8 px-4 py-3 text-sm font-semibold hover:border-black/20"
+            >
+              Safety &amp; trust
+              <span className="mt-0.5 block text-xs font-normal leading-5 text-muted-foreground">
+                Verification, private records, and dispute review.
+              </span>
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/pricing"
+              className="block rounded-2xl border border-black/8 px-4 py-3 text-sm font-semibold hover:border-black/20"
+            >
+              Pricing &amp; payments
+              <span className="mt-0.5 block text-xs font-normal leading-5 text-muted-foreground">
+                How quotes work and what payment records mean.
+              </span>
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/cancellation"
+              className="block rounded-2xl border border-black/8 px-4 py-3 text-sm font-semibold hover:border-black/20"
+            >
+              Changes &amp; cancellations
+              <span className="mt-0.5 block text-xs font-normal leading-5 text-muted-foreground">
+                Reschedule, revise, or cancel without surprises.
+              </span>
+            </Link>
+          </li>
+        </ul>
       </section>
     </div>
   );

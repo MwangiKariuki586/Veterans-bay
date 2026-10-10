@@ -56,7 +56,7 @@ export function LegalDocument({
           </div>
           <div className="mt-12 rounded-2xl bg-muted p-5 text-sm leading-6">
             Questions or requests can be submitted through the{" "}
-            <Link href="/help" className="font-semibold underline">
+            <Link href="/support" className="font-semibold underline">
               Help Center
             </Link>
             .
