@@ -2,8 +2,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { cardSurfaceClass } from "@/components/public/design";
-import { PageContainer } from "@/components/public/page-container";
-import { PublicPageIntro, PublicShell } from "@/components/public/public-shell";
+import { PublicShell } from "@/components/public/public-shell";
 
 const journey = [
   "Discover a verified professional and send a request.",
@@ -16,54 +15,54 @@ const journey = [
 export default function AboutPage() {
   return (
     <PublicShell>
-      <main>
-        <PageContainer className="py-14 sm:py-20">
-          <PublicPageIntro
-            eyebrow="About"
-            title="Home services you can trust."
-            description="Veterans Bay connects clients with verified home repair and maintenance professionals, and gives professionals one workspace to run their whole business."
-          />
+      <main className="w-full pb-8">
+        <div className="w-full space-y-8 type-workspace-body">
+          <section className="space-y-2">
+            <p className="text-[0.8rem] font-semibold tracking-wide text-[#6d9f16]">
+              About
+            </p>
+            <h1 className="type-workspace-title text-foreground">
+              Home services you can trust.
+            </h1>
+            <p className=" text-sm leading-6 text-muted-foreground">
+              Veterans Bay connects clients with verified home repair and
+              maintenance professionals, and gives professionals one workspace
+              to run their whole business.
+            </p>
+          </section>
 
-          <div className="mx-auto mt-12 grid max-w-4xl gap-4">
-            <section className={`${cardSurfaceClass} p-6 sm:p-7`}>
+          <div className="grid gap-4">
+            <section>
               <h2 className="text-lg font-semibold tracking-title">
                 What Veterans Bay is
               </h2>
-              <p className="mt-2 text-sm leading-7 text-muted-foreground">
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Veterans Bay is a service marketplace and professional
                 operations platform for home repair and maintenance. Clients
                 discover professionals, agree terms, schedule work, and keep
                 every record in one place. Professionals manage services,
-                customers, quotations, bookings, jobs, payments, warranties,
-                and reviews from a single workspace — including customers they
+                customers, quotations, bookings, jobs, payments, warranties, and
+                reviews from a single workspace — including customers they
                 already had before joining.
               </p>
             </section>
 
-            <section className={`${cardSurfaceClass} p-6 sm:p-7`}>
+            <section>
               <h2 className="text-lg font-semibold tracking-title">
                 One connected journey
               </h2>
-              <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-7 text-muted-foreground">
+              <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
                 {journey.map((step) => (
                   <li key={step}>{step}</li>
                 ))}
               </ol>
-              <Link
-                href="/how-it-works"
-                prefetch={false}
-                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#2f7d18] hover:underline"
-              >
-                See how it works
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
             </section>
 
-            <section className={`${cardSurfaceClass} p-6 sm:p-7`}>
+            <section>
               <h2 className="text-lg font-semibold tracking-title">
                 Trust is recorded, not claimed
               </h2>
-              <p className="mt-2 text-sm leading-7 text-muted-foreground">
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Ratings and reviews come from eligible completed engagements,
                 accepted terms are preserved, and status history is never
                 silently rewritten. Access is organisation-scoped and enforced
@@ -78,14 +77,6 @@ export default function AboutPage() {
                   className="inline-flex items-center gap-2 text-sm font-semibold text-[#2f7d18] hover:underline"
                 >
                   Safety &amp; trust standards
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
-                <Link
-                  href="/support"
-                  prefetch={false}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#2f7d18] hover:underline"
-                >
-                  Contact us
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </Link>
               </div>
@@ -118,7 +109,7 @@ export default function AboutPage() {
               </div>
             </section>
           </div>
-        </PageContainer>
+        </div>
       </main>
     </PublicShell>
   );

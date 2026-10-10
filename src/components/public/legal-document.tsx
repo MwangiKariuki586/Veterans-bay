@@ -32,7 +32,10 @@ export function LegalDocument({
           </section>
           <div className="space-y-8">
             {sections.map((section) => (
-              <section key={section.title} aria-labelledby={slug(section.title)}>
+              <section
+                key={section.title}
+                aria-labelledby={slug(section.title)}
+              >
                 <h2
                   id={slug(section.title)}
                   className="text-xl font-semibold tracking-title"
@@ -68,5 +71,8 @@ export function LegalDocument({
 }
 
 function slug(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
