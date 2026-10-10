@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { PageContainer } from "@/components/public/page-container";
 import { PublicShell } from "@/components/public/public-shell";
 
 export function LegalDocument({
@@ -20,17 +19,18 @@ export function LegalDocument({
 }) {
   return (
     <PublicShell>
-      <main>
-        <PageContainer className="py-14 sm:py-20">
-          <article className="mx-auto max-w-3xl">
-          <p className="text-sm font-semibold text-trust">{eyebrow}</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-title sm:text-5xl">
-            {title}
-          </h1>
-          <p className="mt-4 text-sm text-muted-foreground">
-            Effective and last updated: {updated}
-          </p>
-          <div className="mt-10 space-y-9">
+      <main className="w-full pb-8">
+        <div className="w-full space-y-8 type-workspace-body">
+          <section className="space-y-2">
+            <p className="text-[0.8rem] font-semibold tracking-wide text-[#6d9f16]">
+              {eyebrow}
+            </p>
+            <h1 className="type-workspace-title text-foreground">{title}</h1>
+            <p className="max-w-[560px] text-sm leading-6 text-muted-foreground">
+              Effective and last updated: {updated}
+            </p>
+          </section>
+          <div className="space-y-8">
             {sections.map((section) => (
               <section key={section.title} aria-labelledby={slug(section.title)}>
                 <h2
@@ -39,7 +39,7 @@ export function LegalDocument({
                 >
                   {section.title}
                 </h2>
-                <div className="mt-3 space-y-3 text-sm leading-7 text-muted-foreground">
+                <div className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
                   {section.paragraphs.map((paragraph) => (
                     <p key={paragraph}>{paragraph}</p>
                   ))}
@@ -54,15 +54,14 @@ export function LegalDocument({
               </section>
             ))}
           </div>
-          <div className="mt-12 rounded-2xl bg-muted p-5 text-sm leading-6">
+          <div className="rounded-2xl bg-muted py-5 pr-5 text-sm leading-6">
             Questions or requests can be submitted through the{" "}
             <Link href="/support" className="font-semibold underline">
               Help Center
             </Link>
             .
           </div>
-          </article>
-        </PageContainer>
+        </div>
       </main>
     </PublicShell>
   );

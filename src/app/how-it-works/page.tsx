@@ -2,8 +2,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { cardSurfaceClass } from "@/components/public/design";
-import { PageContainer } from "@/components/public/page-container";
-import { PublicPageIntro, PublicShell } from "@/components/public/public-shell";
+import { PublicShell } from "@/components/public/public-shell";
 
 const steps = [
   {
@@ -53,24 +52,31 @@ const professionalPoints = [
 export default function HowItWorksPage() {
   return (
     <PublicShell>
-      <main>
-        <PageContainer className="py-14 sm:py-20">
-          <PublicPageIntro
-            eyebrow="How it works"
-            title="One connected service journey."
-            description="From discovery to repeat booking, every agreement, update, record, and follow-up stays attached to the engagement."
-          />
+      <main className="w-full pb-8">
+        <div className="w-full space-y-8 type-workspace-body">
+          <section className="space-y-2">
+            <p className="text-[0.8rem] font-semibold tracking-wide text-[#6d9f16]">
+              How it works
+            </p>
+            <h1 className="type-workspace-title text-foreground">
+              One connected service journey.
+            </h1>
+            <p className=" text-sm leading-6 text-muted-foreground">
+              From discovery to repeat booking, every agreement, update, record,
+              and follow-up stays attached to the engagement.
+            </p>
+          </section>
 
-          <ol className="mx-auto mt-12 grid max-w-4xl gap-4">
+          <ol className="grid gap-4">
             {steps.map((item) => (
               <li key={item.title} className={`${cardSurfaceClass} p-6 sm:p-7`}>
-                <p className="text-xs font-semibold tracking-wide text-[#6d9f16]">
+                <p className="text-[0.8rem] font-semibold tracking-wide text-[#6d9f16]">
                   {item.step}
                 </p>
                 <h2 className="mt-2 text-lg font-semibold tracking-title">
                   {item.title}
                 </h2>
-                <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {item.body}
                 </p>
                 <Link
@@ -87,7 +93,7 @@ export default function HowItWorksPage() {
 
           <section
             aria-labelledby="how-it-works-professionals"
-            className="mx-auto mt-10 max-w-4xl rounded-[22px] bg-[#0a1931] p-6 text-white shadow-[0_18px_55px_rgba(10,25,49,0.25)] sm:p-8"
+            className="rounded-[22px] bg-[#0a1931] p-6 text-white shadow-[0_18px_55px_rgba(10,25,49,0.25)] sm:p-8"
           >
             <h2
               id="how-it-works-professionals"
@@ -95,7 +101,7 @@ export default function HowItWorksPage() {
             >
               For professionals
             </h2>
-            <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-7 text-white/75">
+            <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-white/75">
               {professionalPoints.map((point) => (
                 <li key={point}>{point}</li>
               ))}
@@ -109,16 +115,9 @@ export default function HowItWorksPage() {
                 Become a Professional
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
-              <Link
-                href="/support"
-                prefetch={false}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/25 px-5 text-sm font-semibold text-white"
-              >
-                Contact support
-              </Link>
             </div>
           </section>
-        </PageContainer>
+        </div>
       </main>
     </PublicShell>
   );
