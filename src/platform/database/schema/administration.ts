@@ -243,6 +243,60 @@ export const disputes = pgTable(
   ],
 );
 
+export const publicEnquiries = pgTable(
+  "public_enquiries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    reference: text("reference").notNull().unique(),
+    inquiryType: text("inquiry_type").notNull(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone"),
+    message: text("message").notNull(),
+    accountId: uuid("account_id").references(() => accountProfiles.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("NEW"),
+    resolution: text("resolution"),
+    openedAt: timestamp("opened_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    check(
+      "public_enquiries_type_check",
+      sql`${table.inquiryType} in ('BOOKING', 'PAYMENTS', 'WARRANTY', 'PROFESSIONAL', 'GENERAL')`,
+    ),
+    check(
+      "public_enquiries_status_check",
+      sql`${table.status} in ('NEW', 'IN_REVIEW', 'RESOLVED', 'DISMISSED')`,
+    ),
+    check(
+      "public_enquiries_name_check",
+      sql`char_length(trim(${table.name})) between 2 and 80`,
+    ),
+    check(
+      "public_enquiries_message_check",
+      sql`char_length(trim(${table.message})) between 10 and 2000`,
+    ),
+    check(
+      "public_enquiries_resolution_check",
+      sql`(${table.status} not in ('RESOLVED', 'DISMISSED')) or (${table.resolution} is not null and ${table.resolvedAt} is not null)`,
+    ),
+    index("public_enquiries_queue_idx").on(
+      table.status,
+      table.openedAt,
+      table.id,
+    ),
+    index("public_enquiries_email_idx").on(table.email, table.openedAt),
+  ],
+);
+
 export const platformRules = pgTable(
   "platform_rules",
   {

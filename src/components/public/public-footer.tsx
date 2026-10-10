@@ -42,10 +42,10 @@ export const publicFooterColumns: ReadonlyArray<{
   {
     title: "Support",
     links: [
-      { href: "/help", label: "Help Center" },
-      { href: "/safety", label: "Safety & Trust" },
-      { href: "/pricing", label: "Pricing & Fees" },
-      { href: "/cancellation", label: "Cancellation Policy" },
+      { href: "/support", label: "Help Center" },
+      { href: "/support", label: "Safety & Trust" },
+      { href: "/support", label: "Pricing & Fees" },
+      { href: "/support", label: "Cancellation Policy" },
       { href: "/support", label: "Contact Us" },
     ],
   },

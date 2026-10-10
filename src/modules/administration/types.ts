@@ -60,6 +60,27 @@ export interface AdminDispute {
   openedAt: string;
 }
 
+export interface PublicEnquiry {
+  reference: string;
+  inquiryType: string;
+  status: string;
+  openedAt: string;
+}
+
+export interface AdminEnquiry {
+  id: string;
+  reference: string;
+  inquiryType: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  message: string;
+  accountId: string | null;
+  status: string;
+  resolution: string | null;
+  openedAt: string;
+}
+
 export interface EscalatedWarranty {
   id: string;
   warrantyId: string;

@@ -21,9 +21,30 @@ export const submitReportBodySchema = z.object({
   details: z.string().trim().min(10).max(4000),
 });
 
+export const inquiryTypes = [
+  "BOOKING",
+  "PAYMENTS",
+  "WARRANTY",
+  "PROFESSIONAL",
+  "GENERAL",
+] as const;
+
+export const submitEnquiryBodySchema = z.object({
+  inquiryType: z.enum(inquiryTypes),
+  name: z.string().trim().min(2).max(80),
+  email: z.email().trim().max(320),
+  phone: z.string().trim().min(7).max(32).nullable().optional(),
+  message: z.string().trim().min(10).max(2000),
+});
+
+export const transitionEnquiryBodySchema = z.object({
+  action: z.enum(["START_REVIEW", "RESOLVE", "DISMISS"]),
+  reason: z.string().trim().min(10).max(2000),
+});
+
 export const adminQueueQuerySchema = z.object({
   status: z
-    .enum(["all", "OPEN", "IN_REVIEW", "INVESTIGATING", "AWAITING_DECISION", "RESOLVED", "DISMISSED"])
+    .enum(["all", "NEW", "OPEN", "IN_REVIEW", "INVESTIGATING", "AWAITING_DECISION", "RESOLVED", "DISMISSED"])
     .default("all"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(20),

@@ -47,6 +47,9 @@ function repository(): AdministrationRepository {
     transitionCase: vi.fn().mockResolvedValue({ id: "case-1" }),
     listDisputes: vi.fn().mockResolvedValue({ items: [], totalItems: 0 }),
     transitionDispute: vi.fn().mockResolvedValue({ id: "dispute-1" }),
+    submitEnquiry: vi.fn().mockResolvedValue({ reference: "ENQ-ABC123" }),
+    listEnquiries: vi.fn().mockResolvedValue({ items: [], totalItems: 0 }),
+    transitionEnquiry: vi.fn().mockResolvedValue({ id: "enquiry-1" }),
     listEscalatedWarranties: vi
       .fn()
       .mockResolvedValue({ items: [], totalItems: 0 }),
@@ -119,6 +122,76 @@ describe("AdministrationService", () => {
     );
     expect(store.decideEscalatedWarranty).toHaveBeenCalledWith(
       expect.objectContaining({ actorAccountId: "account-1" }),
+    );
+  });
+
+  it("links public enquiries opportunistically and never blocks guests", async () => {
+    const store = repository();
+    const service = new AdministrationService(
+      store,
+      identity(),
+      authorization([]),
+    );
+
+    await service.submitEnquiry("user-1", {
+      inquiryType: "BOOKING",
+      name: "Enquiry Sender",
+      email: "sender@example.com",
+      message: "The booked professional has not arrived for two days.",
+    });
+    await service.submitEnquiry(null, {
+      inquiryType: "GENERAL",
+      name: "Guest Sender",
+      email: "guest@example.com",
+      message: "How do repeat bookings work on this platform?",
+    });
+
+    expect(store.submitEnquiry).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ accountId: "account-1" }),
+    );
+    expect(store.submitEnquiry).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ accountId: null }),
+    );
+  });
+
+  it("requires current platform permission for enquiry queues and decisions", async () => {
+    const service = new AdministrationService(
+      repository(),
+      identity(),
+      authorization([]),
+    );
+
+    await expect(
+      service.listEnquiries("user-1", { status: "all", page: 1, pageSize: 20 }),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    await expect(
+      service.transitionEnquiry("user-1", "enquiry-1", {
+        action: "RESOLVE",
+        reason: "The booking record already answers this enquiry.",
+      }),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+  });
+
+  it("passes reasoned enquiry decisions with the admin actor", async () => {
+    const store = repository();
+    const service = new AdministrationService(
+      store,
+      identity(),
+      authorization(),
+    );
+
+    await service.transitionEnquiry("user-1", "enquiry-1", {
+      action: "RESOLVE",
+      reason: "The booking record already answers this enquiry.",
+    });
+
+    expect(store.transitionEnquiry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enquiryId: "enquiry-1",
+        actorAccountId: "account-1",
+      }),
     );
   });
 

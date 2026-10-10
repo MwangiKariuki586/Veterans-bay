@@ -36,6 +36,17 @@ describe("public footer", () => {
       "href",
       "/support",
     );
+    for (const name of [
+      "Help Center",
+      "Safety & Trust",
+      "Pricing & Fees",
+      "Cancellation Policy",
+    ]) {
+      expect(screen.getByRole("link", { name })).toHaveAttribute(
+        "href",
+        "/support",
+      );
+    }
     expect(screen.getByText("Background Verified")).toBeInTheDocument();
     expect(screen.getByText("Rated & Reviewed")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Legal" })).toBeInTheDocument();

@@ -545,8 +545,10 @@ describe("Veterans Bay API foundation", () => {
       key: "public:203.0.113.10:/api/v1/public/contact",
     });
     expect(apiLimiter.limit).not.toHaveBeenCalled();
-    // Route may 404; rate-limit key behaviour is the foundation under test.
-    expect([404, 405, 501]).toContain(response.status);
+    // The public contact route is real; the minimal body fails validation.
+    expect(response.status).toBe(422);
+    const contactBody = await response.json<{ error: { code: string } }>();
+    expect(contactBody.error.code).toBe("VALIDATION_ERROR");
   });
 
   it("maps dependency failure and unexpected errors without leaking internals", async () => {

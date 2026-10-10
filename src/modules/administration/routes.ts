@@ -14,8 +14,10 @@ import {
   openCaseBodySchema,
   openDisputeBodySchema,
   resolveDisputeBodySchema,
+  submitEnquiryBodySchema,
   submitReportBodySchema,
   transitionCaseBodySchema,
+  transitionEnquiryBodySchema,
   upsertPlatformRuleBodySchema,
   warrantyAdminDecisionBodySchema,
 } from "./schemas";
@@ -128,6 +130,51 @@ export function createAdministrationRoutes() {
       );
     },
   );
+
+  routes.post("/v1/public/contact", async (context) => {
+    const account = context.get("account");
+    const input = await parseJsonBody(submitEnquiryBodySchema, context.req.raw);
+    const { client, service } = createService(
+      context.get("environment").DATABASE_URL,
+    );
+    try {
+      return context.json(
+        {
+          data: await service.submitEnquiry(account?.authUserId ?? null, {
+            ...input,
+            correlationId: context.get("requestId"),
+          }),
+          requestId: context.get("requestId"),
+        },
+        201,
+      );
+    } finally {
+      await client.close();
+    }
+  });
+
+  routes.get("/v1/admin/enquiries", async (context) => {
+    return withAdmin(context, (service, authUserId) =>
+      service.listEnquiries(
+        authUserId,
+        parseQuery(adminQueueQuerySchema, context.req.url),
+      ),
+    );
+  });
+
+  routes.post("/v1/admin/enquiries/:enquiryId/transition", async (context) => {
+    const input = await parseJsonBody(
+      transitionEnquiryBodySchema,
+      context.req.raw,
+    );
+    return withAdmin(context, (service, authUserId) =>
+      service.transitionEnquiry(
+        authUserId,
+        id(context.req.param("enquiryId")),
+        { ...input, correlationId: context.get("requestId") },
+      ),
+    );
+  });
 
   routes.get("/v1/admin/disputes", async (context) => {
     return withAdmin(context, (service, authUserId) =>

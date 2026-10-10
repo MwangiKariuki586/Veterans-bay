@@ -108,6 +108,56 @@ export class AdministrationService {
     });
   }
 
+  async submitEnquiry(
+    authUserId: string | null,
+    input: {
+      inquiryType: string;
+      name: string;
+      email: string;
+      phone?: string | null;
+      message: string;
+      correlationId?: string;
+    },
+  ) {
+    // Enquiries stay submittable without an account so suspended visitors can
+    // still reach support; a resolvable profile is linked opportunistically.
+    const profile = authUserId
+      ? await this.identityStore.findProfileByAuthUserId(authUserId)
+      : null;
+    const created = await this.repository.submitEnquiry({
+      ...input,
+      accountId: profile?.id ?? null,
+    });
+    return {
+      reference: created.reference,
+      inquiryType: created.inquiryType,
+      status: created.status,
+      openedAt: created.openedAt,
+    };
+  }
+
+  async listEnquiries(authUserId: string, input: QueueInput) {
+    await this.requireAdmin(authUserId);
+    return page(await this.repository.listEnquiries(input), input);
+  }
+
+  async transitionEnquiry(
+    authUserId: string,
+    enquiryId: string,
+    input: {
+      action: string;
+      reason: string;
+      correlationId?: string;
+    },
+  ) {
+    const account = await this.requireAdmin(authUserId);
+    return this.repository.transitionEnquiry({
+      enquiryId,
+      actorAccountId: account.id,
+      ...input,
+    });
+  }
+
   async transitionDispute(
     authUserId: string,
     disputeId: string,

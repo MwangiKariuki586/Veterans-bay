@@ -12,12 +12,32 @@ import { StatePanel } from "@/components/ui/state-panel";
 import { Surface } from "@/components/ui/surface";
 import type {
   AdminDispute,
+  AdminEnquiry,
   AuditEvent,
   EscalatedWarranty,
   PageResult,
   PlatformRule,
 } from "@/modules/administration/types";
 import { administrationApi } from "./administration-api";
+
+export function EnquiryQueue() {
+  return (
+    <DecisionQueue<AdminEnquiry>
+      path="/api/v1/admin/enquiries?status=all&pageSize=30"
+      emptyTitle="No open enquiries"
+      emptyDescription="Public contact enquiries will appear here for platform triage."
+      title={(item) => `${item.reference} · ${item.inquiryType}`}
+      description={(item) => `${item.name} — ${item.message}`}
+      status={(item) => item.status}
+      actions={[
+        ["START_REVIEW", "Start review"],
+        ["RESOLVE", "Resolve"],
+        ["DISMISS", "Dismiss"],
+      ]}
+      actionPath={(item) => `/api/v1/admin/enquiries/${item.id}/transition`}
+    />
+  );
+}
 
 export function DisputeQueue() {
   return (

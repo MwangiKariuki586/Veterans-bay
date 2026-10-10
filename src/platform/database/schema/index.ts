@@ -8,6 +8,7 @@ export {
   moderationCases,
   moderationReports,
   platformRules,
+  publicEnquiries,
 } from "./administration";
 export {
   analyticsDailyCounts,

@@ -1200,6 +1200,7 @@ export class DashboardsRepository {
           (select count(*)::int from jobs where status = 'COMPLETED' and completed_at >= ${range.from} and completed_at < ${range.to}) as completed_jobs,
           (select count(*)::int from moderation_reports where status in ('OPEN','IN_REVIEW')) as open_reports,
           (select count(*)::int from disputes where status in ('OPEN','INVESTIGATING','AWAITING_DECISION')) as active_disputes,
+          (select count(*)::int from public_enquiries where status in ('NEW','IN_REVIEW')) as open_enquiries,
           (select count(*)::int from jobs where created_at >= ${range.from} and created_at < ${range.to}) as total_jobs
       `),
       this.db.execute(sql`

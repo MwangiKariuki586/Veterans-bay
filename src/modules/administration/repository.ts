@@ -19,6 +19,7 @@ import {
   moderationCases,
   moderationReports,
   platformRules,
+  publicEnquiries,
 } from "../../platform/database/schema/administration";
 import { accountRestrictions } from "../../platform/database/schema/account-restrictions";
 import { auditEvents } from "../../platform/database/schema/audit-events";
@@ -595,6 +596,142 @@ export class AdministrationRepository {
     });
   }
 
+  async submitEnquiry(input: {
+    inquiryType: string;
+    name: string;
+    email: string;
+    phone?: string | null;
+    message: string;
+    accountId?: string | null;
+    correlationId?: string;
+  }) {
+    return this.db.transaction(async (tx) => {
+      let created: typeof publicEnquiries.$inferSelect | undefined;
+      for (let attempt = 0; attempt < 3 && !created; attempt += 1) {
+        const [candidate] = await tx
+          .insert(publicEnquiries)
+          .values({
+            reference: enquiryReference(),
+            inquiryType: input.inquiryType,
+            name: input.name,
+            email: input.email,
+            phone: input.phone ?? null,
+            message: input.message,
+            accountId: input.accountId ?? null,
+          })
+          .onConflictDoNothing({ target: publicEnquiries.reference })
+          .returning();
+        created = candidate;
+      }
+      if (!created) {
+        throw conflict("The enquiry could not be recorded. Please try again.");
+      }
+      await tx.insert(auditEvents).values({
+        actorAccountId: input.accountId ?? null,
+        action: "enquiry.submitted",
+        entityType: "enquiry",
+        entityId: created.id,
+        correlationId: input.correlationId,
+        metadata: {
+          reference: created.reference,
+          inquiryType: created.inquiryType,
+        },
+      });
+      await tx.insert(outboxEvents).values({
+        eventType: "enquiry.received",
+        eventVersion: 1,
+        aggregateType: "enquiry",
+        aggregateId: created.id,
+        actorAccountId: input.accountId ?? null,
+        correlationId: input.correlationId,
+        payload: {
+          reference: created.reference,
+          inquiryType: created.inquiryType,
+        },
+      });
+      return created;
+    });
+  }
+
+  async listEnquiries(input: PageInput & { status: string }) {
+    const filter =
+      input.status === "all" ? undefined : eq(publicEnquiries.status, input.status);
+    const [items, totals] = await Promise.all([
+      this.db
+        .select()
+        .from(publicEnquiries)
+        .where(filter)
+        .orderBy(asc(publicEnquiries.openedAt), asc(publicEnquiries.id))
+        .limit(input.pageSize)
+        .offset((input.page - 1) * input.pageSize),
+      this.db.select({ value: count() }).from(publicEnquiries).where(filter),
+    ]);
+    return { items, totalItems: totals[0]?.value ?? 0 };
+  }
+
+  async transitionEnquiry(input: {
+    enquiryId: string;
+    actorAccountId: string;
+    action: string;
+    reason: string;
+    correlationId?: string;
+  }) {
+    return this.db.transaction(async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(publicEnquiries)
+        .where(eq(publicEnquiries.id, input.enquiryId))
+        .limit(1);
+      if (!current || ["RESOLVED", "DISMISSED"].includes(current.status)) {
+        throw conflict("The enquiry cannot take this action.");
+      }
+      const transition = enquiryTransition(input.action);
+      const now = new Date();
+      const [updated] = await tx
+        .update(publicEnquiries)
+        .set({
+          status: transition.status,
+          resolution: transition.final ? input.reason : null,
+          resolvedAt: transition.final ? now : null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(publicEnquiries.id, current.id),
+            eq(publicEnquiries.status, current.status),
+          ),
+        )
+        .returning();
+      if (!updated) throw conflict();
+      await tx.insert(auditEvents).values({
+        actorAccountId: input.actorAccountId,
+        action: transition.final ? "enquiry.resolved" : "enquiry.updated",
+        entityType: "enquiry",
+        entityId: current.id,
+        correlationId: input.correlationId,
+        metadata: {
+          fromStatus: current.status,
+          toStatus: transition.status,
+          reason: input.reason,
+        },
+      });
+      await tx.insert(outboxEvents).values({
+        eventType: transition.final ? "enquiry.resolved" : "enquiry.updated",
+        eventVersion: 1,
+        aggregateType: "enquiry",
+        aggregateId: current.id,
+        actorAccountId: input.actorAccountId,
+        correlationId: input.correlationId,
+        payload: {
+          reference: current.reference,
+          inquiryType: current.inquiryType,
+          resolution: transition.final ? input.reason : null,
+        },
+      });
+      return updated;
+    });
+  }
+
   async listEscalatedWarranties(input: PageInput) {
     const [items, totals] = await Promise.all([
       this.db
@@ -797,6 +934,27 @@ function caseTransition(action: string) {
           ? "ACCOUNT_RESTORED"
           : "NO_ACTION";
   return { status: "RESOLVED", final: true, resolution };
+}
+
+const ENQUIRY_REFERENCE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function enquiryReference(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  let suffix = "";
+  for (const byte of bytes) {
+    suffix += ENQUIRY_REFERENCE_ALPHABET[byte % ENQUIRY_REFERENCE_ALPHABET.length];
+  }
+  return `ENQ-${suffix}`;
+}
+
+function enquiryTransition(action: string) {
+  if (action === "START_REVIEW") {
+    return { status: "IN_REVIEW", final: false };
+  }
+  if (action === "DISMISS") {
+    return { status: "DISMISSED", final: true };
+  }
+  return { status: "RESOLVED", final: true };
 }
 
 function disputeTransition(action: string) {

@@ -66,6 +66,7 @@ const configuration = {
       ["new_requests", "New requests", "/admin/analytics"],
       ["completed_jobs", "Completed jobs", "/admin/analytics"],
       ["open_reports", "Open reports", "/admin/reports"],
+      ["open_enquiries", "Open enquiries", "/admin/enquiries"],
       ["active_disputes", "Active disputes", "/admin/disputes"],
       ["completion_rate", "Completion rate", "/admin/analytics"],
     ],

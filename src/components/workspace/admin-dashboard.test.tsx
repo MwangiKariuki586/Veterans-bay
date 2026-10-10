@@ -17,6 +17,7 @@ describe("admin dashboard", () => {
               new_requests: 8,
               completed_jobs: 6,
               open_reports: 1,
+              open_enquiries: 1,
               active_disputes: 1,
               completion_rate: 75,
             },
