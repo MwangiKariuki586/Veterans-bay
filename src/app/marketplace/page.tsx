@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 
 import { PublicShell } from "@/components/public/public-shell";
 import { FiltersDesktopServer, FiltersMobileServer } from "@/components/marketplace/filters-server";
@@ -13,8 +12,8 @@ import {
   QuickFiltersSkeleton,
 } from "@/components/marketplace/marketplace-skeletons";
 import { marketplaceSearchQuerySchema } from "@/modules/marketplace/schemas";
-import { Star, ArrowRight } from "lucide-react";
 import { PopularServicesServer } from "@/components/marketplace/popular-services-server";
+import { GetMatchedHelpCard } from "@/components/matching/get-matched-help-card";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -51,21 +50,6 @@ function MarketplaceMobileControlsFallback() {
       </div>
       <QuickFiltersSkeleton />
     </section>
-  );
-}
-
-
-
-function HelpCardStatic({ className }: { className?: string }) {
-  return (
-    <aside className={className ?? "rounded-2xl border border-[#e8ecd7] bg-[#fbfdf4] p-5"}>
-      <span className="grid size-11 place-items-center rounded-full bg-[#eff8cf] text-[#648f12]">?</span>
-      <h2 className="mt-3 text-base font-semibold">Need help choosing?</h2>
-      <p className="mt-2 text-sm leading-6 text-[#425671]">Tell us what you need and we&apos;ll help you find the right professional.</p>
-      <Link href="/support" prefetch={false} className="mt-4 flex h-10 w-full items-center justify-between rounded-xl bg-primary px-4 text-xs font-semibold">
-        Get matched <ArrowRight className="size-4" />
-      </Link>
-    </aside>
   );
 }
 
@@ -116,7 +100,7 @@ export default async function MarketplaceRoute({
           {/* Right: Help + Popular - sticky like filters, CSS-only */}
           <aside className="hidden min-[960px]:block">
             <div className="sticky top-5 space-y-4">
-              <HelpCardStatic />
+              <GetMatchedHelpCard />
               <Suspense fallback={<PopularServicesSkeleton />}>
                 <PopularServicesServer location={input.location} />
               </Suspense>
@@ -126,7 +110,7 @@ export default async function MarketplaceRoute({
 
         {/* Mobile help - static */}
         <div className="mt-5 min-[960px]:hidden">
-          <HelpCardStatic />
+          <GetMatchedHelpCard />
         </div>
       </main>
     </PublicShell>
